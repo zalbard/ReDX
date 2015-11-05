@@ -5,18 +5,46 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
-    </Filter>
     <Filter Include="Resource Files">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\Common">
+      <UniqueIdentifier>{635b3607-a289-458c-b038-205073f07833}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\D3D12">
+      <UniqueIdentifier>{581b48eb-c3e8-45df-aa18-f5fcf155e5c0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\UI">
+      <UniqueIdentifier>{361778c5-ff74-45da-8e19-1177a4fe7f42}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\ReDX.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Source\D3D12\Renderer.cpp">
+      <Filter>Source Files\D3D12</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\UI\Window.cpp">
+      <Filter>Source Files\UI</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Source\D3D12\Renderer.h">
+      <Filter>Source Files\D3D12</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Common\Definitions.h">
+      <Filter>Source Files\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Common\Utility.h">
+      <Filter>Source Files\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\UI\Window.h">
+      <Filter>Source Files\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\D3D12\d3dx12.h">
+      <Filter>Source Files\D3D12</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
