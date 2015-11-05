@@ -18,6 +18,9 @@
     <Filter Include="Source Files\UI">
       <UniqueIdentifier>{361778c5-ff74-45da-8e19-1177a4fe7f42}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Shaders">
+      <UniqueIdentifier>{6ed28e94-a687-4792-9c05-45f54d1b2196}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source\ReDX.cpp">
@@ -46,5 +49,18 @@
     <ClInclude Include="Source\D3D12\d3dx12.h">
       <Filter>Source Files\D3D12</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include=".gitignore">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="README.md">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Source\Shaders\Shaders.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
