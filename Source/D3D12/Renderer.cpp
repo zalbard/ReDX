@@ -51,8 +51,8 @@ void Renderer::initPipeline() {
     createDescriptorHeap();
     // Set offset (increment size) for descriptor handles
     m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    /* 6. Create frame resources */
-    createFrameResources();
+    /* 6. Create RTVs for each frame buffer */
+    createRenderTargetViews();
     /* 7. Create command allocator */
     CHECK_CALL(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
                                                 IID_PPV_ARGS(&m_commandAllocator)),
@@ -136,7 +136,7 @@ void Renderer::createDescriptorHeap() {
                "Failed to create a descriptor heap.");
 }
 
-void D3D12::Renderer::createFrameResources() {
+void D3D12::Renderer::createRenderTargetViews() {
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart()};
 
     for (UINT bufferIndex = 0; bufferIndex < m_bufferCount; ++bufferIndex) {

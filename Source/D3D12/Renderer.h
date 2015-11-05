@@ -30,8 +30,8 @@ namespace D3D12 {
         void createSwapChain(IDXGIFactory4* const factory);
         // Creates descriptor heap
         void createDescriptorHeap();
-        // Creates frame resources
-        void createFrameResources();
+        // Creates RTVs for each frame buffer
+        void createRenderTargetViews();
         // TODO
         void loadAssets();
         /* Frame buffer count */
