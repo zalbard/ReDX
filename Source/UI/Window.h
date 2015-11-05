@@ -6,9 +6,9 @@
 // Singleton GUI Window
 class Window {
 public:
-   // Creates window; takes horizontal and vertical resolution as input
+   // Creates a window; takes horizontal and vertical resolution as input
    static void create(const LONG resX, const LONG resY);
-   // Returns window handle
+   // Returns the handle of the window
    static HWND handle();
 private:
    RULE_OF_ZERO_MOVE_ONLY(Window);

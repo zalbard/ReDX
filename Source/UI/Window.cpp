@@ -12,10 +12,10 @@ LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
                             const WPARAM wParam, const LPARAM lParam);
 
 void Window::create(const LONG resX, const LONG resY) {
-    // Set up rectangle position and dimensions
+    // Set up the rectangle position and dimensions
     m_rect = {0, 0, resX, resY};
     AdjustWindowRect(&m_rect, WS_OVERLAPPEDWINDOW, FALSE);
-    // Set up window class
+    // Set up the window class
     m_class.cbSize        = sizeof(WNDCLASSEX);
     m_class.style         = CS_HREDRAW | CS_VREDRAW;
     m_class.lpfnWndProc   = WindowProc;
@@ -23,7 +23,7 @@ void Window::create(const LONG resX, const LONG resY) {
     m_class.hCursor       = LoadCursor(nullptr, IDC_ARROW);
     m_class.lpszClassName = L"ReDXWindowClass";
     RegisterClassEx(&m_class);
-    // Create window and store its handle
+    // Create a window and store its handle
     m_hwnd = CreateWindow(m_class.lpszClassName,
                           m_title,
                           WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,  // Disable resizing
@@ -33,7 +33,7 @@ void Window::create(const LONG resX, const LONG resY) {
                           nullptr, nullptr,                         // No parent window, no menus
                           GetModuleHandle(nullptr),
                           nullptr);
-    // Display window
+    // Display the window
     ShowWindow(m_hwnd, SW_SHOWNORMAL);
 }
 

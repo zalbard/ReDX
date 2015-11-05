@@ -5,13 +5,13 @@
 #include <cstdarg>
 #include <time.h>
 
-// Compute square of value
+// Computes the square of the value
 template <typename T>
 static inline T sq(const T v) {
     return v * v;
 }
 
-// Compute inverse square of value
+// Computes the inverse square of the value
 template <typename T>
 static inline float invSq(const T v) {
     return 1.0f / (v * v);
@@ -19,17 +19,17 @@ static inline float invSq(const T v) {
 
 // For internal use only!
 static inline void printInternal(FILE* const stream, const char* const fmt, const va_list& args) {
-    // Print timestamp
+    // Print the timestamp
     time_t rawTime;
     time(&rawTime);
     struct tm timeInfo;
     localtime_s(&timeInfo, &rawTime);
     fprintf(stdout, "[%i:%i:%i] ", timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_sec);
-    // Print arguments
+    // Print the arguments
     vfprintf(stream, fmt, args);
 }
 
-// Print information to stdout (printf syntax)
+// Prints information to stdout (printf syntax)
 static inline void printInfo(const char* const fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -38,7 +38,7 @@ static inline void printInfo(const char* const fmt, ...) {
     fputs("\n", stdout);
 }
 
-// Print warnings/errors to stderr (printf syntax)
+// Prints warnings/errors to stderr (printf syntax)
 static inline void printError(const char* const fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -53,5 +53,5 @@ static inline void printError(const char* const fmt, ...) {
     abort();
 }
 
-// Print fatal error location and terminate the program
+// Prints the location of the fatal error and terminates the program
 #define TERMINATE() panic(__FILE__, __LINE__)

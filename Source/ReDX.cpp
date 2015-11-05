@@ -11,21 +11,21 @@ int main(const int argc, const char* argv[]) {
             printError("%s", argv[i]);
         }
 	}
-    // Verify SSE2 support for DirectXMath library
+    // Verify SSE2 support for the DirectXMath library
     if (!DirectX::XMVerifyCPUSupport()) {
         printError("The CPU doesn't support SSE2. Aborting.");
         return -1;
     }
     static const LONG resX = 1280;
     static const LONG resY = 720;
-    // Open window for rendering ourput
+    // Open a window for rendering output
     Window::create(resX, resY);
-    // Initialize renderer
+    // Initialize the renderer
     D3D12::Renderer engine{resX, resY, Window::handle()};
     // Main loop
     MSG msg = {};
     while (WM_QUIT != msg.message) {
-        // Process any messages in queue
+        // Process the messages in the queue
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
