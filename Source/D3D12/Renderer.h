@@ -16,8 +16,9 @@ namespace D3D12 {
         // as well as a window handle as the input
         Renderer(const LONG resX, const LONG resY, const HWND wnd);
     private:
-        // Initializes the rendering pipeline
-        void initPipeline();
+        // Configures the hardware and the software layers
+        // This step is independent from the rendering pipeline
+        void configureEnvironment();
         // Enables the Direct3D debug layer
         void enableDebugLayer() const;
         // Creates a WARP (software) Direct3D device
@@ -32,8 +33,8 @@ namespace D3D12 {
         void createDescriptorHeap();
         // Creates RTVs for each frame buffer
         void createRenderTargetViews();
-        // Loads assets for triangle rendering
-        void loadAssets();
+        // Configures the rendering pipeline, including the shaders
+        void configurePipeline();
         // Creates a root signature
         void createRootSignature();
         // Creates a graphics pieline state object which describes

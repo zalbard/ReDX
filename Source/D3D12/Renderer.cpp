@@ -14,13 +14,13 @@ using namespace D3D12;
 Renderer::Renderer(const LONG resX, const LONG resY, const HWND wnd):
           m_windowHandle{wnd}, m_width{resX}, m_height{resY},
           m_aspectRatio{static_cast<float>(m_width) / static_cast<float>(m_height)} {
+    // Perform the initialization step
+    configureEnvironment();
     // Set up the rendering pipeline
-    initPipeline();
-    // Load assets for triangle rendering
-    loadAssets();
+    configurePipeline();
 }
 
-void Renderer::initPipeline() {
+void Renderer::configureEnvironment() {
     #ifdef _DEBUG
         // Enable the Direct3D debug layer
         enableDebugLayer();
@@ -139,9 +139,8 @@ void Renderer::createDescriptorHeap() {
 
 void D3D12::Renderer::createRenderTargetViews() {
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart()};
-
+    // Create a Render Target View (RTV) for each frame buffer
     for (UINT bufferIndex = 0; bufferIndex < m_bufferCount; ++bufferIndex) {
-        // Create a Render Target View (RTV) for each frame buffer
         CHECK_CALL(m_swapChain->GetBuffer(bufferIndex, IID_PPV_ARGS(&m_renderTargets[bufferIndex])),
                    "Failed to aquire a swap chain buffer.");
         m_device->CreateRenderTargetView(m_renderTargets[bufferIndex].Get(), nullptr, rtvHandle);
@@ -150,7 +149,7 @@ void D3D12::Renderer::createRenderTargetViews() {
     }
 }
 
-void D3D12::Renderer::loadAssets() {
+void D3D12::Renderer::configurePipeline() {
     /* 1. Create a root signature */
     createRootSignature();
     // TODO
@@ -161,11 +160,12 @@ void D3D12::Renderer::createRootSignature() {
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(0, nullptr, 0, nullptr,
                            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-
+    // Serialize a root signature from the description
     ComPtr<ID3DBlob> signature, error;
     CHECK_CALL(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1,
                                            &signature, &error),
                "Failed to serialize a root signature.");
+    // Create a root signature layout using the serialized signature
     CHECK_CALL(m_device->CreateRootSignature(0, signature->GetBufferPointer(),
                signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)),
                "Failed to create a root signature.");
