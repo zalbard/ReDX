@@ -43,7 +43,7 @@ namespace D3D12 {
         /* Frame buffer count */
         static const UINT                 m_bufferCount = 2;
         /* Adapter info */
-	static const bool                 m_useWarpDevice = false;
+        static const bool                 m_useWarpDevice = false;
         /* Window handle */
         HWND                              m_windowHandle;
         /* Viewport dimensions */

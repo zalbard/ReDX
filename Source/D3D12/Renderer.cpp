@@ -1,5 +1,6 @@
-#include "d3dx12.h"
+#include <d3dcompiler.h>
 #include "Renderer.h"
+#include "d3dx12.h"
 #include "..\Common\Utility.h"
 
 using namespace D3D12;
@@ -152,7 +153,8 @@ void D3D12::Renderer::createRenderTargetViews() {
 void D3D12::Renderer::configurePipeline() {
     /* 1. Create a root signature */
     createRootSignature();
-    // TODO
+    /* 2. Create a pipeline state object */
+    createPipelineStateObject();
 }
 
 void D3D12::Renderer::createRootSignature() {
@@ -169,4 +171,30 @@ void D3D12::Renderer::createRootSignature() {
     CHECK_CALL(m_device->CreateRootSignature(0, signature->GetBufferPointer(),
                signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)),
                "Failed to create a root signature.");
+}
+
+// Loads and compiles vertex and pixel shaders; takes the full path to the shader file,
+// the name of the main (entry point) function, and the shader type
+ComPtr<ID3DBlob> loadAndCompileShader(const WCHAR* const pathAndFileName,
+                                      const char* const entryPoint, const char* const type) {
+    ComPtr<ID3DBlob> shader;
+    #ifdef _DEBUG
+        // Enable debugging symbol information, and disable certain optimizations
+        const UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+    #else
+        const UINT compileFlags = 0;
+    #endif
+    // Load and compile the shader
+    CHECK_CALL(D3DCompileFromFile(pathAndFileName, nullptr, nullptr,
+               entryPoint, type, compileFlags, 0, &shader, nullptr),
+               "Failed to load and compile a shader.");
+    return shader;
+}
+
+void D3D12::Renderer::createPipelineStateObject() {
+    ComPtr<ID3DBlob> vertexShader = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl",
+                                                         "VSMain", "vs_5_0");
+    ComPtr<ID3DBlob> pixelShader  = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl",
+                                                         "PSMain", "ps_5_0");
+    vertexShader; pixelShader;
 }

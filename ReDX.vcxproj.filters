@@ -57,10 +57,8 @@
     <None Include="README.md">
       <Filter>Resource Files</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="Source\Shaders\Shaders.hlsl">
+    <None Include="Source\Shaders\Shaders.hlsl">
       <Filter>Source Files\Shaders</Filter>
-    </FxCompile>
+    </None>
   </ItemGroup>
 </Project>
