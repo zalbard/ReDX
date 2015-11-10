@@ -79,7 +79,7 @@ void Renderer::createWarpDevice(IDXGIFactory4* const factory) {
 }
 
 void Renderer::createHardwareDevice(IDXGIFactory4* const factory) {
-    for (UINT adapterIndex = 0; ; ++adapterIndex) {
+    for (UINT adapterIndex = 0u; ; ++adapterIndex) {
         // Select the next adapter
         ComPtr<IDXGIAdapter1> adapter;
         if (DXGI_ERROR_NOT_FOUND == factory->EnumAdapters1(adapterIndex, &adapter)) {
@@ -101,26 +101,43 @@ void Renderer::createHardwareDevice(IDXGIFactory4* const factory) {
 
 void Renderer::createCommandQueue() {
     // Fill out the command queue description
-    D3D12_COMMAND_QUEUE_DESC queueDesc = {};
-    queueDesc.Type  = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+    const D3D12_COMMAND_QUEUE_DESC queueDesc = {
+        /* Type */     D3D12_COMMAND_LIST_TYPE_DIRECT,
+        /* Priority */ D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
+        /* Flags */    D3D12_COMMAND_QUEUE_FLAG_NONE,
+        /* NodeMask */ 0u   //  Single GPU
+    };
     // Create a command queue
     CHECK_CALL(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)),
                "Failed to create a command queue.");
 }
 
 void Renderer::createSwapChain(IDXGIFactory4* const factory) {
+    // Fill out the buffer description
+    const DXGI_MODE_DESC bufferDesc = {
+        /* Width */            static_cast<UINT>(m_width),
+        /* Height */           static_cast<UINT>(m_height),
+        /* RefreshRate */      DXGI_RATIONAL{},
+        /* Format */           DXGI_FORMAT_R8G8B8A8_UNORM,
+        /* ScanlineOrdering */ DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
+        /* Scaling */          DXGI_MODE_SCALING_UNSPECIFIED
+    };
+    // Fill out the multi-sampling parameters
+    const DXGI_SAMPLE_DESC sampleDesc = {
+        /* Count */   1u,   // No multi-sampling
+        /* Quality */ 0u    // Default sampler
+    };
     // Fill out the swap chain description
-    DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
-    swapChainDesc.BufferCount       = m_bufferCount;
-    swapChainDesc.BufferDesc.Width  = m_width;
-    swapChainDesc.BufferDesc.Height = m_height;
-    swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    swapChainDesc.BufferUsage       = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapChainDesc.SwapEffect        = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-    swapChainDesc.OutputWindow      = m_windowHandle;
-    swapChainDesc.SampleDesc.Count  = 1;
-    swapChainDesc.Windowed          = TRUE;
+    DXGI_SWAP_CHAIN_DESC swapChainDesc = {
+        /* BufferDesc */   bufferDesc,
+        /* SampleDesc */   sampleDesc,
+        /* BufferUsage */  DXGI_USAGE_RENDER_TARGET_OUTPUT,
+        /* BufferCount */  m_bufferCount,
+        /* OutputWindow */ m_windowHandle,
+        /* Windowed */     TRUE,
+        /* SwapEffect */   DXGI_SWAP_EFFECT_FLIP_DISCARD,
+        /* Flags */        0u
+    };
     // Create a swap chain; it needs a command queue to flush the latter
     CHECK_CALL(factory->CreateSwapChain(m_commandQueue.Get(), &swapChainDesc,
                reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf())),
@@ -129,10 +146,12 @@ void Renderer::createSwapChain(IDXGIFactory4* const factory) {
 
 void Renderer::createDescriptorHeap() {
     // Fill out the descriptor heap description
-    D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-    rtvHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    rtvHeapDesc.NumDescriptors = m_bufferCount;
-    rtvHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    const D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {
+        /* Type */           D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+        /* NumDescriptors */ m_bufferCount,
+        /* Flags */          D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
+        /* NodeMask */       0u     //  Single GPU
+    };
     // Create a descriptor heap
     CHECK_CALL(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)),
                "Failed to create a descriptor heap.");
@@ -141,7 +160,7 @@ void Renderer::createDescriptorHeap() {
 void D3D12::Renderer::createRenderTargetViews() {
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart()};
     // Create a Render Target View (RTV) for each frame buffer
-    for (UINT bufferIndex = 0; bufferIndex < m_bufferCount; ++bufferIndex) {
+    for (UINT bufferIndex = 0u; bufferIndex < m_bufferCount; ++bufferIndex) {
         CHECK_CALL(m_swapChain->GetBuffer(bufferIndex, IID_PPV_ARGS(&m_renderTargets[bufferIndex])),
                    "Failed to aquire a swap chain buffer.");
         m_device->CreateRenderTargetView(m_renderTargets[bufferIndex].Get(), nullptr, rtvHandle);
@@ -160,7 +179,7 @@ void D3D12::Renderer::configurePipeline() {
 void D3D12::Renderer::createRootSignature() {
     // Fill out the root signature description
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(0, nullptr, 0, nullptr,
+    rootSignatureDesc.Init(0u, nullptr, 0u, nullptr,
                            D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
     // Serialize a root signature from the description
     ComPtr<ID3DBlob> signature, error;
