@@ -205,15 +205,84 @@ ComPtr<ID3DBlob> loadAndCompileShader(const WCHAR* const pathAndFileName,
     #endif
     // Load and compile the shader
     CHECK_CALL(D3DCompileFromFile(pathAndFileName, nullptr, nullptr,
-               entryPoint, type, compileFlags, 0, &shader, nullptr),
+               entryPoint, type, compileFlags, 0u, &shader, nullptr),
                "Failed to load and compile a shader.");
     return shader;
 }
 
 void D3D12::Renderer::createPipelineStateObject() {
-    ComPtr<ID3DBlob> vertexShader = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl",
-                                                         "VSMain", "vs_5_0");
-    ComPtr<ID3DBlob> pixelShader  = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl",
-                                                         "PSMain", "ps_5_0");
-    vertexShader; pixelShader;
+    const auto vs = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "VSMain", "vs_5_0");
+    const auto ps = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "PSMain", "ps_5_0");
+    // Fill out the depth stencil description
+    const D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {
+        /* DepthEnable */      FALSE,
+        /* DepthWriteMask */   D3D12_DEPTH_WRITE_MASK_ZERO,
+        /* DepthFunc */        D3D12_COMPARISON_FUNC_NEVER,
+        /* StencilEnable */    FALSE,
+        /* StencilReadMask */  0u,
+        /* StencilWriteMask */ 0u,
+        /* FrontFace */        D3D12_DEPTH_STENCILOP_DESC{},
+        /* BackFace */         D3D12_DEPTH_STENCILOP_DESC{}
+    };
+    // Define the vertex input layout
+    const D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+        {
+            /* SemanticName */         "POSITION",
+            /* SemanticIndex */        0u,
+            /* Format */               DXGI_FORMAT_R32G32B32_FLOAT,
+            /* InputSlot */            0u,
+            /* AlignedByteOffset */    0u,
+            /* InputSlotClass */       D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+            /* InstanceDataStepRate */ 0u
+        },
+        {
+            /* SemanticName */         "COLOR",
+            /* SemanticIndex */        0u,
+            /* Format */               DXGI_FORMAT_R32G32B32_FLOAT,
+            /* InputSlot */            0u,
+            /* AlignedByteOffset */    12u,
+            /* InputSlotClass */       D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+            /* InstanceDataStepRate */ 0u
+        }
+    };
+    const D3D12_INPUT_LAYOUT_DESC inputLayoutDesc = {
+        /* pInputElementDescs */ inputElementDescs,
+        /* NumElements */        _countof(inputElementDescs)
+    };
+    // Fill out the multi-sampling parameters
+    const DXGI_SAMPLE_DESC sampleDesc = {
+        /* Count */   1u,   // No multi-sampling
+        /* Quality */ 0u    // Default sampler
+    };
+    // Fill out the pipeline state object description
+    const D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {
+        /* pRootSignature */        m_rootSignature.Get(),
+        /* VS */                    D3D12_SHADER_BYTECODE{
+            /* pShaderBytecode */       reinterpret_cast<UINT8*>(vs->GetBufferPointer()),
+            /* BytecodeLength  */       vs->GetBufferSize()
+                                    },
+        /* PS */                    D3D12_SHADER_BYTECODE{
+            /* pShaderBytecode */       reinterpret_cast<UINT8*>(ps->GetBufferPointer()),
+            /* BytecodeLength  */       ps->GetBufferSize()
+                                    },
+        /* DS, HS, GS */            {}, {}, {},
+        /* StreamOutput */          D3D12_STREAM_OUTPUT_DESC{},
+        /* BlendState */            CD3DX12_BLEND_DESC{D3D12_DEFAULT},
+        /* SampleMask */            UINT_MAX,
+        /* RasterizerState */       CD3DX12_RASTERIZER_DESC{D3D12_DEFAULT},
+        /* DepthStencilState */     depthStencilDesc,
+        /* InputLayout */           inputLayoutDesc,
+        /* IBStripCutValue */       D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
+        /* PrimitiveTopologyType */ D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+        /* NumRenderTargets */      1u,
+        /* RTVFormats[ 8 ] */       {DXGI_FORMAT_R8G8B8A8_UNORM},
+        /* DSVFormat */             DXGI_FORMAT_UNKNOWN,
+        /* SampleDesc */            sampleDesc,
+        /* NodeMask */              0u,
+        /* CachedPSO */             D3D12_CACHED_PIPELINE_STATE{},
+        /* Flags */                 D3D12_PIPELINE_STATE_FLAG_NONE
+    };
+    // Create a graphics pipeline state object
+    CHECK_CALL(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)),
+               "Failed to create a pipeline state object.");
 }
