@@ -298,5 +298,37 @@ void Renderer::createPipelineStateObject() {
 }
 
 void Renderer::createVertexBuffer() {
-
+    // Define a screen-space triangle
+    const Vertex triangleVertices[] = {
+        Vertex{ {   0.0f,  0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
+        Vertex{ {  0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
+        Vertex{ { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+    };
+    const UINT vertexBufferSize = sizeof(triangleVertices);
+    // Use an upload heap to hold the vertex buffer
+    // TODO: inefficient, change this!
+    const auto heapProperties   = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
+    const auto vertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties,
+                                                 D3D12_HEAP_FLAG_NONE,
+                                                 &vertexBufferDesc,
+                                                 D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                 nullptr,
+                                                 IID_PPV_ARGS(&m_vertexBuffer)),
+               "Failed to create an upload heap.");
+    // Aquire a CPU pointer to the buffer (subresource "sr")
+    static constexpr UINT sr = 0u;
+    UINT8* pVertexData;
+    // Note: we don't intend to read from this resource on the CPU
+    const CD3DX12_RANGE readRange{0u, 0u};
+    CHECK_CALL(m_vertexBuffer->Map(sr, &readRange, reinterpret_cast<void**>(&pVertexData)),
+               "Failed to map the vertex buffer.");
+    // Copy the triangle data to the vertex buffer
+    memcpy(pVertexData, triangleVertices, sizeof(triangleVertices));
+    // Unmap the buffer
+    m_vertexBuffer->Unmap(sr, nullptr);
+    // Initialize the vertex buffer view
+    m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
+    m_vertexBufferView.StrideInBytes  = sizeof(Vertex);
+    m_vertexBufferView.SizeInBytes    = vertexBufferSize;
 }
