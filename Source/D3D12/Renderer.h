@@ -40,6 +40,8 @@ namespace D3D12 {
         // Creates a graphics pieline state object which describes
         // the input data format and how its processed (rendered)
         void createPipelineStateObject();
+        // Creates a vertex buffer
+        void createVertexBuffer();
         /* Frame buffer count */
         static const UINT                 m_bufferCount = 2;
         /* Adapter info */

@@ -157,7 +157,7 @@ void Renderer::createDescriptorHeap() {
                "Failed to create a descriptor heap.");
 }
 
-void D3D12::Renderer::createRenderTargetViews() {
+void Renderer::createRenderTargetViews() {
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart()};
     // Create a Render Target View (RTV) for each frame buffer
     for (UINT bufferIndex = 0u; bufferIndex < m_bufferCount; ++bufferIndex) {
@@ -169,7 +169,7 @@ void D3D12::Renderer::createRenderTargetViews() {
     }
 }
 
-void D3D12::Renderer::configurePipeline() {
+void Renderer::configurePipeline() {
     /* 1. Create a root signature */
     createRootSignature();
     /* 2. Create a pipeline state object */
@@ -182,9 +182,11 @@ void D3D12::Renderer::configurePipeline() {
     // Command lists are created in the recording state, but there is nothing
     // to record yet. The main loop expects it to be closed, so close it now.
     CHECK_CALL(m_commandList->Close(), "Failed to close the command list.");
+    /* 4. Create a vertex buffer */
+    createVertexBuffer();
 }
 
-void D3D12::Renderer::createRootSignature() {
+void Renderer::createRootSignature() {
     // Fill out the root signature description
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(0u, nullptr, 0u, nullptr,
@@ -218,7 +220,7 @@ ComPtr<ID3DBlob> loadAndCompileShader(const WCHAR* const pathAndFileName,
     return shader;
 }
 
-void D3D12::Renderer::createPipelineStateObject() {
+void Renderer::createPipelineStateObject() {
     const auto vs = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "VSMain", "vs_5_0");
     const auto ps = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "PSMain", "ps_5_0");
     // Fill out the depth stencil description
@@ -293,4 +295,8 @@ void D3D12::Renderer::createPipelineStateObject() {
     // Create a graphics pipeline state object
     CHECK_CALL(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)),
                "Failed to create a pipeline state object.");
+}
+
+void Renderer::createVertexBuffer() {
+
 }
