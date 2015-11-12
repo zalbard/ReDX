@@ -184,6 +184,8 @@ void Renderer::configurePipeline() {
     CHECK_CALL(m_commandList->Close(), "Failed to close the command list.");
     /* 4. Create a vertex buffer */
     createVertexBuffer();
+    /* 5. Create a memory fence and a synchronization event */
+    createSyncPrims();
 }
 
 void Renderer::createRootSignature() {
@@ -331,4 +333,17 @@ void Renderer::createVertexBuffer() {
     m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
     m_vertexBufferView.StrideInBytes  = sizeof(Vertex);
     m_vertexBufferView.SizeInBytes    = vertexBufferSize;
+}
+
+void Renderer::createSyncPrims() {
+    // Create a memory fence object
+    m_fenceValue = 0u;
+    CHECK_CALL(m_device->CreateFence(m_fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)),
+               "Failed to create a memory fence object.");
+    // Create a synchronization event
+    m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    if (!m_fenceEvent) {
+        CHECK_CALL(HRESULT_FROM_WIN32(GetLastError()),
+                   "Failed to create a synchronization event.");
+    }
 }

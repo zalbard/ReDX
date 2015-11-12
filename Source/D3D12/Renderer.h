@@ -51,6 +51,9 @@ namespace D3D12 {
         void createPipelineStateObject();
         // Creates a vertex buffer
         void createVertexBuffer();
+        // Creates synchronization primitives, such as
+        // memory fences and synchronization events
+        void createSyncPrims();
         /* Frame buffer count */
         static const UINT                 m_bufferCount = 2u;
         /* Adapter info */
