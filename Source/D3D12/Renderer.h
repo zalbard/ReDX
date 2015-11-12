@@ -3,10 +3,19 @@
 #include <d3d12.h>
 #include <dxgi1_4.h>
 #include <wrl\client.h>
+#include <DirectXMath.h>
 #include "..\Common\Definitions.h"
 
 namespace D3D12 {
+    using DirectX::XMFLOAT3;
+    using DirectX::XMFLOAT4;
     using Microsoft::WRL::ComPtr;
+
+    // Simple vertex represenation
+    struct Vertex {
+        XMFLOAT3 position;  // Homogeneous screen-space coordinates from [-0.5, 0.5]
+        XMFLOAT4 color;     // RGBA color
+    };
 
     // Direct3D renderer
     class Renderer {

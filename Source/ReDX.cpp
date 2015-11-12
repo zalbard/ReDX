@@ -1,4 +1,3 @@
-#include <DirectXMath.h>
 #include "Common\Utility.h"
 #include "UI\Window.h"
 #include "D3D12\Renderer.h"
