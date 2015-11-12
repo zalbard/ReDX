@@ -43,7 +43,7 @@ namespace D3D12 {
         // Creates a vertex buffer
         void createVertexBuffer();
         /* Frame buffer count */
-        static const UINT                 m_bufferCount = 2;
+        static const UINT                 m_bufferCount = 2u;
         /* Adapter info */
         static const bool                 m_useWarpDevice = false;
         /* Window handle */
