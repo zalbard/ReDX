@@ -1,5 +1,6 @@
 #include <cassert>
 #include "Window.h"
+#include "..\D3D12\Renderer.h"
 
 // Static member initialization
 HWND       Window::m_hwnd  = nullptr;
@@ -11,7 +12,8 @@ WCHAR*     Window::m_title = L"ReDX";
 LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
                             const WPARAM wParam, const LPARAM lParam);
 
-void Window::create(const LONG resX, const LONG resY) {
+void Window::create(const LONG resX, const LONG resY,
+                    D3D12::Renderer* const engine) {
     // Set up the rectangle position and dimensions
     m_rect = {0, 0, resX, resY};
     AdjustWindowRect(&m_rect, WS_OVERLAPPEDWINDOW, FALSE);
@@ -32,7 +34,7 @@ void Window::create(const LONG resX, const LONG resY) {
                           m_rect.bottom - m_rect.top,
                           nullptr, nullptr,                         // No parent window, no menus
                           GetModuleHandle(nullptr),
-                          nullptr);
+                          engine);
     // Display the window
     ShowWindow(m_hwnd, SW_SHOWNORMAL);
 }
@@ -46,6 +48,11 @@ HWND Window::handle() {
 LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message, const WPARAM wParam,
                             const LPARAM lParam) {
     switch (message) {
+        case WM_CREATE:
+            // Save the Renderer* passed into CreateWindow
+            SetWindowLongPtr(hWnd, GWLP_USERDATA,
+                reinterpret_cast<LONG_PTR>(reinterpret_cast<LPCREATESTRUCT>(lParam)->lpCreateParams));
+            return 0;
         case WM_PAINT:
             //OnUpdate();
             //OnRender();

@@ -1,5 +1,4 @@
 #include "Common\Utility.h"
-#include "UI\Window.h"
 #include "D3D12\Renderer.h"
 
 int main(const int argc, const char* argv[]) {
@@ -17,10 +16,8 @@ int main(const int argc, const char* argv[]) {
     }
     static const LONG resX = 1280;
     static const LONG resY = 720;
-    // Open a window for rendering output
-    Window::create(resX, resY);
     // Initialize the renderer
-    D3D12::Renderer engine{resX, resY, Window::handle()};
+    D3D12::Renderer engine{resX, resY};
     // Main loop
     MSG msg = {};
     while (WM_QUIT != msg.message) {
@@ -30,5 +27,6 @@ int main(const int argc, const char* argv[]) {
             DispatchMessage(&msg);
         }
     }
-    return 0;
+    // Return this part of the WM_QUIT message to Windows
+    return static_cast<int>(msg.wParam);
 }

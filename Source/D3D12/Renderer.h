@@ -21,9 +21,8 @@ namespace D3D12 {
     class Renderer {
     public:
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
-        // Constructor; takes horizontal and vertical resolution,
-        // as well as a window handle as the input
-        Renderer(const LONG resX, const LONG resY, const HWND wnd);
+        // Constructor; takes horizontal and vertical resolution as input
+        Renderer(const LONG resX, const LONG resY);
     private:
         // Configures the hardware and the software layers
         // This step is independent from the rendering pipeline
@@ -60,8 +59,6 @@ namespace D3D12 {
         static const UINT                 m_bufferCount = 2u;
         /* Adapter info */
         static const bool                 m_useWarpDevice = false;
-        /* Window handle */
-        HWND                              m_windowHandle;
         /* Viewport dimensions */
         LONG                              m_width;
         LONG                              m_height;

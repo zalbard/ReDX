@@ -1,6 +1,7 @@
 #include <d3dcompiler.h>
-#include "Renderer.h"
 #include "d3dx12.h"
+#include "Renderer.h"
+#include "..\UI\Window.h"
 #include "..\Common\Utility.h"
 
 using namespace D3D12;
@@ -12,9 +13,11 @@ using namespace D3D12;
         panic(__FILE__, __LINE__); \
     }
 
-Renderer::Renderer(const LONG resX, const LONG resY, const HWND wnd):
-          m_windowHandle{wnd}, m_width{resX}, m_height{resY},
+Renderer::Renderer(const LONG resX, const LONG resY):
+          m_width{resX}, m_height{resY},
           m_aspectRatio{static_cast<float>(m_width) / static_cast<float>(m_height)} {
+    // Open a window for rendering output
+    Window::create(resX, resY, this);
     // Perform the initialization step
     configureEnvironment();
     // Set up the rendering pipeline
@@ -32,7 +35,7 @@ void Renderer::configureEnvironment() {
     CHECK_CALL(CreateDXGIFactory1(IID_PPV_ARGS(&factory)),
                "Failed to create a DXGI 1.1 factory.");
     // Disable fullscreen transitions
-    CHECK_CALL(factory->MakeWindowAssociation(m_windowHandle, DXGI_MWA_NO_ALT_ENTER),
+    CHECK_CALL(factory->MakeWindowAssociation(Window::handle(), DXGI_MWA_NO_ALT_ENTER),
                "Failed to disable fullscreen transitions.");
     /* 2. Initialize the display adapter */
     #pragma warning(suppress: 4127)
@@ -133,7 +136,7 @@ void Renderer::createSwapChain(IDXGIFactory4* const factory) {
         /* SampleDesc */   sampleDesc,
         /* BufferUsage */  DXGI_USAGE_RENDER_TARGET_OUTPUT,
         /* BufferCount */  m_bufferCount,
-        /* OutputWindow */ m_windowHandle,
+        /* OutputWindow */ Window::handle(),
         /* Windowed */     TRUE,
         /* SwapEffect */   DXGI_SWAP_EFFECT_FLIP_DISCARD,
         /* Flags */        0u
