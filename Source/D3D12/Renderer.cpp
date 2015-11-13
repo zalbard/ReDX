@@ -356,7 +356,15 @@ void Renderer::createSyncPrims() {
 }
 
 void Renderer::renderFrame() {
-
+    // Record all the commands we need to render the scene into the command list
+    recordCommandList();
+    // Execute the command list
+    ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
+    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    // Present the frame
+    CHECK_CALL(m_swapChain->Present(1u, 0u), "Failed to display the frame buffer.");
+    // Wait for frame rendering to finish
+    waitForPreviousFrame();
 }
 
 void Renderer::recordCommandList() {
@@ -370,8 +378,8 @@ void Renderer::recordCommandList() {
                "Failed to reset the graphics command list.");
     // Set the necessary state
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
-    m_commandList->RSSetViewports(1, &m_viewport);
-    m_commandList->RSSetScissorRects(1, &m_scissorRect);
+    m_commandList->RSSetViewports(1u, &m_viewport);
+    m_commandList->RSSetScissorRects(1u, &m_scissorRect);
     // Transition the back buffer state from Presenting to Render Target
     auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
     auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
@@ -391,7 +399,7 @@ void Renderer::recordCommandList() {
     // Transition the back buffer state from Render Target to Presenting
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
               D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-    m_commandList->ResourceBarrier(1, &barrier);
+    m_commandList->ResourceBarrier(1u, &barrier);
     // Finalize the list
     CHECK_CALL(m_commandList->Close(), "Failed to close the command list.");
 }
@@ -407,9 +415,11 @@ void Renderer::waitForPreviousFrame() {
     CHECK_CALL(m_commandQueue->Signal(m_fence.Get(), m_fenceValue),
                "Failed to update the value of the memory fence.");
     // Wait until the previous frame is finished
-    CHECK_CALL(m_fence->SetEventOnCompletion(m_fenceValue, m_fenceEvent),
-               "Failed to set an event to trigger upon the memory fence reaching a certain value.");
-    WaitForSingleObject(m_fenceEvent, INFINITE);
+    if (m_fence->GetCompletedValue() < m_fenceValue) {
+        CHECK_CALL(m_fence->SetEventOnCompletion(m_fenceValue, m_fenceEvent),
+                   "Failed to set an event to trigger upon the memory fence reaching a certain value.");
+        WaitForSingleObject(m_fenceEvent, INFINITE);
+    }
     // Increment the fence value and flip the frame buffer
     ++m_fenceValue;
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
