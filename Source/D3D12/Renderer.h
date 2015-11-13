@@ -57,6 +57,8 @@ namespace D3D12 {
         // Creates synchronization primitives, such as
         // memory fences and synchronization events
         void createSyncPrims();
+        // Resets and then populates the graphics command list
+        void recordCommandList();
         // Waits for frame rendering to finish
         void waitForPreviousFrame();
         /* Frame buffer count */
@@ -84,7 +86,7 @@ namespace D3D12 {
         ComPtr<ID3D12Resource>            m_vertexBuffer;
         D3D12_VERTEX_BUFFER_VIEW          m_vertexBufferView;
         /* Synchronization objects */
-        UINT                              m_frameBufferIndex;
+        UINT                              m_backBufferIndex;
         HANDLE                            m_fenceEvent;
         ComPtr<ID3D12Fence>               m_fence;
         UINT64                            m_fenceValue;

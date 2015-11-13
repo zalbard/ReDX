@@ -51,8 +51,8 @@ void Renderer::configureEnvironment() {
     createCommandQueue();
     /* 4. Create a swap chain */
     createSwapChain(factory.Get());
-    // Use it to set the current frame index
-    m_frameBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
+    // Use it to set the current back buffer index
+    m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
     /* 5. Create a descriptor heap */
     createDescriptorHeap();
     // Set the offset (increment size) for descriptor handles
@@ -328,8 +328,8 @@ void Renderer::createVertexBuffer() {
     static constexpr UINT sr = 0u;
     UINT8* pVertexData;
     // Note: we don't intend to read from this resource on the CPU
-    const CD3DX12_RANGE readRange{0u, 0u};
-    CHECK_CALL(m_vertexBuffer->Map(sr, &readRange, reinterpret_cast<void**>(&pVertexData)),
+    static const CD3DX12_RANGE emptyReadRange{0u, 0u};
+    CHECK_CALL(m_vertexBuffer->Map(sr, &emptyReadRange, reinterpret_cast<void**>(&pVertexData)),
                "Failed to map the vertex buffer.");
     // Copy the triangle data to the vertex buffer
     memcpy(pVertexData, triangleVertices, sizeof(triangleVertices));
@@ -359,6 +359,43 @@ void Renderer::renderFrame() {
 
 }
 
+void Renderer::recordCommandList() {
+    // Command list allocators can only be reset when the associated 
+    // command lists have finished execution on the GPU; apps should use 
+    // fences to determine GPU execution progress
+    CHECK_CALL(m_commandAllocator->Reset(), "Failed to reset the command allocator.");
+    // However, when ExecuteCommandList() is called on a particular command list,
+    // that command list can then be reset at any time (and must be before re-recording)
+    CHECK_CALL(m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get()),
+               "Failed to reset the graphics command list.");
+    // Set the necessary state
+    m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
+    m_commandList->RSSetViewports(1, &m_viewport);
+    m_commandList->RSSetScissorRects(1, &m_scissorRect);
+    // Transition the back buffer state from Presenting to Render Target
+    auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
+    auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
+                      D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    m_commandList->ResourceBarrier(1u, &barrier);
+    // Set the back buffer will be used as the render target
+    const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart(),
+                                                  static_cast<int>(m_backBufferIndex),
+                                                  m_rtvDescriptorSize};
+    m_commandList->OMSetRenderTargets(1u, &rtvHandle, FALSE, nullptr);
+    // Record commands
+    const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+    m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
+    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_commandList->IASetVertexBuffers(0u, 1u, &m_vertexBufferView);
+    m_commandList->DrawInstanced(3u, 1u, 0u, 0u);
+    // Transition the back buffer state from Render Target to Presenting
+    barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
+              D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    m_commandList->ResourceBarrier(1, &barrier);
+    // Finalize the list
+    CHECK_CALL(m_commandList->Close(), "Failed to close the command list.");
+}
+
 void Renderer::stop() {
     waitForPreviousFrame();
     CloseHandle(m_fenceEvent);
@@ -375,5 +412,5 @@ void Renderer::waitForPreviousFrame() {
     WaitForSingleObject(m_fenceEvent, INFINITE);
     // Increment the fence value and flip the frame buffer
     ++m_fenceValue;
-    m_frameBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
+    m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
