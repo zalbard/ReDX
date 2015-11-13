@@ -14,8 +14,7 @@ using namespace D3D12;
 
 Renderer::Renderer(const LONG resX, const LONG resY, const HWND wnd):
           m_windowHandle{wnd}, m_width{resX}, m_height{resY},
-          m_aspectRatio{static_cast<float>(m_width) / static_cast<float>(m_height)},
-          m_fenceValue{0u} {
+          m_aspectRatio{static_cast<float>(m_width) / static_cast<float>(m_height)} {
     // Perform the initialization step
     configureEnvironment();
     // Set up the rendering pipeline
@@ -340,9 +339,11 @@ void Renderer::createVertexBuffer() {
 }
 
 void Renderer::createSyncPrims() {
-    // Create a memory fence object and increment the fence value
-    CHECK_CALL(m_device->CreateFence(m_fenceValue++, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)),
+    // Create a memory fence object with the value of 0
+    CHECK_CALL(m_device->CreateFence(0u, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)),
                "Failed to create a memory fence object.");
+    // Set the first valid fence value to 1
+    m_fenceValue = 1u;
     // Create a synchronization event
     m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (!m_fenceEvent) {
