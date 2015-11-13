@@ -355,6 +355,15 @@ void Renderer::createSyncPrims() {
     }
 }
 
+void Renderer::renderFrame() {
+
+}
+
+void Renderer::stop() {
+    waitForPreviousFrame();
+    CloseHandle(m_fenceEvent);
+}
+
 /* TODO: waiting is inefficient, change this! */
 void Renderer::waitForPreviousFrame() {
     // Insert the fence

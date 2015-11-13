@@ -23,6 +23,10 @@ namespace D3D12 {
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
         // Constructor; takes horizontal and vertical resolution as input
         Renderer(const LONG resX, const LONG resY);
+        // Draws a single frame to the framebuffer
+        void renderFrame();
+        // Waits for all GPU commands to finish
+        void stop();
     private:
         // Configures the hardware and the software layers
         // This step is independent from the rendering pipeline
@@ -71,10 +75,10 @@ namespace D3D12 {
         ComPtr<ID3D12Resource>            m_renderTargets[m_bufferCount];
         ComPtr<ID3D12CommandAllocator>    m_commandAllocator;
         ComPtr<ID3D12CommandQueue>        m_commandQueue;
+        ComPtr<ID3D12GraphicsCommandList> m_commandList;
         ComPtr<ID3D12RootSignature>       m_rootSignature;
         ComPtr<ID3D12DescriptorHeap>      m_rtvHeap;
         ComPtr<ID3D12PipelineState>       m_pipelineState;
-        ComPtr<ID3D12GraphicsCommandList> m_commandList;
         UINT                              m_rtvDescriptorSize;
         /* Application resources */
         ComPtr<ID3D12Resource>            m_vertexBuffer;
