@@ -22,7 +22,7 @@ int main(const int argc, const char* argv[]) {
     MSG msg = {};
     while (WM_QUIT != msg.message) {
         // Process the messages in the queue
-        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+        if (PeekMessage(&msg, nullptr, 0u, 0u, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
