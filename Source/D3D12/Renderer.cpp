@@ -14,7 +14,8 @@ using namespace D3D12;
 
 Renderer::Renderer(const LONG resX, const LONG resY, const HWND wnd):
           m_windowHandle{wnd}, m_width{resX}, m_height{resY},
-          m_aspectRatio{static_cast<float>(m_width) / static_cast<float>(m_height)} {
+          m_aspectRatio{static_cast<float>(m_width) / static_cast<float>(m_height)},
+          m_fenceValue{0u} {
     // Perform the initialization step
     configureEnvironment();
     // Set up the rendering pipeline
@@ -49,7 +50,7 @@ void Renderer::configureEnvironment() {
     /* 4. Create a swap chain */
     createSwapChain(factory.Get());
     // Use it to set the current frame index
-    m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+    m_frameBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
     /* 5. Create a descriptor heap */
     createDescriptorHeap();
     // Set the offset (increment size) for descriptor handles
@@ -186,6 +187,9 @@ void Renderer::configurePipeline() {
     createVertexBuffer();
     /* 5. Create a memory fence and a synchronization event */
     createSyncPrims();
+    /* 6. Wait for the execution of the command list to complete */
+    // Effectively, wait for the setup to complete before continuing
+    waitForPreviousFrame();
 }
 
 void Renderer::createRootSignature() {
@@ -308,7 +312,7 @@ void Renderer::createVertexBuffer() {
     };
     const UINT vertexBufferSize = sizeof(triangleVertices);
     // Use an upload heap to hold the vertex buffer
-    // TODO: inefficient, change this!
+    /* TODO: inefficient, change this! */
     const auto heapProperties   = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
     const auto vertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties,
@@ -336,9 +340,8 @@ void Renderer::createVertexBuffer() {
 }
 
 void Renderer::createSyncPrims() {
-    // Create a memory fence object
-    m_fenceValue = 0u;
-    CHECK_CALL(m_device->CreateFence(m_fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)),
+    // Create a memory fence object and increment the fence value
+    CHECK_CALL(m_device->CreateFence(m_fenceValue++, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)),
                "Failed to create a memory fence object.");
     // Create a synchronization event
     m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -346,4 +349,18 @@ void Renderer::createSyncPrims() {
         CHECK_CALL(HRESULT_FROM_WIN32(GetLastError()),
                    "Failed to create a synchronization event.");
     }
+}
+
+/* TODO: waiting is inefficient, change this! */
+void Renderer::waitForPreviousFrame() {
+    // Insert the fence
+    CHECK_CALL(m_commandQueue->Signal(m_fence.Get(), m_fenceValue),
+               "Failed to update the value of the memory fence.");
+    // Wait until the previous frame is finished
+    CHECK_CALL(m_fence->SetEventOnCompletion(m_fenceValue, m_fenceEvent),
+               "Failed to set an event to trigger upon the memory fence reaching a certain value.");
+    WaitForSingleObject(m_fenceEvent, INFINITE);
+    // Increment the fence value and flip the frame buffer
+    ++m_fenceValue;
+    m_frameBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
