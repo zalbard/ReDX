@@ -417,7 +417,7 @@ void Renderer::waitForPreviousFrame() {
     // Wait until the previous frame is finished
     if (m_fence->GetCompletedValue() < m_fenceValue) {
         CHECK_CALL(m_fence->SetEventOnCompletion(m_fenceValue, m_fenceEvent),
-                   "Failed to set an event to trigger upon the memory fence reaching a certain value.");
+                   "Failed to set an event to trigger upon the memory fence reaching a set value.");
         WaitForSingleObject(m_fenceEvent, INFINITE);
     }
     // Increment the fence value and flip the frame buffer
