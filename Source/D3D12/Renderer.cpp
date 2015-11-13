@@ -178,7 +178,7 @@ void Renderer::configurePipeline() {
     /* 2. Create a pipeline state object */
     createPipelineStateObject();
     /* 3. Create a command list */
-    CHECK_CALL(m_device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
+    CHECK_CALL(m_device->CreateCommandList(0u, D3D12_COMMAND_LIST_TYPE_DIRECT,
                                            m_commandAllocator.Get(), m_pipelineState.Get(),
                                            IID_PPV_ARGS(&m_commandList)),
                "Failed to create a command list.");
