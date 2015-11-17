@@ -4,4 +4,7 @@ Current status: early stages of development.
 
 Build requirements:
 * Windows 10 (64-bit)
-* Visual Studio 2015 (with Universal App Tools (1.1.1) and Windows SDK (10.0.10240) installed)
+* Visual Studio 2015 (with Universal App Tools and Windows SDK installed)
+
+Important notice:
+* the build version of Windows 10 and the version of Windows SDK must match!
