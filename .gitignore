@@ -30,6 +30,7 @@ Temp*/
 !*.fs
 !*.frag
 !*.cs
+!*.hlsl
 
 # Docs & info
 !*.txt
