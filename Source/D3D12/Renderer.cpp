@@ -16,6 +16,22 @@ using namespace D3D12;
 Renderer::Renderer(const LONG resX, const LONG resY):
           m_width{resX}, m_height{resY},
           m_aspectRatio{static_cast<float>(m_width) / static_cast<float>(m_height)} {
+    // Configure the viewport
+    m_viewport = D3D12_VIEWPORT{
+        /* TopLeftX */ 0.0f,
+        /* TopLeftY */ 0.0f,
+        /* Width */    static_cast<float>(m_width),
+        /* Height */   static_cast<float>(m_height),
+        /* MinDepth */ 0.0f,
+        /* MaxDepth */ 1.0f
+    };
+    // Configure the scissor rectangle used for clipping
+    m_scissorRect = D3D12_RECT{
+        /* left */   0l,
+        /* top */    0l, 
+        /* right */  m_width,
+        /* bottom */ m_height
+    };
     // Open a window for rendering output
     Window::create(resX, resY, this);
     // Perform the initialization step
