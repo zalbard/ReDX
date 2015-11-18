@@ -429,7 +429,7 @@ void Renderer::stop() {
 
 /* TODO: waiting is inefficient, change this! */
 void Renderer::waitForPreviousFrame() {
-    // Insert the fence
+    // Insert the fence into the GPU command queue
     CHECK_CALL(m_commandQueue->Signal(m_fence.Get(), m_fenceValue),
                "Failed to update the value of the memory fence.");
     // Wait until the previous frame is finished
