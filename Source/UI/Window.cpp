@@ -58,6 +58,9 @@ LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
             //OnUpdate();
             engine->renderFrame();
             return 0;
+        case WM_KEYDOWN:
+            if (VK_ESCAPE != wParam) return 0;
+            // Otherwise fall through to WM_DESTROY
         case WM_DESTROY:
             engine->stop();
             PostQuitMessage(0);
