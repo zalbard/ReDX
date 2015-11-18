@@ -52,6 +52,8 @@ namespace D3D12 {
         // Creates a graphics pieline state object which describes
         // the input data format and how its processed (rendered)
         void createPipelineStateObject();
+        // Creates a command list
+        void createCommandList();
         // Creates a vertex buffer
         void createVertexBuffer();
         // Creates synchronization primitives, such as
@@ -61,10 +63,10 @@ namespace D3D12 {
         void recordCommandList();
         // Waits for frame rendering to finish
         void waitForPreviousFrame();
-        /* Frame buffer count */
-        static const UINT                 m_bufferCount = 2u;
-        /* Adapter info */
-        static const bool                 m_useWarpDevice = false;
+        /* Private data members */
+        static const UINT                 m_singleGpuNodeMask = 0u;
+        static const UINT                 m_bufferCount       = 2u;
+        static const bool                 m_useWarpDevice     = false;
         /* Pipeline objects */
         D3D12_VIEWPORT                    m_viewport;
         D3D12_RECT                        m_scissorRect;
@@ -83,7 +85,7 @@ namespace D3D12 {
         D3D12_VERTEX_BUFFER_VIEW          m_vertexBufferView;
         /* Synchronization objects */
         UINT                              m_backBufferIndex;
-        HANDLE                            m_fenceEvent;
+        HANDLE                            m_syncEvent;
         ComPtr<ID3D12Fence>               m_fence;
         UINT64                            m_fenceValue;
     };
