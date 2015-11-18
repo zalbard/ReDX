@@ -15,7 +15,7 @@ LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
 void Window::create(const LONG resX, const LONG resY,
                     D3D12::Renderer* const engine) {
     // Set up the rectangle position and dimensions
-    m_rect = {0, 0, resX, resY};
+    m_rect = {0l, 0l, resX, resY};
     AdjustWindowRect(&m_rect, WS_OVERLAPPEDWINDOW, FALSE);
     // Set up the window class
     m_class.cbSize        = sizeof(WNDCLASSEX);
