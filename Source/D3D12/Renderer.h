@@ -65,10 +65,6 @@ namespace D3D12 {
         static const UINT                 m_bufferCount = 2u;
         /* Adapter info */
         static const bool                 m_useWarpDevice = false;
-        /* Viewport dimensions */
-        LONG                              m_width;
-        LONG                              m_height;
-        float                             m_aspectRatio;
         /* Pipeline objects */
         D3D12_VIEWPORT                    m_viewport;
         D3D12_RECT                        m_scissorRect;

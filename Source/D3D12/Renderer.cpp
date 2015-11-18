@@ -13,15 +13,13 @@ using namespace D3D12;
         panic(__FILE__, __LINE__); \
     }
 
-Renderer::Renderer(const LONG resX, const LONG resY):
-          m_width{resX}, m_height{resY},
-          m_aspectRatio{static_cast<float>(m_width) / static_cast<float>(m_height)} {
+Renderer::Renderer(const LONG resX, const LONG resY) {
     // Configure the viewport
     m_viewport = D3D12_VIEWPORT{
         /* TopLeftX */ 0.0f,
         /* TopLeftY */ 0.0f,
-        /* Width */    static_cast<float>(m_width),
-        /* Height */   static_cast<float>(m_height),
+        /* Width */    static_cast<float>(resX),
+        /* Height */   static_cast<float>(resY),
         /* MinDepth */ 0.0f,
         /* MaxDepth */ 1.0f
     };
@@ -29,8 +27,8 @@ Renderer::Renderer(const LONG resX, const LONG resY):
     m_scissorRect = D3D12_RECT{
         /* left */   0l,
         /* top */    0l, 
-        /* right */  m_width,
-        /* bottom */ m_height
+        /* right */  resX,
+        /* bottom */ resY
     };
     // Open a window for rendering output
     Window::create(resX, resY, this);
@@ -134,8 +132,8 @@ void Renderer::createCommandQueue() {
 void Renderer::createSwapChain(IDXGIFactory4* const factory) {
     // Fill out the buffer description
     const DXGI_MODE_DESC bufferDesc = {
-        /* Width */            static_cast<UINT>(m_width),
-        /* Height */           static_cast<UINT>(m_height),
+        /* Width */            static_cast<UINT>(m_scissorRect.right - m_scissorRect.left),
+        /* Height */           static_cast<UINT>(m_scissorRect.bottom - m_scissorRect.top),
         /* RefreshRate */      DXGI_RATIONAL{},
         /* Format */           DXGI_FORMAT_R8G8B8A8_UNORM,
         /* ScanlineOrdering */ DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
@@ -323,10 +321,11 @@ void Renderer::createPipelineStateObject() {
 
 void Renderer::createVertexBuffer() {
     // Define a screen-space triangle
+    const float aspectRatio = m_viewport.Width / m_viewport.Height;
     const Vertex triangleVertices[] = {
-        Vertex{ {   0.0f,  0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-        Vertex{ {  0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-        Vertex{ { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+        Vertex{ {   0.0f,  0.25f * aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
+        Vertex{ {  0.25f, -0.25f * aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
+        Vertex{ { -0.25f, -0.25f * aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
     };
     const UINT vertexBufferSize = sizeof(triangleVertices);
     // Use an upload heap to hold the vertex buffer
