@@ -175,14 +175,14 @@ void Renderer::createDescriptorHeap() {
 }
 
 void Renderer::createRenderTargetViews() {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart()};
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart()};
     // Create a Render Target View (RTV) for each frame buffer
     for (UINT bufferIndex = 0u; bufferIndex < m_bufferCount; ++bufferIndex) {
         CHECK_CALL(m_swapChain->GetBuffer(bufferIndex, IID_PPV_ARGS(&m_renderTargets[bufferIndex])),
                    "Failed to aquire a swap chain buffer.");
-        m_device->CreateRenderTargetView(m_renderTargets[bufferIndex].Get(), nullptr, rtvHandle);
+        m_device->CreateRenderTargetView(m_renderTargets[bufferIndex].Get(), nullptr, rtvDescHandle);
         // Increment the descriptor pointer by the descriptor size
-        rtvHandle.Offset(1, m_rtvDescriptorSize);
+        rtvDescHandle.Offset(1, m_rtvDescriptorSize);
     }
 }
 
