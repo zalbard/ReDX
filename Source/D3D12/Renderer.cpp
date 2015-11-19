@@ -225,7 +225,7 @@ void Renderer::createRootSignature() {
 
 // Loads and compiles vertex and pixel shaders; takes the full path to the shader file,
 // the name of the main (entry point) function, and the shader type
-static inline ComPtr<ID3DBlob> loadAndCompileShader(const WCHAR* const pathAndFileName,
+static inline ComPtr<ID3DBlob> loadAndCompileShader(const wchar_t* const pathAndFileName,
                                                     const char* const entryPoint,
                                                     const char* const type) {
     #ifdef _DEBUG
