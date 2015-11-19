@@ -12,7 +12,7 @@ WCHAR*     Window::m_title = L"ReDX";
 LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
                             const WPARAM wParam, const LPARAM lParam);
 
-void Window::create(const LONG resX, const LONG resY,
+void Window::create(const long resX, const long resY,
                     D3D12::Renderer* const engine) {
     // Set up the rectangle position and dimensions
     m_rect = {0l, 0l, resX, resY};

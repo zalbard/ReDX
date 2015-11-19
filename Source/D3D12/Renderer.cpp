@@ -13,7 +13,7 @@ using namespace D3D12;
         panic(__FILE__, __LINE__); \
     }
 
-Renderer::Renderer(const LONG resX, const LONG resY) {
+Renderer::Renderer(const long resX, const long resY) {
     // Configure the viewport
     m_viewport = D3D12_VIEWPORT{
         /* TopLeftX */ 0.0f,
@@ -87,7 +87,7 @@ void Renderer::createDevice(IDXGIFactory4 * const factory) {
 }
 
 void Renderer::createHardwareDevice(IDXGIFactory4* const factory) {
-    for (UINT adapterIndex = 0u; ; ++adapterIndex) {
+    for (uint adapterIndex = 0u; ; ++adapterIndex) {
         // Select the next adapter
         ComPtr<IDXGIAdapter1> adapter;
         if (DXGI_ERROR_NOT_FOUND == factory->EnumAdapters1(adapterIndex, &adapter)) {
@@ -131,8 +131,8 @@ void Renderer::createCommandQueue() {
 void Renderer::createSwapChain(IDXGIFactory4* const factory) {
     // Fill out the buffer description
     const DXGI_MODE_DESC bufferDesc = {
-        /* Width */            static_cast<UINT>(m_scissorRect.right - m_scissorRect.left),
-        /* Height */           static_cast<UINT>(m_scissorRect.bottom - m_scissorRect.top),
+        /* Width */            static_cast<uint>(m_scissorRect.right - m_scissorRect.left),
+        /* Height */           static_cast<uint>(m_scissorRect.bottom - m_scissorRect.top),
         /* RefreshRate */      DXGI_RATIONAL{},
         /* Format */           DXGI_FORMAT_R8G8B8A8_UNORM,
         /* ScanlineOrdering */ DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
@@ -180,7 +180,7 @@ void Renderer::createDescriptorHeap() {
 void Renderer::createRenderTargetViews() {
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart()};
     // Create a Render Target View (RTV) for each frame buffer
-    for (UINT bufferIndex = 0u; bufferIndex < m_bufferCount; ++bufferIndex) {
+    for (uint bufferIndex = 0u; bufferIndex < m_bufferCount; ++bufferIndex) {
         CHECK_CALL(m_swapChain->GetBuffer(bufferIndex, IID_PPV_ARGS(&m_renderTargets[bufferIndex])),
                    "Failed to aquire a swap chain buffer.");
         m_device->CreateRenderTargetView(m_renderTargets[bufferIndex].Get(), nullptr, rtvDescHandle);
@@ -230,9 +230,9 @@ ComPtr<ID3DBlob> loadAndCompileShader(const WCHAR* const pathAndFileName,
     ComPtr<ID3DBlob> shader;
     #ifdef _DEBUG
         // Enable debugging symbol information, and disable certain optimizations
-        const UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+        static constexpr uint compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
     #else
-        const UINT compileFlags = 0;
+        static constexpr uint compileFlags = 0u;
     #endif
     // Load and compile the shader
     CHECK_CALL(D3DCompileFromFile(pathAndFileName, nullptr, nullptr, entryPoint,
@@ -289,11 +289,11 @@ void Renderer::createPipelineStateObject() {
     const D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {
         /* pRootSignature */        m_rootSignature.Get(),
         /* VS */                    D3D12_SHADER_BYTECODE{
-            /* pShaderBytecode */       reinterpret_cast<UINT8*>(vs->GetBufferPointer()),
+            /* pShaderBytecode */       reinterpret_cast<uint8*>(vs->GetBufferPointer()),
             /* BytecodeLength  */       vs->GetBufferSize()
                                     },
         /* PS */                    D3D12_SHADER_BYTECODE{
-            /* pShaderBytecode */       reinterpret_cast<UINT8*>(ps->GetBufferPointer()),
+            /* pShaderBytecode */       reinterpret_cast<uint8*>(ps->GetBufferPointer()),
             /* BytecodeLength  */       ps->GetBufferSize()
                                     },
         /* DS, HS, GS */            {}, {}, {},
@@ -336,7 +336,7 @@ void Renderer::createVertexBuffer() {
         Vertex{ {  0.25f, -0.25f * aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
         Vertex{ { -0.25f, -0.25f * aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
     };
-    const UINT vertexBufferSize = sizeof(triangleVertices);
+    const uint vertexBufferSize = sizeof(triangleVertices);
     // Use an upload heap to hold the vertex buffer
     /* TODO: inefficient, change this! */
     const auto heapProperties   = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
@@ -346,8 +346,8 @@ void Renderer::createVertexBuffer() {
                                                  nullptr, IID_PPV_ARGS(&m_vertexBuffer)),
                "Failed to create an upload heap.");
     // Aquire a CPU pointer to the buffer (subresource "subRes")
-    UINT8* pVertexData;
-    static constexpr UINT subRes = 0u;
+    uint8* pVertexData;
+    static constexpr uint subRes = 0u;
     // Note: we don't intend to read from this resource on the CPU
     static const CD3DX12_RANGE emptyReadRange{0u, 0u};
     CHECK_CALL(m_vertexBuffer->Map(subRes, &emptyReadRange, reinterpret_cast<void**>(&pVertexData)),
@@ -412,7 +412,7 @@ void Renderer::recordCommandList() {
                                                   m_rtvDescriptorSize};
     m_commandList->OMSetRenderTargets(1u, &rtvHandle, FALSE, nullptr);
     // Record commands
-    const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+    static constexpr float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
     m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0u, 1u, &m_vertexBufferView);

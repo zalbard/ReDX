@@ -29,3 +29,7 @@
                                   T(T&&) noexcept;                 \
                                   T& operator=(T&&) noexcept;      \
                                   ~T()
+
+using uint   = unsigned int;
+using uint8  = unsigned short;
+using uint64 = unsigned long long;

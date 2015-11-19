@@ -22,7 +22,7 @@ namespace D3D12 {
     public:
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
         // Constructor; takes horizontal and vertical resolution as input
-        Renderer(const LONG resX, const LONG resY);
+        Renderer(const long resX, const long resY);
         // Draws a single frame to the framebuffer
         void renderFrame();
         // Waits for all GPU commands to finish
@@ -66,13 +66,13 @@ namespace D3D12 {
         // Waits for the execution of the command list to complete
         void waitForPreviousFrame();
         /* Private data members */
-        static const UINT                 m_singleGpuNodeMask = 0u;
-        static const UINT                 m_bufferCount       = 2u;
+        static const uint                 m_singleGpuNodeMask = 0u;
+        static const uint                 m_bufferCount       = 2u;
         static const bool                 m_useWarpDevice     = false;
         /* Rendering parameters */
         D3D12_VIEWPORT                    m_viewport;
         D3D12_RECT                        m_scissorRect;
-        UINT                              m_backBufferIndex;
+        uint                              m_backBufferIndex;
         /* Pipeline objects */
         ComPtr<ID3D12Device>              m_device;
         ComPtr<IDXGISwapChain3>           m_swapChain;
@@ -83,13 +83,13 @@ namespace D3D12 {
         ComPtr<ID3D12PipelineState>       m_pipelineState;
         ComPtr<ID3D12Resource>            m_renderTargets[m_bufferCount];
         ComPtr<ID3D12DescriptorHeap>      m_rtvHeap;
-        UINT                              m_rtvDescriptorSize;
+        uint                              m_rtvDescriptorSize;
         /* Application resources */
         ComPtr<ID3D12Resource>            m_vertexBuffer;
         D3D12_VERTEX_BUFFER_VIEW          m_vertexBufferView;
         /* Synchronization objects */
         HANDLE                            m_syncEvent;
         ComPtr<ID3D12Fence>               m_fence;
-        UINT64                            m_fenceValue;
+        uint64                            m_fenceValue;
     };
 } // namespace D3D12
