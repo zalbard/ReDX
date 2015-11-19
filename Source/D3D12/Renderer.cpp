@@ -353,7 +353,7 @@ void Renderer::createVertexBuffer() {
     uint8* pVertexData;
     static constexpr uint subRes = 0u;
     // Note: we don't intend to read from this resource on the CPU
-    static const CD3DX12_RANGE emptyReadRange{0u, 0u};
+    static const CD3DX12_RANGE emptyReadRange{0ull, 0ull};
     CHECK_CALL(m_vertexBuffer->Map(subRes, &emptyReadRange, reinterpret_cast<void**>(&pVertexData)),
                "Failed to map the vertex buffer.");
     // Copy the triangle data to the vertex buffer
@@ -368,10 +368,10 @@ void Renderer::createVertexBuffer() {
 
 void Renderer::createSyncPrims() {
     // Create a 0-initialized memory fence object
-    CHECK_CALL(m_device->CreateFence(0u, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)),
+    CHECK_CALL(m_device->CreateFence(0ull, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)),
                "Failed to create a memory fence object.");
     // Set the first valid fence value to 1
-    m_fenceValue = 1u;
+    m_fenceValue = 1ull;
     // Create a synchronization event
     m_syncEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (!m_syncEvent) {
