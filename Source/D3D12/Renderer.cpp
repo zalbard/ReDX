@@ -225,9 +225,9 @@ void Renderer::createRootSignature() {
 
 // Loads and compiles vertex and pixel shaders; takes the full path to the shader file,
 // the name of the main (entry point) function, and the shader type
-ComPtr<ID3DBlob> loadAndCompileShader(const WCHAR* const pathAndFileName,
-                                      const char* const entryPoint, const char* const type) {
-    ComPtr<ID3DBlob> shader;
+static inline ComPtr<ID3DBlob> loadAndCompileShader(const WCHAR* const pathAndFileName,
+                                                    const char* const entryPoint,
+                                                    const char* const type) {
     #ifdef _DEBUG
         // Enable debugging symbol information, and disable certain optimizations
         static constexpr uint compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
@@ -235,9 +235,13 @@ ComPtr<ID3DBlob> loadAndCompileShader(const WCHAR* const pathAndFileName,
         static constexpr uint compileFlags = 0u;
     #endif
     // Load and compile the shader
-    CHECK_CALL(D3DCompileFromFile(pathAndFileName, nullptr, nullptr, entryPoint,
-                                  type, compileFlags, 0u, &shader, nullptr),
-               "Failed to load and compile a shader.");
+    ComPtr<ID3DBlob> shader, errors;
+    if (FAILED(D3DCompileFromFile(pathAndFileName, nullptr, nullptr, entryPoint,
+                                   type, compileFlags, 0u, &shader, &errors))) {
+        printError("Failed to load and compile a shader.");
+        printError(static_cast<const char* const>(errors->GetBufferPointer()));
+        TERMINATE();
+    }
     return shader;
 }
 
