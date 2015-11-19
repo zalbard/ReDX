@@ -13,15 +13,13 @@ using namespace D3D12;
         panic(__FILE__, __LINE__); \
     }
 
-Renderer::Renderer(const LONG resX, const LONG resY):
-          m_width{resX}, m_height{resY},
-          m_aspectRatio{static_cast<float>(m_width) / static_cast<float>(m_height)} {
+Renderer::Renderer(const LONG resX, const LONG resY) {
     // Configure the viewport
     m_viewport = D3D12_VIEWPORT{
         /* TopLeftX */ 0.0f,
         /* TopLeftY */ 0.0f,
-        /* Width */    static_cast<float>(m_width),
-        /* Height */   static_cast<float>(m_height),
+        /* Width */    static_cast<float>(resX),
+        /* Height */   static_cast<float>(resY),
         /* MinDepth */ 0.0f,
         /* MaxDepth */ 1.0f
     };
@@ -29,8 +27,8 @@ Renderer::Renderer(const LONG resX, const LONG resY):
     m_scissorRect = D3D12_RECT{
         /* left */   0l,
         /* top */    0l, 
-        /* right */  m_width,
-        /* bottom */ m_height
+        /* right */  resX,
+        /* bottom */ resY
     };
     // Open a window for rendering output
     Window::create(resX, resY, this);
@@ -124,7 +122,7 @@ void Renderer::createCommandQueue() {
         /* Type */     D3D12_COMMAND_LIST_TYPE_DIRECT,
         /* Priority */ D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
         /* Flags */    D3D12_COMMAND_QUEUE_FLAG_NONE,
-        /* NodeMask */ 0u   //  Single GPU
+        /* NodeMask */ m_singleGpuNodeMask
     };
     // Create a command queue
     CHECK_CALL(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)),
@@ -134,8 +132,8 @@ void Renderer::createCommandQueue() {
 void Renderer::createSwapChain(IDXGIFactory4* const factory) {
     // Fill out the buffer description
     const DXGI_MODE_DESC bufferDesc = {
-        /* Width */            static_cast<UINT>(m_width),
-        /* Height */           static_cast<UINT>(m_height),
+        /* Width */            static_cast<UINT>(m_scissorRect.right - m_scissorRect.left),
+        /* Height */           static_cast<UINT>(m_scissorRect.bottom - m_scissorRect.top),
         /* RefreshRate */      DXGI_RATIONAL{},
         /* Format */           DXGI_FORMAT_R8G8B8A8_UNORM,
         /* ScanlineOrdering */ DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
@@ -159,7 +157,7 @@ void Renderer::createSwapChain(IDXGIFactory4* const factory) {
     };
     // Create a swap chain; it needs a command queue to flush the latter
     CHECK_CALL(factory->CreateSwapChain(m_commandQueue.Get(), &swapChainDesc,
-               reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf())),
+                                        reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf())),
                "Failed to create a swap chain.");
 }
 
@@ -169,7 +167,7 @@ void Renderer::createDescriptorHeap() {
         /* Type */           D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
         /* NumDescriptors */ m_bufferCount,
         /* Flags */          D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
-        /* NodeMask */       0u     //  Single GPU
+        /* NodeMask */       m_singleGpuNodeMask
     };
     // Create a descriptor heap
     CHECK_CALL(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)),
@@ -177,14 +175,14 @@ void Renderer::createDescriptorHeap() {
 }
 
 void Renderer::createRenderTargetViews() {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart()};
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart()};
     // Create a Render Target View (RTV) for each frame buffer
     for (UINT bufferIndex = 0u; bufferIndex < m_bufferCount; ++bufferIndex) {
         CHECK_CALL(m_swapChain->GetBuffer(bufferIndex, IID_PPV_ARGS(&m_renderTargets[bufferIndex])),
                    "Failed to aquire a swap chain buffer.");
-        m_device->CreateRenderTargetView(m_renderTargets[bufferIndex].Get(), nullptr, rtvHandle);
+        m_device->CreateRenderTargetView(m_renderTargets[bufferIndex].Get(), nullptr, rtvDescHandle);
         // Increment the descriptor pointer by the descriptor size
-        rtvHandle.Offset(1, m_rtvDescriptorSize);
+        rtvDescHandle.Offset(1, m_rtvDescriptorSize);
     }
 }
 
@@ -194,13 +192,7 @@ void Renderer::configurePipeline() {
     /* 2. Create a pipeline state object */
     createPipelineStateObject();
     /* 3. Create a command list */
-    CHECK_CALL(m_device->CreateCommandList(0u, D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                           m_commandAllocator.Get(), m_pipelineState.Get(),
-                                           IID_PPV_ARGS(&m_commandList)),
-               "Failed to create a command list.");
-    // Command lists are created in the recording state, but there is nothing
-    // to record yet. The main loop expects it to be closed, so close it now.
-    CHECK_CALL(m_commandList->Close(), "Failed to close the command list.");
+    createCommandList();
     /* 4. Create a vertex buffer */
     createVertexBuffer();
     /* 5. Create a memory fence and a synchronization event */
@@ -221,8 +213,10 @@ void Renderer::createRootSignature() {
                                            &signature, &error),
                "Failed to serialize a root signature.");
     // Create a root signature layout using the serialized signature
-    CHECK_CALL(m_device->CreateRootSignature(0, signature->GetBufferPointer(),
-               signature->GetBufferSize(), IID_PPV_ARGS(&m_rootSignature)),
+    CHECK_CALL(m_device->CreateRootSignature(m_singleGpuNodeMask,
+                                             signature->GetBufferPointer(),
+                                             signature->GetBufferSize(),
+                                             IID_PPV_ARGS(&m_rootSignature)),
                "Failed to create a root signature.");
 }
 
@@ -238,8 +232,8 @@ ComPtr<ID3DBlob> loadAndCompileShader(const WCHAR* const pathAndFileName,
         const UINT compileFlags = 0;
     #endif
     // Load and compile the shader
-    CHECK_CALL(D3DCompileFromFile(pathAndFileName, nullptr, nullptr,
-               entryPoint, type, compileFlags, 0u, &shader, nullptr),
+    CHECK_CALL(D3DCompileFromFile(pathAndFileName, nullptr, nullptr, entryPoint,
+                                  type, compileFlags, 0u, &shader, nullptr),
                "Failed to load and compile a shader.");
     return shader;
 }
@@ -312,7 +306,7 @@ void Renderer::createPipelineStateObject() {
         /* RTVFormats[ 8 ] */       {DXGI_FORMAT_R8G8B8A8_UNORM},
         /* DSVFormat */             DXGI_FORMAT_UNKNOWN,
         /* SampleDesc */            sampleDesc,
-        /* NodeMask */              0u,
+        /* NodeMask */              m_singleGpuNodeMask,
         /* CachedPSO */             D3D12_CACHED_PIPELINE_STATE{},
         /* Flags */                 D3D12_PIPELINE_STATE_FLAG_NONE
     };
@@ -321,36 +315,44 @@ void Renderer::createPipelineStateObject() {
                "Failed to create a pipeline state object.");
 }
 
+void Renderer::createCommandList() {
+    CHECK_CALL(m_device->CreateCommandList(m_singleGpuNodeMask, D3D12_COMMAND_LIST_TYPE_DIRECT,
+                                           m_commandAllocator.Get(), m_pipelineState.Get(),
+                                           IID_PPV_ARGS(&m_commandList)),
+        "Failed to create a command list.");
+    // Command lists are created in the recording state, but there is nothing
+    // to record yet. The main loop expects it to be closed, so close it now.
+    CHECK_CALL(m_commandList->Close(), "Failed to close the command list.");
+}
+
 void Renderer::createVertexBuffer() {
     // Define a screen-space triangle
+    const float aspectRatio = m_viewport.Width / m_viewport.Height;
     const Vertex triangleVertices[] = {
-        Vertex{ {   0.0f,  0.25f * m_aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-        Vertex{ {  0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-        Vertex{ { -0.25f, -0.25f * m_aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+        Vertex{ {   0.0f,  0.25f * aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
+        Vertex{ {  0.25f, -0.25f * aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
+        Vertex{ { -0.25f, -0.25f * aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
     };
     const UINT vertexBufferSize = sizeof(triangleVertices);
     // Use an upload heap to hold the vertex buffer
     /* TODO: inefficient, change this! */
     const auto heapProperties   = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
     const auto vertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
-    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties,
-                                                 D3D12_HEAP_FLAG_NONE,
-                                                 &vertexBufferDesc,
-                                                 D3D12_RESOURCE_STATE_GENERIC_READ,
-                                                 nullptr,
-                                                 IID_PPV_ARGS(&m_vertexBuffer)),
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
+                                                 &vertexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                 nullptr, IID_PPV_ARGS(&m_vertexBuffer)),
                "Failed to create an upload heap.");
-    // Aquire a CPU pointer to the buffer (subresource "sr")
-    static constexpr UINT sr = 0u;
+    // Aquire a CPU pointer to the buffer (subresource "subRes")
     UINT8* pVertexData;
+    static constexpr UINT subRes = 0u;
     // Note: we don't intend to read from this resource on the CPU
     static const CD3DX12_RANGE emptyReadRange{0u, 0u};
-    CHECK_CALL(m_vertexBuffer->Map(sr, &emptyReadRange, reinterpret_cast<void**>(&pVertexData)),
+    CHECK_CALL(m_vertexBuffer->Map(subRes, &emptyReadRange, reinterpret_cast<void**>(&pVertexData)),
                "Failed to map the vertex buffer.");
     // Copy the triangle data to the vertex buffer
     memcpy(pVertexData, triangleVertices, sizeof(triangleVertices));
     // Unmap the buffer
-    m_vertexBuffer->Unmap(sr, nullptr);
+    m_vertexBuffer->Unmap(subRes, nullptr);
     // Initialize the vertex buffer view
     m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
     m_vertexBufferView.StrideInBytes  = sizeof(Vertex);
@@ -358,14 +360,14 @@ void Renderer::createVertexBuffer() {
 }
 
 void Renderer::createSyncPrims() {
-    // Create a memory fence object with the value of 0
+    // Create a 0-initialized memory fence object
     CHECK_CALL(m_device->CreateFence(0u, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)),
                "Failed to create a memory fence object.");
     // Set the first valid fence value to 1
     m_fenceValue = 1u;
     // Create a synchronization event
-    m_fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-    if (!m_fenceEvent) {
+    m_syncEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    if (!m_syncEvent) {
         CHECK_CALL(HRESULT_FROM_WIN32(GetLastError()),
                    "Failed to create a synchronization event.");
     }
@@ -384,24 +386,24 @@ void Renderer::renderFrame() {
 }
 
 void Renderer::recordCommandList() {
-    // Command list allocators can only be reset when the associated 
+    // Command list -allocators- can only be reset when the associated 
     // command lists have finished execution on the GPU; apps should use 
     // fences to determine GPU execution progress
     CHECK_CALL(m_commandAllocator->Reset(), "Failed to reset the command allocator.");
     // However, when ExecuteCommandList() is called on a particular command list,
-    // that command list can then be reset at any time (and must be before re-recording)
+    // that command list -itself- can then be reset at any time (and must be before re-recording)
     CHECK_CALL(m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get()),
                "Failed to reset the graphics command list.");
     // Set the necessary state
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
     m_commandList->RSSetViewports(1u, &m_viewport);
     m_commandList->RSSetScissorRects(1u, &m_scissorRect);
-    // Transition the back buffer state from Presenting to Render Target
+    // Transition the back buffer state: Presenting -> Render Target
     auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
     auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
                       D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     m_commandList->ResourceBarrier(1u, &barrier);
-    // Set the back buffer will be used as the render target
+    // Set the back buffer as the render target
     const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart(),
                                                   static_cast<int>(m_backBufferIndex),
                                                   m_rtvDescriptorSize};
@@ -412,7 +414,7 @@ void Renderer::recordCommandList() {
     m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_commandList->IASetVertexBuffers(0u, 1u, &m_vertexBufferView);
     m_commandList->DrawInstanced(3u, 1u, 0u, 0u);
-    // Transition the back buffer state from Render Target to Presenting
+    // Transition the back buffer state: Render Target -> Presenting
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
               D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     m_commandList->ResourceBarrier(1u, &barrier);
@@ -422,19 +424,19 @@ void Renderer::recordCommandList() {
 
 void Renderer::stop() {
     waitForPreviousFrame();
-    CloseHandle(m_fenceEvent);
+    CloseHandle(m_syncEvent);
 }
 
 /* TODO: waiting is inefficient, change this! */
 void Renderer::waitForPreviousFrame() {
-    // Insert the fence
+    // Insert the fence into the GPU command queue
     CHECK_CALL(m_commandQueue->Signal(m_fence.Get(), m_fenceValue),
                "Failed to update the value of the memory fence.");
     // Wait until the previous frame is finished
     if (m_fence->GetCompletedValue() < m_fenceValue) {
-        CHECK_CALL(m_fence->SetEventOnCompletion(m_fenceValue, m_fenceEvent),
+        CHECK_CALL(m_fence->SetEventOnCompletion(m_fenceValue, m_syncEvent),
                    "Failed to set an event to trigger upon the memory fence reaching a set value.");
-        WaitForSingleObject(m_fenceEvent, INFINITE);
+        WaitForSingleObject(m_syncEvent, INFINITE);
     }
     // Increment the fence value and flip the frame buffer
     ++m_fenceValue;

@@ -52,6 +52,8 @@ namespace D3D12 {
         // Creates a graphics pieline state object which describes
         // the input data format and how its processed (rendered)
         void createPipelineStateObject();
+        // Creates a command list
+        void createCommandList();
         // Creates a vertex buffer
         void createVertexBuffer();
         // Creates synchronization primitives, such as
@@ -61,33 +63,30 @@ namespace D3D12 {
         void recordCommandList();
         // Waits for frame rendering to finish
         void waitForPreviousFrame();
-        /* Frame buffer count */
-        static const UINT                 m_bufferCount = 2u;
-        /* Adapter info */
-        static const bool                 m_useWarpDevice = false;
-        /* Viewport dimensions */
-        LONG                              m_width;
-        LONG                              m_height;
-        float                             m_aspectRatio;
-        /* Pipeline objects */
+        /* Private data members */
+        static const UINT                 m_singleGpuNodeMask = 0u;
+        static const UINT                 m_bufferCount       = 2u;
+        static const bool                 m_useWarpDevice     = false;
+        /* Rendering parameters */
         D3D12_VIEWPORT                    m_viewport;
         D3D12_RECT                        m_scissorRect;
-        ComPtr<IDXGISwapChain3>           m_swapChain;
+        UINT                              m_backBufferIndex;
+        /* Pipeline objects */
         ComPtr<ID3D12Device>              m_device;
-        ComPtr<ID3D12Resource>            m_renderTargets[m_bufferCount];
+        ComPtr<IDXGISwapChain3>           m_swapChain;
         ComPtr<ID3D12CommandAllocator>    m_commandAllocator;
         ComPtr<ID3D12CommandQueue>        m_commandQueue;
         ComPtr<ID3D12GraphicsCommandList> m_commandList;
         ComPtr<ID3D12RootSignature>       m_rootSignature;
-        ComPtr<ID3D12DescriptorHeap>      m_rtvHeap;
         ComPtr<ID3D12PipelineState>       m_pipelineState;
+        ComPtr<ID3D12Resource>            m_renderTargets[m_bufferCount];
+        ComPtr<ID3D12DescriptorHeap>      m_rtvHeap;
         UINT                              m_rtvDescriptorSize;
         /* Application resources */
         ComPtr<ID3D12Resource>            m_vertexBuffer;
         D3D12_VERTEX_BUFFER_VIEW          m_vertexBufferView;
         /* Synchronization objects */
-        UINT                              m_backBufferIndex;
-        HANDLE                            m_fenceEvent;
+        HANDLE                            m_syncEvent;
         ComPtr<ID3D12Fence>               m_fence;
         UINT64                            m_fenceValue;
     };
