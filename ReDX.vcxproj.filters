@@ -32,6 +32,9 @@
     <ClCompile Include="Source\UI\Window.cpp">
       <Filter>Source Files\UI</Filter>
     </ClCompile>
+    <ClCompile Include="Source\D3D12\WorkManagement.cpp">
+      <Filter>Source Files\D3D12</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\D3D12\Renderer.h">
@@ -47,6 +50,9 @@
       <Filter>Source Files\UI</Filter>
     </ClInclude>
     <ClInclude Include="Source\D3D12\d3dx12.h">
+      <Filter>Source Files\D3D12</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\D3D12\WorkManagement.h">
       <Filter>Source Files\D3D12</Filter>
     </ClInclude>
   </ItemGroup>

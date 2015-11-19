@@ -55,3 +55,10 @@ static inline void printError(const char* const fmt, ...) {
 
 // Prints the location of the fatal error and terminates the program
 #define TERMINATE() panic(__FILE__, __LINE__)
+
+// Prints the C string (errMsg) if the HRESULT (hr) fails
+#define CHECK_CALL(hr, errMsg)     \
+    if (FAILED(hr)) {              \
+        printError(errMsg);        \
+        panic(__FILE__, __LINE__); \
+    }

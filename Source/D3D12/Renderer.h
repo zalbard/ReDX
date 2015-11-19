@@ -1,10 +1,8 @@
 #pragma once
 
-#include <d3d12.h>
 #include <dxgi1_4.h>
-#include <wrl\client.h>
 #include <DirectXMath.h>
-#include "..\Common\Definitions.h"
+#include "WorkManagement.h"
 
 namespace D3D12 {
     using DirectX::XMFLOAT3;
@@ -25,7 +23,7 @@ namespace D3D12 {
         Renderer(const long resX, const long resY);
         // Draws a single frame to the framebuffer
         void renderFrame();
-        // Waits for all GPU commands to finish
+        // Finishes the current frame and stops the execution
         void stop();
     private:
         // Configures the hardware and the software layers (infrastructure)
@@ -37,16 +35,12 @@ namespace D3D12 {
         void createHardwareDevice(IDXGIFactory4* const factory);
         // Creates a WARP (software) Direct3D device
         void createWarpDevice(IDXGIFactory4* const factory);
-        // Creates a command queue
-        void createCommandQueue();
         // Creates a swap chain
         void createSwapChain(IDXGIFactory4* const factory);
         // Creates a descriptor heap
         void createDescriptorHeap();
         // Creates RTVs for each frame buffer
         void createRenderTargetViews();
-        // Creates a command allocator
-        void createCommandAllocator();
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
         // Creates a root signature
@@ -58,13 +52,8 @@ namespace D3D12 {
         void createCommandList();
         // Creates a vertex buffer
         void createVertexBuffer();
-        // Creates synchronization primitives, such as
-        // memory fences and synchronization events
-        void createSyncPrims();
         // Resets and then populates the graphics command list
         void recordCommandList();
-        // Waits for the execution of the command list to complete
-        void waitForPreviousFrame();
         /* Private data members */
         static const uint                 m_singleGpuNodeMask = 0u;
         static const uint                 m_bufferCount       = 2u;
@@ -76,8 +65,7 @@ namespace D3D12 {
         /* Pipeline objects */
         ComPtr<ID3D12Device>              m_device;
         ComPtr<IDXGISwapChain3>           m_swapChain;
-        ComPtr<ID3D12CommandAllocator>    m_commandAllocator;
-        ComPtr<ID3D12CommandQueue>        m_commandQueue;
+        WorkQueue                         m_workQueue;
         ComPtr<ID3D12GraphicsCommandList> m_commandList;
         ComPtr<ID3D12RootSignature>       m_rootSignature;
         ComPtr<ID3D12PipelineState>       m_pipelineState;
@@ -87,9 +75,5 @@ namespace D3D12 {
         /* Application resources */
         ComPtr<ID3D12Resource>            m_vertexBuffer;
         D3D12_VERTEX_BUFFER_VIEW          m_vertexBufferView;
-        /* Synchronization objects */
-        HANDLE                            m_syncEvent;
-        ComPtr<ID3D12Fence>               m_fence;
-        uint64                            m_fenceValue;
     };
 } // namespace D3D12

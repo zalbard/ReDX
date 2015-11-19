@@ -6,13 +6,6 @@
 
 using namespace D3D12;
 
-// Prints the C string (errMsg) if the HRESULT (hr) fails
-#define CHECK_CALL(hr, errMsg)     \
-    if (FAILED(hr)) {              \
-        printError(errMsg);        \
-        panic(__FILE__, __LINE__); \
-    }
-
 Renderer::Renderer(const long resX, const long resY) {
     // Configure the viewport
     m_viewport = D3D12_VIEWPORT{
@@ -68,11 +61,10 @@ void Renderer::configureEnvironment() {
     auto factory = createDxgiFactory4();
     disableFullscreen(factory.Get());
     createDevice(factory.Get());
-    createCommandQueue();
+    m_workQueue = WorkQueue{m_device.Get(), m_singleGpuNodeMask};
     createSwapChain(factory.Get());
     createDescriptorHeap();
     createRenderTargetViews();
-    createCommandAllocator();
 }
 
 void Renderer::createDevice(IDXGIFactory4 * const factory) {
@@ -115,19 +107,6 @@ void Renderer::createWarpDevice(IDXGIFactory4* const factory) {
                "Failed to create a Direct3D device.");
 }
 
-void Renderer::createCommandQueue() {
-    // Fill out the command queue description
-    const D3D12_COMMAND_QUEUE_DESC queueDesc = {
-        /* Type */     D3D12_COMMAND_LIST_TYPE_DIRECT,
-        /* Priority */ D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
-        /* Flags */    D3D12_COMMAND_QUEUE_FLAG_NONE,
-        /* NodeMask */ m_singleGpuNodeMask
-    };
-    // Create a command queue
-    CHECK_CALL(m_device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)),
-               "Failed to create a command queue.");
-}
-
 void Renderer::createSwapChain(IDXGIFactory4* const factory) {
     // Fill out the buffer description
     const DXGI_MODE_DESC bufferDesc = {
@@ -155,7 +134,7 @@ void Renderer::createSwapChain(IDXGIFactory4* const factory) {
         /* Flags */        0u
     };
     // Create a swap chain; it needs a command queue to flush the latter
-    CHECK_CALL(factory->CreateSwapChain(m_commandQueue.Get(), &swapChainDesc,
+    CHECK_CALL(factory->CreateSwapChain(m_workQueue.cmdQueue.Get(), &swapChainDesc,
                                         reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf())),
                "Failed to create a swap chain.");
     // Use it to set the current back buffer index
@@ -189,20 +168,12 @@ void Renderer::createRenderTargetViews() {
     }
 }
 
-void Renderer::createCommandAllocator() {
-    CHECK_CALL(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                                IID_PPV_ARGS(&m_commandAllocator)),
-               "Failed to create a command allocator.");
-}
-
 void Renderer::configurePipeline() {
     createRootSignature();
     createPipelineStateObject();
     createCommandList();
     createVertexBuffer();
-    createSyncPrims();
-    // Wait for the setup to complete before continuing
-    waitForPreviousFrame();
+    m_workQueue.waitForCompletion();
 }
 
 void Renderer::createRootSignature() {
@@ -324,7 +295,7 @@ void Renderer::createPipelineStateObject() {
 
 void Renderer::createCommandList() {
     CHECK_CALL(m_device->CreateCommandList(m_singleGpuNodeMask, D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                           m_commandAllocator.Get(), m_pipelineState.Get(),
+                                           m_workQueue.cmdAllocator.Get(), m_pipelineState.Get(),
                                            IID_PPV_ARGS(&m_commandList)),
                "Failed to create a command list.");
     // Command lists are created in the recording state, but there is nothing
@@ -366,30 +337,19 @@ void Renderer::createVertexBuffer() {
     m_vertexBufferView.SizeInBytes    = vertexBufferSize;
 }
 
-void Renderer::createSyncPrims() {
-    // Create a 0-initialized memory fence object
-    CHECK_CALL(m_device->CreateFence(0ull, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)),
-               "Failed to create a memory fence object.");
-    // Set the first valid fence value to 1
-    m_fenceValue = 1ull;
-    // Create a synchronization event
-    m_syncEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-    if (!m_syncEvent) {
-        CHECK_CALL(HRESULT_FROM_WIN32(GetLastError()),
-                   "Failed to create a synchronization event.");
-    }
-}
-
 void Renderer::renderFrame() {
     // Record all the commands we need to render the scene into the command list
     recordCommandList();
     // Execute the command list
     ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-    m_commandQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    m_workQueue.cmdQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     // Present the frame
     CHECK_CALL(m_swapChain->Present(1u, 0u), "Failed to display the frame buffer.");
-    // Wait for frame rendering to finish
-    waitForPreviousFrame();
+    // Wait until all the queued commands have been executed
+    /* TODO: waiting is inefficient, change this! */
+    m_workQueue.waitForCompletion();
+    // Flip the frame buffer
+    m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
 
 void Renderer::recordCommandList() {
@@ -397,10 +357,10 @@ void Renderer::recordCommandList() {
     // Command list -allocators- can only be reset when the associated 
     // command lists have finished execution on the GPU; apps should use 
     // fences to determine GPU execution progress
-    CHECK_CALL(m_commandAllocator->Reset(), "Failed to reset the command allocator.");
+    CHECK_CALL(m_workQueue.cmdAllocator->Reset(), "Failed to reset the command allocator.");
     // However, when ExecuteCommandList() is called on a particular command list,
     // that command list -itself- can then be reset at any time (and must be before re-recording)
-    CHECK_CALL(m_commandList->Reset(m_commandAllocator.Get(), m_pipelineState.Get()),
+    CHECK_CALL(m_commandList->Reset(m_workQueue.cmdAllocator.Get(), m_pipelineState.Get()),
                "Failed to reset the graphics command list.");
     // Set the necessary state
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
@@ -431,22 +391,5 @@ void Renderer::recordCommandList() {
 }
 
 void Renderer::stop() {
-    waitForPreviousFrame();
-    CloseHandle(m_syncEvent);
-}
-
-/* TODO: waiting is inefficient, change this! */
-void Renderer::waitForPreviousFrame() {
-    // Insert the fence into the GPU command queue
-    CHECK_CALL(m_commandQueue->Signal(m_fence.Get(), m_fenceValue),
-               "Failed to update the value of the memory fence.");
-    // Wait until the previous frame is finished
-    if (m_fence->GetCompletedValue() < m_fenceValue) {
-        CHECK_CALL(m_fence->SetEventOnCompletion(m_fenceValue, m_syncEvent),
-                   "Failed to set an event to trigger upon the memory fence reaching a set value.");
-        WaitForSingleObject(m_syncEvent, INFINITE);
-    }
-    // Increment the fence value and flip the frame buffer
-    ++m_fenceValue;
-    m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
+    m_workQueue.finish();
 }

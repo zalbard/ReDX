@@ -157,6 +157,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Source\D3D12\Renderer.cpp" />
+    <ClCompile Include="Source\D3D12\WorkManagement.cpp" />
     <ClCompile Include="Source\ReDX.cpp" />
     <ClCompile Include="Source\UI\Window.cpp" />
   </ItemGroup>
@@ -165,6 +166,7 @@
     <ClInclude Include="Source\Common\Utility.h" />
     <ClInclude Include="Source\D3D12\d3dx12.h" />
     <ClInclude Include="Source\D3D12\Renderer.h" />
+    <ClInclude Include="Source\D3D12\WorkManagement.h" />
     <ClInclude Include="Source\UI\Window.h" />
   </ItemGroup>
   <ItemGroup>
