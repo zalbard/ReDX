@@ -326,7 +326,7 @@ void Renderer::createCommandList() {
     CHECK_CALL(m_device->CreateCommandList(m_singleGpuNodeMask, D3D12_COMMAND_LIST_TYPE_DIRECT,
                                            m_commandAllocator.Get(), m_pipelineState.Get(),
                                            IID_PPV_ARGS(&m_commandList)),
-        "Failed to create a command list.");
+               "Failed to create a command list.");
     // Command lists are created in the recording state, but there is nothing
     // to record yet. The main loop expects it to be closed, so close it now.
     CHECK_CALL(m_commandList->Close(), "Failed to close the command list.");
