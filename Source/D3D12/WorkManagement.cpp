@@ -19,10 +19,9 @@ WorkQueue::WorkQueue(ID3D12Device* const device, const uint nodeMask) {
                                               IID_PPV_ARGS(&cmdAllocator)),
                "Failed to create a command allocator.");
     // Create a 0-initialized memory fence object
-    CHECK_CALL(device->CreateFence(0ull, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)),
+    fenceValue = 0ull;
+    CHECK_CALL(device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)),
                "Failed to create a memory fence object.");
-    // Set the first valid fence value to 1
-    fenceValue = 1ull;
     // Create a synchronization event
     syncEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (!syncEvent) {
@@ -32,11 +31,12 @@ WorkQueue::WorkQueue(ID3D12Device* const device, const uint nodeMask) {
 }
 
 void WorkQueue::waitForCompletion() {
-    // Insert the fence into the GPU command queue
-    // Currently, fence->GetCompletedValue() < fenceValue (normally, off by 1)
-    // Upon reaching the fence, a signal will increment the value of the fence
-    CHECK_CALL(cmdQueue->Signal(fence.Get(), fenceValue),
+    // Insert a memory fence (with a new value) into the GPU command queue
+    // Once we reach the fence in the queue, a signal will go off,
+    // which will set the internal value of the fence object to fenceValue
+    CHECK_CALL(cmdQueue->Signal(fence.Get(), ++fenceValue),
                "Failed to insert the memory fence into the command queue.");
+    // fence->GetCompletedValue() retuns the value of the fence reached so far
     // If we haven't reached the fence yet...
     if (fence->GetCompletedValue() < fenceValue) {
         // ... we wait using a synchronization event
@@ -44,8 +44,6 @@ void WorkQueue::waitForCompletion() {
                    "Failed to set a synchronization event.");
         WaitForSingleObject(syncEvent, INFINITE);
     }
-    // Increment the fence value s.t. it's once again off by 1
-    ++fenceValue;
 }
 
 void WorkQueue::finish() {
