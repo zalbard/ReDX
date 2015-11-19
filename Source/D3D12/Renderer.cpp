@@ -38,61 +38,52 @@ Renderer::Renderer(const LONG resX, const LONG resY) {
     configurePipeline();
 }
 
-void Renderer::configureEnvironment() {
-    #ifdef _DEBUG
-        // Enable the Direct3D debug layer
-        enableDebugLayer();
-    #endif
-    /* 1. Create a DirectX Graphics Infrastructure (DXGI) 1.1 factory */
-    // IDXGIFactory4 inherits from IDXGIFactory1 (4 -> 3 -> 2 -> 1)
-    ComPtr<IDXGIFactory4> factory;
-    CHECK_CALL(CreateDXGIFactory1(IID_PPV_ARGS(&factory)),
-               "Failed to create a DXGI 1.1 factory.");
-    // Disable fullscreen transitions
-    CHECK_CALL(factory->MakeWindowAssociation(Window::handle(), DXGI_MWA_NO_ALT_ENTER),
-               "Failed to disable fullscreen transitions.");
-    /* 2. Initialize the display adapter */
-    #pragma warning(suppress: 4127)
-    if (m_useWarpDevice) {
-        // Use a software display adapter
-        createWarpDevice(factory.Get());
-    }
-    else {
-        // Use a hardware display adapter
-        createHardwareDevice(factory.Get());
-    }
-    /* 3. Create a command queue */
-    createCommandQueue();
-    /* 4. Create a swap chain */
-    createSwapChain(factory.Get());
-    // Use it to set the current back buffer index
-    m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
-    /* 5. Create a descriptor heap */
-    createDescriptorHeap();
-    // Set the offset (increment size) for descriptor handles
-    m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    /* 6. Create RTVs for each frame buffer */
-    createRenderTargetViews();
-    /* 7. Create a command allocator */
-    CHECK_CALL(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                                IID_PPV_ARGS(&m_commandAllocator)),
-               "Failed to create a command allocator.");
-}
-
-void Renderer::enableDebugLayer() const {
+// Enables the Direct3D debug layer
+static inline void enableDebugLayer() {
+#ifdef _DEBUG
     ComPtr<ID3D12Debug> debugController;
     CHECK_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)),
                "Failed to initialize the D3D debug layer.");
     debugController->EnableDebugLayer();
+#endif
 }
 
-void Renderer::createWarpDevice(IDXGIFactory4* const factory) {
-    ComPtr<IDXGIAdapter> adapter;
-    CHECK_CALL(factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)),
-               "Failed to create a WARP adapter.");
-    // Create a Direct3D device
-    CHECK_CALL(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)),
-               "Failed to create a Direct3D device.");
+// Creates a DirectX Graphics Infrastructure (DXGI) 1.1 factory
+static inline ComPtr<IDXGIFactory4> createDxgiFactory4() {
+    // IDXGIFactory4 inherits from IDXGIFactory1 (4 -> 3 -> 2 -> 1)
+    ComPtr<IDXGIFactory4> factory;
+    CHECK_CALL(CreateDXGIFactory1(IID_PPV_ARGS(&factory)),
+               "Failed to create a DXGI 1.1 factory.");
+    return factory;
+}
+
+// Disables transitions from the windowed to the fullscreen mode
+static inline void disableFullscreen(IDXGIFactory4* const factory) {
+    CHECK_CALL(factory->MakeWindowAssociation(Window::handle(), DXGI_MWA_NO_ALT_ENTER),
+               "Failed to disable fullscreen transitions.");
+}
+
+void Renderer::configureEnvironment() {
+    enableDebugLayer();
+    auto factory = createDxgiFactory4();
+    disableFullscreen(factory.Get());
+    createDevice(factory.Get());
+    createCommandQueue();
+    createSwapChain(factory.Get());
+    createDescriptorHeap();
+    createRenderTargetViews();
+    createCommandAllocator();
+}
+
+void Renderer::createDevice(IDXGIFactory4 * const factory) {
+    #pragma warning(suppress: 4127)
+    if (!m_useWarpDevice) {
+        // Use a hardware display adapter
+        createHardwareDevice(factory);
+    } else {
+        // Use a software display adapter
+        createWarpDevice(factory);
+    }
 }
 
 void Renderer::createHardwareDevice(IDXGIFactory4* const factory) {
@@ -107,13 +98,21 @@ void Renderer::createHardwareDevice(IDXGIFactory4* const factory) {
         // Check whether the adapter supports Direct3D 12
         if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
                                         _uuidof(ID3D12Device), nullptr))) {
-            // Create a Direct3D device
+            // It does -> create a Direct3D device
             CHECK_CALL(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
                                          IID_PPV_ARGS(&m_device)),
                        "Failed to create a Direct3D device.");
             return;
         }
     }
+}
+
+void Renderer::createWarpDevice(IDXGIFactory4* const factory) {
+    ComPtr<IDXGIAdapter> adapter;
+    CHECK_CALL(factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)),
+               "Failed to create a WARP adapter.");
+    CHECK_CALL(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)),
+               "Failed to create a Direct3D device.");
 }
 
 void Renderer::createCommandQueue() {
@@ -159,6 +158,8 @@ void Renderer::createSwapChain(IDXGIFactory4* const factory) {
     CHECK_CALL(factory->CreateSwapChain(m_commandQueue.Get(), &swapChainDesc,
                                         reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf())),
                "Failed to create a swap chain.");
+    // Use it to set the current back buffer index
+    m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
 
 void Renderer::createDescriptorHeap() {
@@ -172,6 +173,8 @@ void Renderer::createDescriptorHeap() {
     // Create a descriptor heap
     CHECK_CALL(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)),
                "Failed to create a descriptor heap.");
+    // Set the offset (increment size) for descriptor handles
+    m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 }
 
 void Renderer::createRenderTargetViews() {
@@ -186,19 +189,19 @@ void Renderer::createRenderTargetViews() {
     }
 }
 
+void Renderer::createCommandAllocator() {
+    CHECK_CALL(m_device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+                                                IID_PPV_ARGS(&m_commandAllocator)),
+               "Failed to create a command allocator.");
+}
+
 void Renderer::configurePipeline() {
-    /* 1. Create a root signature */
     createRootSignature();
-    /* 2. Create a pipeline state object */
     createPipelineStateObject();
-    /* 3. Create a command list */
     createCommandList();
-    /* 4. Create a vertex buffer */
     createVertexBuffer();
-    /* 5. Create a memory fence and a synchronization event */
     createSyncPrims();
-    /* 6. Wait for the execution of the command list to complete */
-    // Effectively, wait for the setup to complete before continuing
+    // Wait for the setup to complete before continuing
     waitForPreviousFrame();
 }
 

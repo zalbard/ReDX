@@ -28,15 +28,15 @@ namespace D3D12 {
         // Waits for all GPU commands to finish
         void stop();
     private:
-        // Configures the hardware and the software layers
+        // Configures the hardware and the software layers (infrastructure)
         // This step is independent from the rendering pipeline
         void configureEnvironment();
-        // Enables the Direct3D debug layer
-        void enableDebugLayer() const;
-        // Creates a WARP (software) Direct3D device
-        void createWarpDevice(IDXGIFactory4* const factory);
+        // Creates a Direct3D device that represents the display adapter
+        void createDevice(IDXGIFactory4* const factory);
         // Creates a hardware Direct3D device
         void createHardwareDevice(IDXGIFactory4* const factory);
+        // Creates a WARP (software) Direct3D device
+        void createWarpDevice(IDXGIFactory4* const factory);
         // Creates a command queue
         void createCommandQueue();
         // Creates a swap chain
@@ -45,6 +45,8 @@ namespace D3D12 {
         void createDescriptorHeap();
         // Creates RTVs for each frame buffer
         void createRenderTargetViews();
+        // Creates a command allocator
+        void createCommandAllocator();
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
         // Creates a root signature
@@ -61,7 +63,7 @@ namespace D3D12 {
         void createSyncPrims();
         // Resets and then populates the graphics command list
         void recordCommandList();
-        // Waits for frame rendering to finish
+        // Waits for the execution of the command list to complete
         void waitForPreviousFrame();
         /* Private data members */
         static const UINT                 m_singleGpuNodeMask = 0u;
