@@ -1,5 +1,6 @@
 #include "Common\Utility.h"
 #include "D3D12\Renderer.h"
+#include "UI\Window.h"
 
 int main(const int argc, const char* argv[]) {
     // Parse command line arguments
@@ -18,6 +19,8 @@ int main(const int argc, const char* argv[]) {
     static const long resY = 720;
     // Initialize the renderer
     D3D12::Renderer engine{resX, resY};
+    // Display the window
+    ShowWindow(Window::handle(), SW_SHOWNORMAL);
     // Main loop
     MSG msg = {};
     while (WM_QUIT != msg.message) {

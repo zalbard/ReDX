@@ -35,8 +35,6 @@ void Window::create(const long resX, const long resY,
                           nullptr, nullptr,                         // No parent window, no menus
                           GetModuleHandle(nullptr),
                           engine);
-    // Display the window
-    ShowWindow(m_hwnd, SW_SHOWNORMAL);
 }
 
 HWND Window::handle() {
@@ -55,7 +53,6 @@ LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
                 reinterpret_cast<LONG_PTR>(reinterpret_cast<LPCREATESTRUCT>(lParam)->lpCreateParams));
             return 0;
         case WM_PAINT:
-            //OnUpdate();
             engine->renderFrame();
             return 0;
         case WM_KEYDOWN:
