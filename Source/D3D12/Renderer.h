@@ -18,6 +18,7 @@ namespace D3D12 {
     // Direct3D renderer
     class Renderer {
     public:
+        Renderer() = delete;
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
         // Constructor; takes horizontal and vertical resolution as input
         Renderer(const long resX, const long resY);
@@ -54,7 +55,7 @@ namespace D3D12 {
         void createVertexBuffer();
         // Resets and then populates the graphics command list
         void recordCommandList();
-        /* Private data members */
+    private:
         static const uint                 m_singleGpuNodeMask = 0u;
         static const uint                 m_bufferCount       = 2u;
         static const bool                 m_useWarpDevice     = false;

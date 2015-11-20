@@ -15,8 +15,9 @@ public:
    // Returns the handle of the window
    static HWND handle();
 private:
+   Window() = delete;
    RULE_OF_ZERO_MOVE_ONLY(Window);
-   /* Data members */
+private:
    static HWND       m_hwnd;        // Handle
    static RECT       m_rect;        // Screen-space rectangle
    static WNDCLASSEX m_class;       // Window class
