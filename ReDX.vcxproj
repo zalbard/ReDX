@@ -157,7 +157,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Source\D3D12\Renderer.cpp" />
-    <ClCompile Include="Source\D3D12\WorkManagement.cpp" />
+    <ClCompile Include="Source\D3D12\WorkManagement.hpp" />
     <ClCompile Include="Source\ReDX.cpp" />
     <ClCompile Include="Source\UI\Window.cpp" />
   </ItemGroup>

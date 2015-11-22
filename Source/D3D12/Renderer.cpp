@@ -1,8 +1,8 @@
 #include <d3dcompiler.h>
 #include "d3dx12.h"
 #include "Renderer.h"
+#include "WorkManagement.hpp"
 #include "..\UI\Window.h"
-#include "..\Common\Utility.h"
 
 using namespace D3D12;
 
@@ -33,12 +33,12 @@ Renderer::Renderer(const long resX, const long resY) {
 
 // Enables the Direct3D debug layer
 static inline void enableDebugLayer() {
-#ifdef _DEBUG
-    ComPtr<ID3D12Debug> debugController;
-    CHECK_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)),
-               "Failed to initialize the D3D debug layer.");
-    debugController->EnableDebugLayer();
-#endif
+    #ifdef _DEBUG
+        ComPtr<ID3D12Debug> debugController;
+        CHECK_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)),
+                   "Failed to initialize the D3D debug layer.");
+        debugController->EnableDebugLayer();
+    #endif
 }
 
 // Creates a DirectX Graphics Infrastructure (DXGI) 1.1 factory
@@ -57,11 +57,11 @@ static inline void disableFullscreen(IDXGIFactory4* const factory) {
 }
 
 void Renderer::configureEnvironment() {
-    enableDebugLayer();
+    //enableDebugLayer();
     auto factory = createDxgiFactory4();
     disableFullscreen(factory.Get());
     createDevice(factory.Get());
-    m_workQueue = WorkQueue{m_device.Get(), m_singleGpuNodeMask};
+    m_graphicsWorkQueue = GraphicsWorkQueue{m_device.Get(), m_singleGpuNodeMask};
     createSwapChain(factory.Get());
     createDescriptorHeap();
     createRenderTargetViews();
@@ -134,7 +134,7 @@ void Renderer::createSwapChain(IDXGIFactory4* const factory) {
         /* Flags */        0u
     };
     // Create a swap chain; it needs a command queue to flush the latter
-    CHECK_CALL(factory->CreateSwapChain(m_workQueue.cmdQueue.Get(), &swapChainDesc,
+    CHECK_CALL(factory->CreateSwapChain(m_graphicsWorkQueue.cmdQueue(), &swapChainDesc,
                                         reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf())),
                "Failed to create a swap chain.");
     // Use it to set the current back buffer index
@@ -173,7 +173,7 @@ void Renderer::configurePipeline() {
     createPipelineStateObject();
     createCommandList();
     createVertexBuffer();
-    m_workQueue.waitForCompletion();
+    m_graphicsWorkQueue.waitForCompletion();
 }
 
 void Renderer::createRootSignature() {
@@ -295,7 +295,7 @@ void Renderer::createPipelineStateObject() {
 
 void Renderer::createCommandList() {
     CHECK_CALL(m_device->CreateCommandList(m_singleGpuNodeMask, D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                           m_workQueue.cmdAllocator.Get(), m_pipelineState.Get(),
+                                           m_graphicsWorkQueue.m_listAlloca.Get(), m_pipelineState.Get(),
                                            IID_PPV_ARGS(&m_commandList)),
                "Failed to create a command list.");
     // Command lists are created in the recording state, but there is nothing
@@ -342,25 +342,24 @@ void Renderer::renderFrame() {
     recordCommandList();
     // Execute the command list
     ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-    m_workQueue.cmdQueue->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    m_graphicsWorkQueue.cmdQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
     // Present the frame
     CHECK_CALL(m_swapChain->Present(1u, 0u), "Failed to display the frame buffer.");
     // Wait until all the queued commands have been executed
     /* TODO: waiting is inefficient, change this! */
-    m_workQueue.waitForCompletion();
+    m_graphicsWorkQueue.waitForCompletion();
     // Flip the frame buffer
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
 
 void Renderer::recordCommandList() {
-    /* Reclaim the memory aquired by the command list allocator */
     // Command list -allocators- can only be reset when the associated 
     // command lists have finished execution on the GPU; apps should use 
     // fences to determine GPU execution progress
-    CHECK_CALL(m_workQueue.cmdAllocator->Reset(), "Failed to reset the command allocator.");
+    CHECK_CALL(m_graphicsWorkQueue.m_listAlloca->Reset(), "Failed to reset the command allocator.");
     // However, when ExecuteCommandList() is called on a particular command list,
     // that command list -itself- can then be reset at any time (and must be before re-recording)
-    CHECK_CALL(m_commandList->Reset(m_workQueue.cmdAllocator.Get(), m_pipelineState.Get()),
+    CHECK_CALL(m_commandList->Reset(m_graphicsWorkQueue.m_listAlloca.Get(), m_pipelineState.Get()),
                "Failed to reset the graphics command list.");
     // Set the necessary state
     m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
@@ -391,5 +390,5 @@ void Renderer::recordCommandList() {
 }
 
 void Renderer::stop() {
-    m_workQueue.finish();
+    m_graphicsWorkQueue.finish();
 }

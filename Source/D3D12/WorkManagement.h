@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vector>
 #include <d3d12.h>
 #include <wrl\client.h>
 #include "..\Common\Definitions.h"
@@ -8,8 +7,15 @@
 namespace D3D12 {
     using Microsoft::WRL::ComPtr;
 
+    // Corresponds to Direct3D command list types
+    enum class WorkType { GRAPHICS = D3D12_COMMAND_LIST_TYPE_DIRECT,
+                          COMPUTE  = D3D12_COMMAND_LIST_TYPE_COMPUTE };
+
     // Direct3D command list wrapper class
-    struct WorkList {
+    template <WorkType T>
+    class WorkList {
+    public:
+        WorkList() = default;
         RULE_OF_ZERO(WorkList);
         /* Public data members */
         ComPtr<ID3D12CommandList>      cmdList;
@@ -18,23 +24,29 @@ namespace D3D12 {
     };
 
     // Direct3D command queue wrapper class
-    struct WorkQueue {
+    template <WorkType T>
+    class WorkQueue {
+    public:
+        WorkQueue() = default;
         RULE_OF_ZERO_MOVE_ONLY(WorkQueue);
-        // Default constructor; does nothing
-        WorkQueue() {}
-        // Constructor; takes horizontal and vertical resolution as input
+        // Constructor; takes a Direct3D device and a device (node) mask as input
         WorkQueue(ID3D12Device* const device, const uint nodeMask);
         // Waits (using a fence) until the queue execution is finished
         void waitForCompletion();
         // Waits for all GPU commands to finish, and stops synchronization
         void finish();
-        /* Public data members */
-        ComPtr<ID3D12CommandQueue>     cmdQueue;
-        ComPtr<ID3D12CommandAllocator> cmdAllocator;
-        std::vector<WorkList>          workLists;
+        // Returns the pointer to the command queue
+        ID3D12CommandQueue* cmdQueue();
+    public:
+        ComPtr<ID3D12CommandAllocator> m_listAlloca, m_bundleAlloca;
+    private:
+        ComPtr<ID3D12CommandQueue>     m_cmdQueue;
         /* Synchronization objects */
-        HANDLE                         syncEvent;
-        ComPtr<ID3D12Fence>            fence;
-        uint64                         fenceValue;
+        ComPtr<ID3D12Fence>            m_fence;
+        uint64                         m_fenceValue;
+        HANDLE                         m_syncEvent;
     };
+
+    using GraphicsWorkQueue = WorkQueue<WorkType::GRAPHICS>;
+    using ComputeWorkQueue  = WorkQueue<WorkType::COMPUTE>;
 } // namespace D3D12

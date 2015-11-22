@@ -32,7 +32,7 @@
     <ClCompile Include="Source\UI\Window.cpp">
       <Filter>Source Files\UI</Filter>
     </ClCompile>
-    <ClCompile Include="Source\D3D12\WorkManagement.cpp">
+    <ClCompile Include="Source\D3D12\WorkManagement.hpp">
       <Filter>Source Files\D3D12</Filter>
     </ClCompile>
   </ItemGroup>

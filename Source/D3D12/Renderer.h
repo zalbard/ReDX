@@ -5,14 +5,10 @@
 #include "WorkManagement.h"
 
 namespace D3D12 {
-    using DirectX::XMFLOAT3;
-    using DirectX::XMFLOAT4;
-    using Microsoft::WRL::ComPtr;
-
     // Simple vertex represenation
     struct Vertex {
-        XMFLOAT3 position;  // Homogeneous screen-space coordinates from [-0.5, 0.5]
-        XMFLOAT4 color;     // RGBA color
+        DirectX::XMFLOAT3 position;  // Homogeneous screen-space coordinates from [-0.5, 0.5]
+        DirectX::XMFLOAT4 color;     // RGBA color
     };
 
     // Direct3D renderer
@@ -65,8 +61,8 @@ namespace D3D12 {
         uint                              m_backBufferIndex;
         /* Pipeline objects */
         ComPtr<ID3D12Device>              m_device;
+        GraphicsWorkQueue                 m_graphicsWorkQueue;
         ComPtr<IDXGISwapChain3>           m_swapChain;
-        WorkQueue                         m_workQueue;
         ComPtr<ID3D12GraphicsCommandList> m_commandList;
         ComPtr<ID3D12RootSignature>       m_rootSignature;
         ComPtr<ID3D12PipelineState>       m_pipelineState;
