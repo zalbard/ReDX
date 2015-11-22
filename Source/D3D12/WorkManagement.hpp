@@ -33,6 +33,12 @@ namespace D3D12 {
         }
     }
 
+    template<WorkType T>
+    template<uint N>
+    void WorkQueue<T>::executeCmdLists(ID3D12CommandList* const (&cmdLists)[N]) {
+        m_cmdQueue->ExecuteCommandLists(N, cmdLists);
+    }
+
     template <WorkType T>
     void WorkQueue<T>::waitForCompletion() {
         // Insert a memory fence (with a new value) into the GPU command queue

@@ -31,6 +31,9 @@ namespace D3D12 {
         RULE_OF_ZERO_MOVE_ONLY(WorkQueue);
         // Constructor; takes a Direct3D device and a device (node) mask as input
         WorkQueue(ID3D12Device* const device, const uint nodeMask);
+        // Submits the command lists to the command queue for execution
+        template <uint N>
+        void executeCmdLists(ID3D12CommandList* const (&cmdLists)[N]);
         // Waits (using a fence) until the queue execution is finished
         void waitForCompletion();
         // Waits for all GPU commands to finish, and stops synchronization

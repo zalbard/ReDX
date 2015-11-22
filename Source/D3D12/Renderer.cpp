@@ -341,8 +341,8 @@ void Renderer::renderFrame() {
     // Record all the commands we need to render the scene into the command list
     recordCommandList();
     // Execute the command list
-    ID3D12CommandList* ppCommandLists[] = { m_commandList.Get() };
-    m_graphicsWorkQueue.cmdQueue()->ExecuteCommandLists(_countof(ppCommandLists), ppCommandLists);
+    ID3D12CommandList* commandLists[] = { m_commandList.Get() };
+    m_graphicsWorkQueue.executeCmdLists(commandLists);
     // Present the frame
     CHECK_CALL(m_swapChain->Present(1u, 0u), "Failed to display the frame buffer.");
     // Wait until all the queued commands have been executed
