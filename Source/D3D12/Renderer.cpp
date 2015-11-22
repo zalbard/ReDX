@@ -208,7 +208,7 @@ static inline ComPtr<ID3DBlob> loadAndCompileShader(const wchar_t* const pathAnd
     // Load and compile the shader
     ComPtr<ID3DBlob> shader, errors;
     if (FAILED(D3DCompileFromFile(pathAndFileName, nullptr, nullptr, entryPoint,
-                                   type, compileFlags, 0u, &shader, &errors))) {
+                                  type, compileFlags, 0u, &shader, &errors))) {
         printError("Failed to load and compile a shader.");
         printError(static_cast<const char* const>(errors->GetBufferPointer()));
         TERMINATE();
