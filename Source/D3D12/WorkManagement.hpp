@@ -3,7 +3,8 @@
 
 namespace D3D12 {
     template <WorkType T>
-    WorkQueue<T>::WorkQueue(ID3D12Device* const device, const uint nodeMask) {
+    void WorkQueue<T>::init(ID3D12Device* const device, const uint nodeMask) {
+        assert(!m_cmdQueue && "Already initialized.");
         // Fill out the command queue description
         const D3D12_COMMAND_QUEUE_DESC queueDesc = {
             /* Type */     static_cast<D3D12_COMMAND_LIST_TYPE>(T),
@@ -65,5 +66,15 @@ namespace D3D12 {
     template<WorkType T>
     ID3D12CommandQueue* WorkQueue<T>::cmdQueue() {
         return m_cmdQueue.Get();
+    }
+
+    template<WorkType T>
+    ID3D12CommandAllocator* WorkQueue<T>::listAlloca() {
+        return m_listAlloca.Get();
+    }
+
+    template<WorkType T>
+    ID3D12CommandAllocator* WorkQueue<T>::bundleAlloca() {
+        return m_bundleAlloca.Get();
     }
 } // namespace D3D12

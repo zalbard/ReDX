@@ -4,6 +4,10 @@
 #include <DirectXMath.h>
 #include "WorkManagement.h"
 
+// Forward declarations
+struct CD3DX12_ROOT_SIGNATURE_DESC;
+struct D3D12_GRAPHICS_PIPELINE_STATE_DESC;
+
 namespace D3D12 {
     // Simple vertex represenation
     struct Vertex {
@@ -18,6 +22,16 @@ namespace D3D12 {
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
         // Constructor; takes horizontal and vertical resolution as input
         Renderer(const long resX, const long resY);
+        // Creates a root signature according to its description
+        ComPtr<ID3D12RootSignature> 
+            createRootSignature(const CD3DX12_ROOT_SIGNATURE_DESC* const rootSignatureDesc);
+        // Creates a graphics pieline state object (PSO) according to its description
+        // A PSO describes the input data format, and how the data is processed (rendered)
+        ComPtr<ID3D12PipelineState>
+            createPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* const pipelineStateDesc);
+        // Creates a graphics command list of a specified type, in a specified initial state
+        ComPtr<ID3D12GraphicsCommandList>
+            createGraphicsCmdList(ID3D12PipelineState* const initState);
         // Draws a single frame to the framebuffer
         void renderFrame();
         // Finishes the current frame and stops the execution
@@ -40,13 +54,6 @@ namespace D3D12 {
         void createRenderTargetViews();
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
-        // Creates a root signature
-        void createRootSignature();
-        // Creates a graphics pieline state object which describes
-        // the input data format and how its processed (rendered)
-        void createPipelineStateObject();
-        // Creates a command list
-        void createCommandList();
         // Creates a vertex buffer
         void createVertexBuffer();
         // Resets and then populates the graphics command list
@@ -63,13 +70,13 @@ namespace D3D12 {
         ComPtr<ID3D12Device>              m_device;
         GraphicsWorkQueue                 m_graphicsWorkQueue;
         ComPtr<IDXGISwapChain3>           m_swapChain;
-        ComPtr<ID3D12GraphicsCommandList> m_commandList;
-        ComPtr<ID3D12RootSignature>       m_rootSignature;
-        ComPtr<ID3D12PipelineState>       m_pipelineState;
         ComPtr<ID3D12Resource>            m_renderTargets[m_bufferCount];
         ComPtr<ID3D12DescriptorHeap>      m_rtvHeap;
         uint                              m_rtvDescriptorSize;
         /* Application resources */
+        ComPtr<ID3D12RootSignature>       m_rootSignature;
+        ComPtr<ID3D12PipelineState>       m_pipelineState;
+        ComPtr<ID3D12GraphicsCommandList> m_graphicsCmdList;
         ComPtr<ID3D12Resource>            m_vertexBuffer;
         D3D12_VERTEX_BUFFER_VIEW          m_vertexBufferView;
     };

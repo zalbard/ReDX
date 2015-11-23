@@ -57,11 +57,11 @@ static inline void disableFullscreen(IDXGIFactory4* const factory) {
 }
 
 void Renderer::configureEnvironment() {
-    //enableDebugLayer();
+    enableDebugLayer();
     auto factory = createDxgiFactory4();
     disableFullscreen(factory.Get());
     createDevice(factory.Get());
-    m_graphicsWorkQueue = GraphicsWorkQueue{m_device.Get(), m_singleGpuNodeMask};
+    m_graphicsWorkQueue.init(m_device.Get(), m_singleGpuNodeMask);
     createSwapChain(factory.Get());
     createDescriptorHeap();
     createRenderTargetViews();
@@ -168,32 +168,6 @@ void Renderer::createRenderTargetViews() {
     }
 }
 
-void Renderer::configurePipeline() {
-    createRootSignature();
-    createPipelineStateObject();
-    createCommandList();
-    createVertexBuffer();
-    m_graphicsWorkQueue.waitForCompletion();
-}
-
-void Renderer::createRootSignature() {
-    // Fill out the root signature description
-    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(0u, nullptr, 0u, nullptr,
-                           D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-    // Serialize a root signature from the description
-    ComPtr<ID3DBlob> signature, error;
-    CHECK_CALL(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1,
-                                           &signature, &error),
-               "Failed to serialize a root signature.");
-    // Create a root signature layout using the serialized signature
-    CHECK_CALL(m_device->CreateRootSignature(m_singleGpuNodeMask,
-                                             signature->GetBufferPointer(),
-                                             signature->GetBufferSize(),
-                                             IID_PPV_ARGS(&m_rootSignature)),
-               "Failed to create a root signature.");
-}
-
 // Loads and compiles vertex and pixel shaders; takes the full path to the shader file,
 // the name of the main (entry point) function, and the shader type
 static inline ComPtr<ID3DBlob> loadAndCompileShader(const wchar_t* const pathAndFileName,
@@ -216,7 +190,12 @@ static inline ComPtr<ID3DBlob> loadAndCompileShader(const wchar_t* const pathAnd
     return shader;
 }
 
-void Renderer::createPipelineStateObject() {
+void Renderer::configurePipeline() {
+    // Fill out the root signature description
+    const CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc{0u, nullptr, 0u, nullptr,
+        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT};
+    // Create a root signature
+    m_rootSignature = createRootSignature(&rootSignatureDesc);
     const auto vs = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "VSMain", "vs_5_0");
     const auto ps = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "PSMain", "ps_5_0");
     // Fill out the depth stencil description
@@ -261,7 +240,7 @@ void Renderer::createPipelineStateObject() {
         /* Quality */ 0u    // Default sampler
     };
     // Fill out the pipeline state object description
-    const D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {
+    const D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {
         /* pRootSignature */        m_rootSignature.Get(),
         /* VS */                    D3D12_SHADER_BYTECODE{
             /* pShaderBytecode */       reinterpret_cast<uint8*>(vs->GetBufferPointer()),
@@ -281,7 +260,7 @@ void Renderer::createPipelineStateObject() {
         /* IBStripCutValue */       D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
         /* PrimitiveTopologyType */ D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         /* NumRenderTargets */      1u,
-        /* RTVFormats[ 8 ] */       {DXGI_FORMAT_R8G8B8A8_UNORM},
+        /* RTVFormats[8] */         {DXGI_FORMAT_R8G8B8A8_UNORM},
         /* DSVFormat */             DXGI_FORMAT_UNKNOWN,
         /* SampleDesc */            sampleDesc,
         /* NodeMask */              m_singleGpuNodeMask,
@@ -289,18 +268,51 @@ void Renderer::createPipelineStateObject() {
         /* Flags */                 D3D12_PIPELINE_STATE_FLAG_NONE
     };
     // Create a graphics pipeline state object
-    CHECK_CALL(m_device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&m_pipelineState)),
-               "Failed to create a pipeline state object.");
+    m_pipelineState = createPipelineState(&pipelineStateDesc);
+    // Create a graphics command list
+    m_graphicsCmdList = createGraphicsCmdList(m_pipelineState.Get());
+    createVertexBuffer();
+    m_graphicsWorkQueue.waitForCompletion();
 }
 
-void Renderer::createCommandList() {
+ComPtr<ID3D12RootSignature>
+Renderer::createRootSignature(const CD3DX12_ROOT_SIGNATURE_DESC* const rootSignatureDesc) {
+    // Serialize a root signature from the description
+    ComPtr<ID3DBlob> signature, error;
+    CHECK_CALL(D3D12SerializeRootSignature(rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+                                           &signature, &error),
+               "Failed to serialize a root signature.");
+    // Create a root signature layout using the serialized signature
+    ComPtr<ID3D12RootSignature> rootSignature;
+    CHECK_CALL(m_device->CreateRootSignature(m_singleGpuNodeMask,
+                                             signature->GetBufferPointer(),
+                                             signature->GetBufferSize(),
+                                             IID_PPV_ARGS(&rootSignature)),
+               "Failed to create a root signature.");
+    return rootSignature;
+}
+
+ComPtr<ID3D12PipelineState>
+Renderer::createPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* const pipelineStateDesc) {
+    ComPtr<ID3D12PipelineState> pipelineState;
+    CHECK_CALL(m_device->CreateGraphicsPipelineState(pipelineStateDesc,
+                                                     IID_PPV_ARGS(&pipelineState)),
+               "Failed to create a graphics pipeline state object.");
+    return pipelineState;
+}
+
+ComPtr<ID3D12GraphicsCommandList>
+Renderer::createGraphicsCmdList(ID3D12PipelineState* const initState) {
+
+    ComPtr<ID3D12GraphicsCommandList> graphicsCmdList;
     CHECK_CALL(m_device->CreateCommandList(m_singleGpuNodeMask, D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                           m_graphicsWorkQueue.m_listAlloca.Get(), m_pipelineState.Get(),
-                                           IID_PPV_ARGS(&m_commandList)),
+                                           m_graphicsWorkQueue.listAlloca(), initState,
+                                           IID_PPV_ARGS(&graphicsCmdList)),
                "Failed to create a command list.");
     // Command lists are created in the recording state, but there is nothing
     // to record yet. The main loop expects it to be closed, so close it now.
-    CHECK_CALL(m_commandList->Close(), "Failed to close the command list.");
+    CHECK_CALL(graphicsCmdList->Close(), "Failed to close the command list.");
+    return graphicsCmdList;
 }
 
 void Renderer::createVertexBuffer() {
@@ -341,7 +353,7 @@ void Renderer::renderFrame() {
     // Record all the commands we need to render the scene into the command list
     recordCommandList();
     // Execute the command list
-    ID3D12CommandList* commandLists[] = { m_commandList.Get() };
+    ID3D12CommandList* commandLists[] = { m_graphicsCmdList.Get() };
     m_graphicsWorkQueue.executeCmdLists(commandLists);
     // Present the frame
     CHECK_CALL(m_swapChain->Present(1u, 0u), "Failed to display the frame buffer.");
@@ -356,37 +368,37 @@ void Renderer::recordCommandList() {
     // Command list -allocators- can only be reset when the associated 
     // command lists have finished execution on the GPU; apps should use 
     // fences to determine GPU execution progress
-    CHECK_CALL(m_graphicsWorkQueue.m_listAlloca->Reset(), "Failed to reset the command allocator.");
+    CHECK_CALL(m_graphicsWorkQueue.listAlloca()->Reset(), "Failed to reset the command allocator.");
     // However, when ExecuteCommandList() is called on a particular command list,
     // that command list -itself- can then be reset at any time (and must be before re-recording)
-    CHECK_CALL(m_commandList->Reset(m_graphicsWorkQueue.m_listAlloca.Get(), m_pipelineState.Get()),
+    CHECK_CALL(m_graphicsCmdList->Reset(m_graphicsWorkQueue.listAlloca(), m_pipelineState.Get()),
                "Failed to reset the graphics command list.");
     // Set the necessary state
-    m_commandList->SetGraphicsRootSignature(m_rootSignature.Get());
-    m_commandList->RSSetViewports(1u, &m_viewport);
-    m_commandList->RSSetScissorRects(1u, &m_scissorRect);
+    m_graphicsCmdList->SetGraphicsRootSignature(m_rootSignature.Get());
+    m_graphicsCmdList->RSSetViewports(1u, &m_viewport);
+    m_graphicsCmdList->RSSetScissorRects(1u, &m_scissorRect);
     // Transition the back buffer state: Presenting -> Render Target
     auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
     auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
                       D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    m_commandList->ResourceBarrier(1u, &barrier);
+    m_graphicsCmdList->ResourceBarrier(1u, &barrier);
     // Set the back buffer as the render target
     const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart(),
                                                   static_cast<int>(m_backBufferIndex),
                                                   m_rtvDescriptorSize};
-    m_commandList->OMSetRenderTargets(1u, &rtvHandle, FALSE, nullptr);
+    m_graphicsCmdList->OMSetRenderTargets(1u, &rtvHandle, FALSE, nullptr);
     // Record commands
     static constexpr float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-    m_commandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
-    m_commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_commandList->IASetVertexBuffers(0u, 1u, &m_vertexBufferView);
-    m_commandList->DrawInstanced(3u, 1u, 0u, 0u);
+    m_graphicsCmdList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
+    m_graphicsCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_graphicsCmdList->IASetVertexBuffers(0u, 1u, &m_vertexBufferView);
+    m_graphicsCmdList->DrawInstanced(3u, 1u, 0u, 0u);
     // Transition the back buffer state: Render Target -> Presenting
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
               D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-    m_commandList->ResourceBarrier(1u, &barrier);
+    m_graphicsCmdList->ResourceBarrier(1u, &barrier);
     // Finalize the list
-    CHECK_CALL(m_commandList->Close(), "Failed to close the command list.");
+    CHECK_CALL(m_graphicsCmdList->Close(), "Failed to close the command list.");
 }
 
 void Renderer::stop() {
