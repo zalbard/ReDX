@@ -271,7 +271,15 @@ void Renderer::configurePipeline() {
     m_pipelineState = createPipelineState(&pipelineStateDesc);
     // Create a graphics command list
     m_graphicsCmdList = createGraphicsCmdList(m_pipelineState.Get());
-    createVertexBuffer();
+    // Define a screen-space triangle
+    const float aspectRatio = m_viewport.Width / m_viewport.Height;
+    const Vertex triangleVertices[] = {
+        Vertex{ {   0.0f,  0.25f * aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
+        Vertex{ {  0.25f, -0.25f * aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
+        Vertex{ { -0.25f, -0.25f * aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+    };
+    // Create a vertex buffer
+    m_vertexBuffer = createVertexBuffer(triangleVertices, _countof(triangleVertices));
     m_graphicsWorkQueue.waitForCompletion();
 }
 
@@ -303,7 +311,6 @@ Renderer::createPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* const pi
 
 ComPtr<ID3D12GraphicsCommandList>
 Renderer::createGraphicsCmdList(ID3D12PipelineState* const initState) {
-
     ComPtr<ID3D12GraphicsCommandList> graphicsCmdList;
     CHECK_CALL(m_device->CreateCommandList(m_singleGpuNodeMask, D3D12_COMMAND_LIST_TYPE_DIRECT,
                                            m_graphicsWorkQueue.listAlloca(), initState,
@@ -315,38 +322,37 @@ Renderer::createGraphicsCmdList(ID3D12PipelineState* const initState) {
     return graphicsCmdList;
 }
 
-void Renderer::createVertexBuffer() {
-    // Define a screen-space triangle
-    const float aspectRatio = m_viewport.Width / m_viewport.Height;
-    const Vertex triangleVertices[] = {
-        Vertex{ {   0.0f,  0.25f * aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-        Vertex{ {  0.25f, -0.25f * aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-        Vertex{ { -0.25f, -0.25f * aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
-    };
-    const uint vertexBufferSize = sizeof(triangleVertices);
+template <typename T>
+VertexBuffer Renderer::createVertexBuffer(const T* const vertices, const uint count) {
+    VertexBuffer vertexBuffer;
+    const uint vertexBufferSize = count * sizeof(T);
     // Use an upload heap to hold the vertex buffer
     /* TODO: inefficient, change this! */
     const auto heapProperties   = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
     const auto vertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
                                                  &vertexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
-                                                 nullptr, IID_PPV_ARGS(&m_vertexBuffer)),
+                                                 nullptr, IID_PPV_ARGS(&vertexBuffer.resource)),
                "Failed to create an upload heap.");
     // Aquire a CPU pointer to the buffer (subresource "subRes")
-    uint8* pVertexData;
+    uint8* vertexData;
     static constexpr uint subRes = 0u;
     // Note: we don't intend to read from this resource on the CPU
     static const CD3DX12_RANGE emptyReadRange{0ull, 0ull};
-    CHECK_CALL(m_vertexBuffer->Map(subRes, &emptyReadRange, reinterpret_cast<void**>(&pVertexData)),
+    CHECK_CALL(vertexBuffer.resource->Map(subRes, &emptyReadRange,
+                                          reinterpret_cast<void**>(&vertexData)),
                "Failed to map the vertex buffer.");
     // Copy the triangle data to the vertex buffer
-    memcpy(pVertexData, triangleVertices, sizeof(triangleVertices));
+    memcpy(vertexData, vertices, vertexBufferSize);
     // Unmap the buffer
-    m_vertexBuffer->Unmap(subRes, nullptr);
+    vertexBuffer.resource->Unmap(subRes, nullptr);
     // Initialize the vertex buffer view
-    m_vertexBufferView.BufferLocation = m_vertexBuffer->GetGPUVirtualAddress();
-    m_vertexBufferView.StrideInBytes  = sizeof(Vertex);
-    m_vertexBufferView.SizeInBytes    = vertexBufferSize;
+    vertexBuffer.view = D3D12_VERTEX_BUFFER_VIEW{
+        /* BufferLocation */ vertexBuffer.resource->GetGPUVirtualAddress(),
+        /* SizeInBytes */    vertexBufferSize,
+        /* StrideInBytes */  sizeof(T)
+    };
+    return vertexBuffer;
 }
 
 void Renderer::renderFrame() {
@@ -391,7 +397,7 @@ void Renderer::recordCommandList() {
     static constexpr float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
     m_graphicsCmdList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
     m_graphicsCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_graphicsCmdList->IASetVertexBuffers(0u, 1u, &m_vertexBufferView);
+    m_graphicsCmdList->IASetVertexBuffers(0u, 1u, &m_vertexBuffer.view);
     m_graphicsCmdList->DrawInstanced(3u, 1u, 0u, 0u);
     // Transition the back buffer state: Render Target -> Presenting
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,

@@ -15,6 +15,12 @@ namespace D3D12 {
         DirectX::XMFLOAT4 color;     // RGBA color
     };
 
+    // Direct3D vertex buffer
+    struct VertexBuffer {
+        ComPtr<ID3D12Resource>   resource;  // Direct3D buffer representation
+        D3D12_VERTEX_BUFFER_VIEW view;      // Buffer properties
+    };
+
     // Direct3D renderer
     class Renderer {
     public:
@@ -32,6 +38,9 @@ namespace D3D12 {
         // Creates a graphics command list of a specified type, in a specified initial state
         ComPtr<ID3D12GraphicsCommandList>
             createGraphicsCmdList(ID3D12PipelineState* const initState);
+        // Creates a vertex buffer for the vertex array with the specified number of vertices
+        template <typename T>
+        VertexBuffer createVertexBuffer(const T* const vertices, const uint count);
         // Draws a single frame to the framebuffer
         void renderFrame();
         // Finishes the current frame and stops the execution
@@ -54,8 +63,6 @@ namespace D3D12 {
         void createRenderTargetViews();
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
-        // Creates a vertex buffer
-        void createVertexBuffer();
         // Resets and then populates the graphics command list
         void recordCommandList();
     private:
@@ -77,7 +84,6 @@ namespace D3D12 {
         ComPtr<ID3D12RootSignature>       m_rootSignature;
         ComPtr<ID3D12PipelineState>       m_pipelineState;
         ComPtr<ID3D12GraphicsCommandList> m_graphicsCmdList;
-        ComPtr<ID3D12Resource>            m_vertexBuffer;
-        D3D12_VERTEX_BUFFER_VIEW          m_vertexBufferView;
+        VertexBuffer                      m_vertexBuffer;
     };
 } // namespace D3D12

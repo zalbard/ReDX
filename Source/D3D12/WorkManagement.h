@@ -14,8 +14,6 @@ namespace D3D12 {
     // Direct3D command list wrapper class
     template <WorkType T>
     struct WorkList {
-        WorkList() = default;
-        RULE_OF_ZERO(WorkList);
         ComPtr<ID3D12CommandList>   cmdList;
         ComPtr<ID3D12PipelineState> pipelineState;
         ComPtr<ID3D12RootSignature> rootSignature;
