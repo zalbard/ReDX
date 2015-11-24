@@ -280,6 +280,7 @@ void Renderer::configurePipeline() {
     };
     // Create a vertex buffer
     m_vertexBuffer = createVertexBuffer(triangleVertices, _countof(triangleVertices));
+    // Wait until the pipeline setup is finished
     m_graphicsWorkQueue.waitForCompletion();
 }
 
