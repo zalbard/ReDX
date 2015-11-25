@@ -30,6 +30,15 @@
                                   T& operator=(T&&) noexcept;      \
                                   ~T()
 
+// Declares a singleton class which cannot be
+// constructed, destroyed, copied, moved or assigned
+#define SINGLETON(T) T()                        = delete; \
+                     T(const T&)                = delete; \
+                     T& operator=(const T&)     = delete; \
+                     T(T&&) noexcept            = delete; \
+                     T& operator=(T&&) noexcept = delete; \
+                     ~T()                       = delete
+
 using uint   = unsigned int;
 using uint8  = unsigned short;
 using uint64 = unsigned long long;
