@@ -40,5 +40,5 @@
                      ~T() noexcept              = delete
 
 using uint   = unsigned int;
-using uint8  = unsigned short;
+using uint8  = unsigned char;
 using uint64 = unsigned long long;
