@@ -9,7 +9,7 @@ struct CD3DX12_ROOT_SIGNATURE_DESC;
 struct D3D12_GRAPHICS_PIPELINE_STATE_DESC;
 
 namespace D3D12 {
-    // Simple vertex represenation
+    // Simple vertex representation
     struct Vertex {
         DirectX::XMFLOAT3 position;  // Homogeneous screen-space coordinates from [-0.5, 0.5]
         DirectX::XMFLOAT4 color;     // RGBA color
@@ -31,7 +31,7 @@ namespace D3D12 {
         // Creates a root signature according to its description
         ComPtr<ID3D12RootSignature> 
             createRootSignature(const CD3DX12_ROOT_SIGNATURE_DESC* const rootSignatureDesc);
-        // Creates a graphics pieline state object (PSO) according to its description
+        // Creates a graphics pipeline state object (PSO) according to its description
         // A PSO describes the input data format, and how the data is processed (rendered)
         ComPtr<ID3D12PipelineState>
             createPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* const pipelineStateDesc);
@@ -41,7 +41,7 @@ namespace D3D12 {
         // Creates a vertex buffer for the vertex array with the specified number of vertices
         template <typename T>
         VertexBuffer createVertexBuffer(const T* const vertices, const uint count);
-        // Draws a single frame to the framebuffer
+        // Draws a single frame to the frame buffer
         void renderFrame();
         // Finishes the current frame and stops the execution
         void stop();

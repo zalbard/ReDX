@@ -47,7 +47,7 @@ namespace D3D12 {
         // which will set the internal value of the fence object to fenceValue
         CHECK_CALL(m_cmdQueue->Signal(m_fence.Get(), ++m_fenceValue),
                    "Failed to insert the memory fence into the command queue.");
-        // fence->GetCompletedValue() retuns the value of the fence reached so far
+        // fence->GetCompletedValue() returns the value of the fence reached so far
         // If we haven't reached the fence yet...
         if (m_fence->GetCompletedValue() < m_fenceValue) {
             // ... we wait using a synchronization event
