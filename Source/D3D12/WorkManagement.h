@@ -8,16 +8,11 @@ namespace D3D12 {
     using Microsoft::WRL::ComPtr;
 
     // Corresponds to Direct3D command list types
-    enum class WorkType { GRAPHICS = D3D12_COMMAND_LIST_TYPE_DIRECT,
-                          COMPUTE  = D3D12_COMMAND_LIST_TYPE_COMPUTE };
-
-    // Direct3D command list wrapper class
-    template <WorkType T>
-    struct WorkList {
-        ComPtr<ID3D12CommandList>   cmdList;
-        ComPtr<ID3D12PipelineState> pipelineState;
-        ComPtr<ID3D12RootSignature> rootSignature;
-    };
+    enum class WorkType {
+        DIRECT  = D3D12_COMMAND_LIST_TYPE_DIRECT,   // Supports all types of commands
+        COMPUTE = D3D12_COMMAND_LIST_TYPE_COMPUTE,  // Supports compute and copy commands only
+        COPY    = D3D12_COMMAND_LIST_TYPE_COPY      // Supports copy commands only
+    };    
 
     // Direct3D command queue wrapper class
     template <WorkType T>
@@ -48,7 +43,4 @@ namespace D3D12 {
         uint64                         m_fenceValue;
         HANDLE                         m_syncEvent;
     };
-
-    using GraphicsWorkQueue = WorkQueue<WorkType::GRAPHICS>;
-    using ComputeWorkQueue  = WorkQueue<WorkType::COMPUTE>;
 } // namespace D3D12

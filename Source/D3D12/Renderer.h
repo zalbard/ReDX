@@ -75,7 +75,7 @@ namespace D3D12 {
         uint                              m_backBufferIndex;
         /* Pipeline objects */
         ComPtr<ID3D12Device>              m_device;
-        GraphicsWorkQueue                 m_graphicsWorkQueue;
+        WorkQueue<WorkType::DIRECT>       m_directWorkQueue;
         ComPtr<IDXGISwapChain3>           m_swapChain;
         ComPtr<ID3D12Resource>            m_renderTargets[m_bufferCount];
         ComPtr<ID3D12DescriptorHeap>      m_rtvHeap;

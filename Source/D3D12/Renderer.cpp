@@ -61,7 +61,7 @@ void Renderer::configureEnvironment() {
     auto factory = createDxgiFactory4();
     disableFullscreen(factory.Get());
     createDevice(factory.Get());
-    m_graphicsWorkQueue.init(m_device.Get(), m_singleGpuNodeMask);
+    m_directWorkQueue.init(m_device.Get(), m_singleGpuNodeMask);
     createSwapChain(factory.Get());
     createDescriptorHeap();
     createRenderTargetViews();
@@ -136,7 +136,7 @@ void Renderer::createSwapChain(IDXGIFactory4* const factory) {
     };
     // Create a swap chain; it needs a command queue to flush the latter
     auto swapChainAddr = reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf());
-    CHECK_CALL(factory->CreateSwapChain(m_graphicsWorkQueue.cmdQueue(), &swapChainDesc,
+    CHECK_CALL(factory->CreateSwapChain(m_directWorkQueue.cmdQueue(), &swapChainDesc,
                                         swapChainAddr),
                "Failed to create a swap chain.");
     // Use it to set the current back buffer index
@@ -284,7 +284,7 @@ void Renderer::configurePipeline() {
     // Create a vertex buffer
     m_vertexBuffer = createVertexBuffer(triangleVertices, _countof(triangleVertices));
     // Wait until the pipeline setup is finished
-    m_graphicsWorkQueue.waitForCompletion();
+    m_directWorkQueue.waitForCompletion();
 }
 
 ComPtr<ID3D12RootSignature>
@@ -317,7 +317,7 @@ ComPtr<ID3D12GraphicsCommandList>
 Renderer::createGraphicsCmdList(ID3D12PipelineState* const initState) {
     ComPtr<ID3D12GraphicsCommandList> graphicsCmdList;
     CHECK_CALL(m_device->CreateCommandList(m_singleGpuNodeMask, D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                           m_graphicsWorkQueue.listAlloca(), initState,
+                                           m_directWorkQueue.listAlloca(), initState,
                                            IID_PPV_ARGS(&graphicsCmdList)),
                "Failed to create a command list.");
     // Command lists are created in the recording state, but there is nothing
@@ -366,12 +366,12 @@ void Renderer::renderFrame() {
     recordCommandList();
     // Execute the command list
     ID3D12CommandList* commandLists[] = {m_graphicsCmdList.Get()};
-    m_graphicsWorkQueue.executeCmdLists(commandLists);
+    m_directWorkQueue.executeCmdLists(commandLists);
     // Present the frame
     CHECK_CALL(m_swapChain->Present(1u, 0u), "Failed to display the frame buffer.");
     // Wait until all the queued commands have been executed
     /* TODO: waiting is inefficient, change this! */
-    m_graphicsWorkQueue.waitForCompletion();
+    m_directWorkQueue.waitForCompletion();
     // Flip the frame buffer
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
@@ -380,10 +380,10 @@ void Renderer::recordCommandList() {
     // Command list -allocators- can only be reset when the associated 
     // command lists have finished execution on the GPU; apps should use 
     // fences to determine GPU execution progress
-    CHECK_CALL(m_graphicsWorkQueue.listAlloca()->Reset(), "Failed to reset the command allocator.");
+    CHECK_CALL(m_directWorkQueue.listAlloca()->Reset(), "Failed to reset the command allocator.");
     // However, after ExecuteCommandList() has been called on a particular command list,
     // that command list -itself- can then be reset at any time (and must be before re-recording)
-    CHECK_CALL(m_graphicsCmdList->Reset(m_graphicsWorkQueue.listAlloca(), m_pipelineState.Get()),
+    CHECK_CALL(m_graphicsCmdList->Reset(m_directWorkQueue.listAlloca(), m_pipelineState.Get()),
                "Failed to reset the graphics command list.");
     // Set the necessary state
     m_graphicsCmdList->SetGraphicsRootSignature(m_rootSignature.Get());
@@ -414,5 +414,5 @@ void Renderer::recordCommandList() {
 }
 
 void Renderer::stop() {
-    m_graphicsWorkQueue.finish();
+    m_directWorkQueue.finish();
 }
