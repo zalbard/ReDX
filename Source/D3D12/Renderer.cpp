@@ -161,7 +161,7 @@ void Renderer::createRenderTargetViews() {
     // Create a Render Target View (RTV) for each frame buffer
     for (uint bufferIndex = 0u; bufferIndex < m_bufferCount; ++bufferIndex) {
         CHECK_CALL(m_swapChain->GetBuffer(bufferIndex, IID_PPV_ARGS(&m_renderTargets[bufferIndex])),
-                   "Failed to aquire a swap chain buffer.");
+                   "Failed to acquire a swap chain buffer.");
         m_device->CreateRenderTargetView(m_renderTargets[bufferIndex].Get(), nullptr, rtvDescHandle);
         // Increment the descriptor pointer by the descriptor size
         rtvDescHandle.Offset(1, m_rtvDescriptorSize);
@@ -335,7 +335,7 @@ VertexBuffer Renderer::createVertexBuffer(const T* const vertices, const uint co
                                                  &vertexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
                                                  nullptr, IID_PPV_ARGS(&vertexBuffer.resource)),
                "Failed to create an upload heap.");
-    // Aquire a CPU pointer to the buffer (subresource "subRes")
+    // Acquire a CPU pointer to the buffer (sub-resource "subRes")
     uint8* vertexData;
     static constexpr uint subRes = 0u;
     // Note: we don't intend to read from this resource on the CPU
