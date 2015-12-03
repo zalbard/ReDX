@@ -381,7 +381,7 @@ void Renderer::recordCommandList() {
     // command lists have finished execution on the GPU; apps should use 
     // fences to determine GPU execution progress
     CHECK_CALL(m_graphicsWorkQueue.listAlloca()->Reset(), "Failed to reset the command allocator.");
-    // However, when ExecuteCommandList() is called on a particular command list,
+    // However, after ExecuteCommandList() has been called on a particular command list,
     // that command list -itself- can then be reset at any time (and must be before re-recording)
     CHECK_CALL(m_graphicsCmdList->Reset(m_graphicsWorkQueue.listAlloca(), m_pipelineState.Get()),
                "Failed to reset the graphics command list.");
