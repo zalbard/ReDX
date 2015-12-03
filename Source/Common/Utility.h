@@ -19,7 +19,7 @@ static inline float invSq(const T v) {
 
 // For internal use only!
 static inline void printInternal(FILE* const stream, const char* const fmt, const va_list& args) {
-    // Print the timestamp
+    // Print the time stamp
     time_t rawTime;
     time(&rawTime);
     struct tm timeInfo;
