@@ -17,7 +17,7 @@ namespace D3D12 {
 
     // Direct3D vertex buffer
     struct VertexBuffer {
-        ComPtr<ID3D12Resource>   resource;  // Direct3D buffer representation
+        ComPtr<ID3D12Resource>   resource;  // Direct3D buffer interface
         D3D12_VERTEX_BUFFER_VIEW view;      // Buffer properties
     };
 
@@ -66,8 +66,11 @@ namespace D3D12 {
         // Resets and then populates the graphics command list
         void recordCommandList();
     private:
+        // Rendering is performed on a single GPU.
         static const uint                 m_singleGpuNodeMask = 0u;
+        // Double buffering is used: present the front, render to the back
         static const uint                 m_bufferCount       = 2u;
+        // Software rendering flag
         static const bool                 m_useWarpDevice     = false;
         /* Rendering parameters */
         D3D12_VIEWPORT                    m_viewport;
