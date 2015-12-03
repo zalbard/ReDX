@@ -49,9 +49,6 @@
     <ClInclude Include="Source\UI\Window.h">
       <Filter>Source Files\UI</Filter>
     </ClInclude>
-    <ClInclude Include="Source\D3D12\d3dx12.h">
-      <Filter>Source Files\D3D12</Filter>
-    </ClInclude>
     <ClInclude Include="Source\D3D12\WorkManagement.h">
       <Filter>Source Files\D3D12</Filter>
     </ClInclude>

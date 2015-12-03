@@ -164,7 +164,6 @@
   <ItemGroup>
     <ClInclude Include="Source\Common\Definitions.h" />
     <ClInclude Include="Source\Common\Utility.h" />
-    <ClInclude Include="Source\D3D12\d3dx12.h" />
     <ClInclude Include="Source\D3D12\Renderer.h" />
     <ClInclude Include="Source\D3D12\WorkManagement.h" />
     <ClInclude Include="Source\UI\Window.h" />
