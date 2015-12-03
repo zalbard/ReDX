@@ -49,8 +49,8 @@ LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
     switch (message) {
         case WM_CREATE:
             // Save the Renderer* passed into CreateWindow in GWLP_USERDATA
-            SetWindowLongPtr(hWnd, GWLP_USERDATA,
-                reinterpret_cast<LONG_PTR>(reinterpret_cast<LPCREATESTRUCT>(lParam)->lpCreateParams));
+            SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(
+                reinterpret_cast<LPCREATESTRUCT>(lParam)->lpCreateParams));
             return 0;
         case WM_PAINT:
             engine->renderFrame();

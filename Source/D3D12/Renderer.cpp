@@ -274,9 +274,9 @@ void Renderer::configurePipeline() {
     // Define a screen-space triangle
     const float aspectRatio = m_viewport.Width / m_viewport.Height;
     const Vertex triangleVertices[] = {
-        Vertex{ {   0.0f,  0.25f * aspectRatio, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
-        Vertex{ {  0.25f, -0.25f * aspectRatio, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
-        Vertex{ { -0.25f, -0.25f * aspectRatio, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
+        Vertex{{  0.0f,  0.25f * aspectRatio, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
+        Vertex{{ 0.25f, -0.25f * aspectRatio, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
+        Vertex{{-0.25f, -0.25f * aspectRatio, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}}
     };
     // Create a vertex buffer
     m_vertexBuffer = createVertexBuffer(triangleVertices, _countof(triangleVertices));
@@ -360,7 +360,7 @@ void Renderer::renderFrame() {
     // Record all the commands we need to render the scene into the command list
     recordCommandList();
     // Execute the command list
-    ID3D12CommandList* commandLists[] = { m_graphicsCmdList.Get() };
+    ID3D12CommandList* commandLists[] = {m_graphicsCmdList.Get()};
     m_graphicsWorkQueue.executeCmdLists(commandLists);
     // Present the frame
     CHECK_CALL(m_swapChain->Present(1u, 0u), "Failed to display the frame buffer.");
@@ -395,7 +395,7 @@ void Renderer::recordCommandList() {
                                                   m_rtvDescriptorSize};
     m_graphicsCmdList->OMSetRenderTargets(1u, &rtvHandle, FALSE, nullptr);
     // Record commands
-    static constexpr float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
+    static constexpr float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
     m_graphicsCmdList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
     m_graphicsCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_graphicsCmdList->IASetVertexBuffers(0u, 1u, &m_vertexBuffer.view);
