@@ -153,7 +153,7 @@ void Renderer::createDescriptorHeap() {
     CHECK_CALL(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)),
                "Failed to create a descriptor heap.");
     // Set the offset (increment size) for descriptor handles
-    m_rtvDescriptorSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    m_rtvDescIncrSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 }
 
 void Renderer::createRenderTargetViews() {
@@ -164,7 +164,7 @@ void Renderer::createRenderTargetViews() {
                    "Failed to acquire a swap chain buffer.");
         m_device->CreateRenderTargetView(m_renderTargets[bufferIndex].Get(), nullptr, rtvDescHandle);
         // Increment the descriptor pointer by the descriptor size
-        rtvDescHandle.Offset(1, m_rtvDescriptorSize);
+        rtvDescHandle.Offset(1, m_rtvDescIncrSize);
     }
 }
 
@@ -392,7 +392,7 @@ void Renderer::recordCommandList() {
     // Set the back buffer as the render target
     const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart(),
                                                   static_cast<int>(m_backBufferIndex),
-                                                  m_rtvDescriptorSize};
+                                                  m_rtvDescIncrSize};
     m_graphicsCmdList->OMSetRenderTargets(1u, &rtvHandle, FALSE, nullptr);
     // Record commands
     static constexpr float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};

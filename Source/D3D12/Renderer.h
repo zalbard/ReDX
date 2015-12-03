@@ -79,7 +79,7 @@ namespace D3D12 {
         ComPtr<IDXGISwapChain3>           m_swapChain;
         ComPtr<ID3D12Resource>            m_renderTargets[m_bufferCount];
         ComPtr<ID3D12DescriptorHeap>      m_rtvHeap;
-        uint                              m_rtvDescriptorSize;
+        uint                              m_rtvDescIncrSize;
         /* Application resources */
         ComPtr<ID3D12RootSignature>       m_rootSignature;
         ComPtr<ID3D12PipelineState>       m_pipelineState;
