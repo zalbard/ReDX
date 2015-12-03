@@ -88,8 +88,9 @@ void Renderer::createHardwareDevice(IDXGIFactory4* const factory) {
             TERMINATE();
         }
         // Check whether the adapter supports Direct3D 12
+        ID3D12Device* nullDevice = nullptr;
         if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
-                                        _uuidof(ID3D12Device), nullptr))) {
+                                        IID_PPV_ARGS(&nullDevice)))) {
             // It does -> create a Direct3D device
             CHECK_CALL(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
                                          IID_PPV_ARGS(&m_device)),
@@ -134,8 +135,9 @@ void Renderer::createSwapChain(IDXGIFactory4* const factory) {
         /* Flags */        0u
     };
     // Create a swap chain; it needs a command queue to flush the latter
+    auto swapChainAddr = reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf());
     CHECK_CALL(factory->CreateSwapChain(m_graphicsWorkQueue.cmdQueue(), &swapChainDesc,
-                                        reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf())),
+                                        swapChainAddr),
                "Failed to create a swap chain.");
     // Use it to set the current back buffer index
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
@@ -162,7 +164,8 @@ void Renderer::createRenderTargetViews() {
     for (uint bufferIndex = 0u; bufferIndex < m_bufferCount; ++bufferIndex) {
         CHECK_CALL(m_swapChain->GetBuffer(bufferIndex, IID_PPV_ARGS(&m_renderTargets[bufferIndex])),
                    "Failed to acquire a swap chain buffer.");
-        m_device->CreateRenderTargetView(m_renderTargets[bufferIndex].Get(), nullptr, rtvDescHandle);
+        m_device->CreateRenderTargetView(m_renderTargets[bufferIndex].Get(),
+                                         nullptr, rtvDescHandle);
         // Increment the descriptor pointer by the descriptor size
         rtvDescHandle.Offset(1, m_rtvDescIncrSize);
     }
@@ -331,8 +334,10 @@ VertexBuffer Renderer::createVertexBuffer(const T* const vertices, const uint co
     /* TODO: inefficient, change this! */
     const auto heapProperties   = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
     const auto vertexBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
-    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &vertexBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties,
+                                                 D3D12_HEAP_FLAG_NONE,
+                                                 &vertexBufferDesc,
+                                                 D3D12_RESOURCE_STATE_GENERIC_READ,
                                                  nullptr, IID_PPV_ARGS(&vertexBuffer.resource)),
                "Failed to create an upload heap.");
     // Acquire a CPU pointer to the buffer (sub-resource "subRes")
