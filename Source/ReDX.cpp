@@ -15,8 +15,8 @@ int main(const int argc, const char* argv[]) {
         printError("The CPU doesn't support SSE2. Aborting.");
         return -1;
     }
-    static const long resX = 1280;
-    static const long resY = 720;
+    constexpr long resX = 1280;
+    constexpr long resY = 720;
     // Initialize the renderer
     D3D12::Renderer engine{resX, resY};
     // Display the window

@@ -178,9 +178,9 @@ static inline ComPtr<ID3DBlob> loadAndCompileShader(const wchar_t* const pathAnd
                                                     const char* const type) {
     #ifdef _DEBUG
         // Enable debugging symbol information, and disable certain optimizations
-        static constexpr uint compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+        constexpr uint compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
     #else
-        static constexpr uint compileFlags = 0u;
+        constexpr uint compileFlags = 0u;
     #endif
     // Load and compile the shader
     ComPtr<ID3DBlob> shader, errors;
@@ -342,9 +342,9 @@ VertexBuffer Renderer::createVertexBuffer(const T* const vertices, const uint co
                "Failed to create an upload heap.");
     // Acquire a CPU pointer to the buffer (sub-resource "subRes")
     uint8* vertexData;
-    static constexpr uint subRes = 0u;
+    constexpr uint subRes = 0u;
     // Note: we don't intend to read from this resource on the CPU
-    static const CD3DX12_RANGE emptyReadRange{0ull, 0ull};
+    const CD3DX12_RANGE emptyReadRange{0ull, 0ull};
     CHECK_CALL(vertexBuffer.resource->Map(subRes, &emptyReadRange,
                                           reinterpret_cast<void**>(&vertexData)),
                "Failed to map the vertex buffer.");
@@ -400,7 +400,7 @@ void Renderer::recordCommandList() {
                                                   m_rtvDescIncrSize};
     m_graphicsCmdList->OMSetRenderTargets(1u, &rtvHandle, FALSE, nullptr);
     // Record commands
-    static constexpr float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
+    constexpr float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
     m_graphicsCmdList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
     m_graphicsCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_graphicsCmdList->IASetVertexBuffers(0u, 1u, &m_vertexBuffer.view);
