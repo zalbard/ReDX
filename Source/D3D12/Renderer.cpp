@@ -154,20 +154,20 @@ void Renderer::createDescriptorHeap() {
     // Create a descriptor heap
     CHECK_CALL(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)),
                "Failed to create a descriptor heap.");
-    // Set the offset (increment size) for descriptor handles
-    m_rtvDescIncrSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    // Get the increment size for descriptor handles
+    m_rtvHandleIncrSz = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 }
 
 void Renderer::createRenderTargetViews() {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvDescHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart()};
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart()};
     // Create a Render Target View (RTV) for each frame buffer
     for (uint bufferIndex = 0u; bufferIndex < m_bufferCount; ++bufferIndex) {
         CHECK_CALL(m_swapChain->GetBuffer(bufferIndex, IID_PPV_ARGS(&m_renderTargets[bufferIndex])),
                    "Failed to acquire a swap chain buffer.");
         m_device->CreateRenderTargetView(m_renderTargets[bufferIndex].Get(),
-                                         nullptr, rtvDescHandle);
+                                         nullptr, rtvHandle);
         // Increment the descriptor pointer by the descriptor size
-        rtvDescHandle.Offset(1, m_rtvDescIncrSize);
+        rtvHandle.Offset(1, m_rtvHandleIncrSz);
     }
 }
 
@@ -395,7 +395,7 @@ void Renderer::recordCommandList() {
     // Set the back buffer as the render target
     const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart(),
                                                   static_cast<int>(m_backBufferIndex),
-                                                  m_rtvDescIncrSize};
+                                                  m_rtvHandleIncrSz};
     m_graphicsCmdList->OMSetRenderTargets(1u, &rtvHandle, FALSE, nullptr);
     // Record commands
     constexpr float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
