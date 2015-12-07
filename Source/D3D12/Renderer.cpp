@@ -195,10 +195,11 @@ static inline ComPtr<ID3DBlob> loadAndCompileShader(const wchar_t* const pathAnd
 
 void Renderer::configurePipeline() {
     // Fill out the root signature description
-    const CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc{0u, nullptr, 0u, nullptr,
-        D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT};
+    const auto rootSignatureDesc = CD3DX12_ROOT_SIGNATURE_DESC{0u, nullptr, 0u, nullptr,
+                                   D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT};
     // Create a root signature
     m_rootSignature = createRootSignature(&rootSignatureDesc);
+    // Import the vertex and the pixel shaders
     const auto vs = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "VSMain", "vs_5_0");
     const auto ps = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "PSMain", "ps_5_0");
     // Fill out the depth stencil description
@@ -363,8 +364,8 @@ void Renderer::renderFrame() {
     // Record all the commands we need to render the scene into the command list
     recordCommandList();
     // Execute the command list
-    ID3D12CommandList* commandLists[] = {m_graphicsCmdList.Get()};
-    m_directWorkQueue.executeCmdLists(commandLists);
+    ID3D12CommandList* cmdLists[] = {m_graphicsCmdList.Get()};
+    m_directWorkQueue.executeCmdLists(cmdLists);
     // Present the frame
     CHECK_CALL(m_swapChain->Present(1u, 0u), "Failed to display the frame buffer.");
     // Wait until all the queued commands have been executed
