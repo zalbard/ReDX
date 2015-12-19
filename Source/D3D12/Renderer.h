@@ -37,7 +37,7 @@ namespace D3D12 {
             createPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* const pipelineStateDesc);
         // Creates a graphics command list of a specified type, in a specified initial state
         ComPtr<ID3D12GraphicsCommandList>
-            createGraphicsCmdList(ID3D12PipelineState* const initState);
+            createGraphicsCommandList(ID3D12PipelineState* const initState);
         // Creates a vertex buffer for the vertex array with the specified number of vertices
         template <typename T>
         VertexBuffer createVertexBuffer(const T* const vertices, const uint count);
@@ -86,7 +86,7 @@ namespace D3D12 {
         /* Application resources */
         ComPtr<ID3D12RootSignature>       m_rootSignature;
         ComPtr<ID3D12PipelineState>       m_pipelineState;
-        ComPtr<ID3D12GraphicsCommandList> m_graphicsCmdList;
+        ComPtr<ID3D12GraphicsCommandList> m_graphicsCommandList;
         VertexBuffer                      m_vertexBuffer;
     };
 } // namespace D3D12

@@ -4,7 +4,7 @@
 namespace D3D12 {
     template <WorkType T>
     void WorkQueue<T>::init(ID3D12Device* const device, const uint nodeMask) {
-        assert(!m_cmdQueue && "Already initialized.");
+        assert(!m_commandQueue && "Already initialized.");
         // Fill out the command queue description
         const D3D12_COMMAND_QUEUE_DESC queueDesc = {
             /* Type */     static_cast<D3D12_COMMAND_LIST_TYPE>(T),
@@ -13,7 +13,7 @@ namespace D3D12 {
             /* NodeMask */ nodeMask
         };
         // Create a command queue
-        CHECK_CALL(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_cmdQueue)),
+        CHECK_CALL(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)),
                    "Failed to create a command queue.");
         // Create command allocators
         CHECK_CALL(device->CreateCommandAllocator(static_cast<D3D12_COMMAND_LIST_TYPE>(T),
@@ -36,8 +36,8 @@ namespace D3D12 {
 
     template<WorkType T>
     template<uint N>
-    void WorkQueue<T>::executeCmdLists(ID3D12CommandList* const (&cmdLists)[N]) {
-        m_cmdQueue->ExecuteCommandLists(N, cmdLists);
+    void WorkQueue<T>::executeCommandLists(ID3D12CommandList* const (&commandLists)[N]) {
+        m_commandQueue->ExecuteCommandLists(N, commandLists);
     }
 
     template <WorkType T>
@@ -45,7 +45,7 @@ namespace D3D12 {
         // Insert a memory fence (with a new value) into the GPU command queue
         // Once we reach the fence in the queue, a signal will go off,
         // which will set the internal value of the fence object to fenceValue
-        CHECK_CALL(m_cmdQueue->Signal(m_fence.Get(), ++m_fenceValue),
+        CHECK_CALL(m_commandQueue->Signal(m_fence.Get(), ++m_fenceValue),
                    "Failed to insert the memory fence into the command queue.");
         // fence->GetCompletedValue() returns the value of the fence reached so far
         // If we haven't reached the fence yet...
@@ -64,8 +64,8 @@ namespace D3D12 {
     }
 
     template<WorkType T>
-    ID3D12CommandQueue* WorkQueue<T>::cmdQueue() {
-        return m_cmdQueue.Get();
+    ID3D12CommandQueue* WorkQueue<T>::commandQueue() {
+        return m_commandQueue.Get();
     }
 
     template<WorkType T>

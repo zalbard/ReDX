@@ -136,7 +136,7 @@ void Renderer::createSwapChain(IDXGIFactory4* const factory) {
     };
     // Create a swap chain; it needs a command queue to flush the latter
     auto swapChainAddr = reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf());
-    CHECK_CALL(factory->CreateSwapChain(m_directWorkQueue.cmdQueue(), &swapChainDesc,
+    CHECK_CALL(factory->CreateSwapChain(m_directWorkQueue.commandQueue(), &swapChainDesc,
                                         swapChainAddr),
                "Failed to create a swap chain.");
     // Use it to set the current back buffer index
@@ -274,7 +274,7 @@ void Renderer::configurePipeline() {
     // Create a graphics pipeline state object
     m_pipelineState = createPipelineState(&pipelineStateDesc);
     // Create a graphics command list
-    m_graphicsCmdList = createGraphicsCmdList(m_pipelineState.Get());
+    m_graphicsCommandList = createGraphicsCommandList(m_pipelineState.Get());
     // Define a screen-space triangle
     const float aspectRatio = m_viewport.Width / m_viewport.Height;
     const Vertex triangleVertices[] = {
@@ -315,16 +315,16 @@ Renderer::createPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* const pi
 }
 
 ComPtr<ID3D12GraphicsCommandList>
-Renderer::createGraphicsCmdList(ID3D12PipelineState* const initState) {
-    ComPtr<ID3D12GraphicsCommandList> graphicsCmdList;
+Renderer::createGraphicsCommandList(ID3D12PipelineState* const initState) {
+    ComPtr<ID3D12GraphicsCommandList> graphicsCommandList;
     CHECK_CALL(m_device->CreateCommandList(m_singleGpuNodeMask, D3D12_COMMAND_LIST_TYPE_DIRECT,
                                            m_directWorkQueue.listAlloca(), initState,
-                                           IID_PPV_ARGS(&graphicsCmdList)),
+                                           IID_PPV_ARGS(&graphicsCommandList)),
                "Failed to create a command list.");
     // Command lists are created in the recording state, but there is nothing
     // to record yet. The main loop expects it to be closed, so close it now.
-    CHECK_CALL(graphicsCmdList->Close(), "Failed to close the command list.");
-    return graphicsCmdList;
+    CHECK_CALL(graphicsCommandList->Close(), "Failed to close the command list.");
+    return graphicsCommandList;
 }
 
 template <typename T>
@@ -364,8 +364,8 @@ void Renderer::renderFrame() {
     // Record all the commands we need to render the scene into the command list
     recordCommandList();
     // Execute the command list
-    ID3D12CommandList* cmdLists[] = {m_graphicsCmdList.Get()};
-    m_directWorkQueue.executeCmdLists(cmdLists);
+    ID3D12CommandList* commandLists[] = {m_graphicsCommandList.Get()};
+    m_directWorkQueue.executeCommandLists(commandLists);
     // Present the frame
     CHECK_CALL(m_swapChain->Present(1u, 0u), "Failed to display the frame buffer.");
     // Wait until all the queued commands have been executed
@@ -382,34 +382,34 @@ void Renderer::recordCommandList() {
     CHECK_CALL(m_directWorkQueue.listAlloca()->Reset(), "Failed to reset the command allocator.");
     // However, after ExecuteCommandList() has been called on a particular command list,
     // that command list -itself- can then be reset at any time (and must be before re-recording)
-    CHECK_CALL(m_graphicsCmdList->Reset(m_directWorkQueue.listAlloca(), m_pipelineState.Get()),
+    CHECK_CALL(m_graphicsCommandList->Reset(m_directWorkQueue.listAlloca(), m_pipelineState.Get()),
                "Failed to reset the graphics command list.");
     // Set the necessary state
-    m_graphicsCmdList->SetGraphicsRootSignature(m_rootSignature.Get());
-    m_graphicsCmdList->RSSetViewports(1u, &m_viewport);
-    m_graphicsCmdList->RSSetScissorRects(1u, &m_scissorRect);
+    m_graphicsCommandList->SetGraphicsRootSignature(m_rootSignature.Get());
+    m_graphicsCommandList->RSSetViewports(1u, &m_viewport);
+    m_graphicsCommandList->RSSetScissorRects(1u, &m_scissorRect);
     // Transition the back buffer state: Presenting -> Render Target
     auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
     auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
                       D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    m_graphicsCmdList->ResourceBarrier(1u, &barrier);
+    m_graphicsCommandList->ResourceBarrier(1u, &barrier);
     // Set the back buffer as the render target
     const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart(),
                                                   static_cast<int>(m_backBufferIndex),
                                                   m_rtvHandleIncrSz};
-    m_graphicsCmdList->OMSetRenderTargets(1u, &rtvHandle, FALSE, nullptr);
+    m_graphicsCommandList->OMSetRenderTargets(1u, &rtvHandle, FALSE, nullptr);
     // Record commands
     constexpr float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
-    m_graphicsCmdList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
-    m_graphicsCmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_graphicsCmdList->IASetVertexBuffers(0u, 1u, &m_vertexBuffer.view);
-    m_graphicsCmdList->DrawInstanced(3u, 1u, 0u, 0u);
+    m_graphicsCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
+    m_graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_graphicsCommandList->IASetVertexBuffers(0u, 1u, &m_vertexBuffer.view);
+    m_graphicsCommandList->DrawInstanced(3u, 1u, 0u, 0u);
     // Transition the back buffer state: Render Target -> Presenting
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
               D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-    m_graphicsCmdList->ResourceBarrier(1u, &barrier);
+    m_graphicsCommandList->ResourceBarrier(1u, &barrier);
     // Finalize the list
-    CHECK_CALL(m_graphicsCmdList->Close(), "Failed to close the command list.");
+    CHECK_CALL(m_graphicsCommandList->Close(), "Failed to close the command list.");
 }
 
 void Renderer::stop() {

@@ -24,19 +24,19 @@ namespace D3D12 {
         void init(ID3D12Device* const device, const uint nodeMask);
         // Submits the command lists to the command queue for execution
         template <uint N>
-        void executeCmdLists(ID3D12CommandList* const (&cmdLists)[N]);
+        void executeCommandLists(ID3D12CommandList* const (&commandLists)[N]);
         // Waits (using a fence) until the queue execution is finished
         void waitForCompletion();
         // Waits for all GPU commands to finish, and stops synchronization
         void finish();
         // Returns the pointer to the command queue
-        ID3D12CommandQueue* cmdQueue();
+        ID3D12CommandQueue* commandQueue();
         // Returns the pointer to the command list allocator
         ID3D12CommandAllocator* listAlloca();
         // Returns the pointer to the bundle allocator
         ID3D12CommandAllocator* bundleAlloca();
     private:
-        ComPtr<ID3D12CommandQueue>     m_cmdQueue;
+        ComPtr<ID3D12CommandQueue>     m_commandQueue;
         ComPtr<ID3D12CommandAllocator> m_listAlloca, m_bundleAlloca;
         /* Synchronization objects */
         ComPtr<ID3D12Fence>            m_fence;
