@@ -22,20 +22,17 @@ int main(const int argc, const char* argv[]) {
     // Open the window
     ShowWindow(Window::handle(), SW_SHOWNORMAL);
     // Main loop
-    MSG msg;
     while (true) {
+        MSG msg;
         // If the queue is not empty, retrieve a message
-        if (PeekMessage(&msg, nullptr, 0u, 0u, PM_REMOVE)) {
+        while (PeekMessage(&msg, nullptr, 0u, 0u, PM_REMOVE)) {
             // Forward the message to the window
             TranslateMessage(&msg);
             DispatchMessage(&msg);
-            // Process the message
+            // Process the message locally
             switch (msg.message) {
             case WM_KEYDOWN:
-                // Process keyboard input
-                break;
-            case WM_PAINT:
-                engine.renderFrame();
+                // TODO: Process keyboard input
                 break;
             case WM_QUIT:
                 engine.stop();
@@ -43,5 +40,6 @@ int main(const int argc, const char* argv[]) {
                 return static_cast<int>(msg.wParam);
             }
         }
+        engine.renderFrame();
     }
 }
