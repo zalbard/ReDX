@@ -19,17 +19,29 @@ int main(const int argc, const char* argv[]) {
     constexpr long resY = 720;
     // Initialize the renderer
     D3D12::Renderer engine{resX, resY};
-    // Display the window
+    // Open the window
     ShowWindow(Window::handle(), SW_SHOWNORMAL);
     // Main loop
-    MSG msg = {};
-    while (WM_QUIT != msg.message) {
-        // Process the messages in the queue
+    MSG msg;
+    while (true) {
+        // If the queue is not empty, retrieve a message
         if (PeekMessage(&msg, nullptr, 0u, 0u, PM_REMOVE)) {
+            // Forward the message to the window
             TranslateMessage(&msg);
             DispatchMessage(&msg);
+            // Process the message
+            switch (msg.message) {
+            case WM_KEYDOWN:
+                // Process keyboard and mouse input
+                break;
+            case WM_PAINT:
+                engine.renderFrame();
+                break;
+            case WM_QUIT:
+                engine.stop();
+                // Return this part of the WM_QUIT message to Windows
+                return static_cast<int>(msg.wParam);
+            }
         }
     }
-    // Return this part of the WM_QUIT message to Windows
-    return static_cast<int>(msg.wParam);
 }

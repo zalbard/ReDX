@@ -12,8 +12,7 @@ WCHAR*     Window::m_title = L"ReDX";
 LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
                             const WPARAM wParam, const LPARAM lParam);
 
-void Window::create(const long resX, const long resY,
-                    D3D12::Renderer* const engine) {
+void Window::create(const long resX, const long resY) {
     // Set up the rectangle position and dimensions
     m_rect = {0l, 0l, resX, resY};
     AdjustWindowRect(&m_rect, WS_OVERLAPPEDWINDOW, FALSE);
@@ -34,7 +33,7 @@ void Window::create(const long resX, const long resY,
                           m_rect.bottom - m_rect.top,
                           nullptr, nullptr,                         // No parent window, no menus
                           GetModuleHandle(nullptr),
-                          engine);
+                          nullptr);
 }
 
 HWND Window::handle() {
@@ -45,21 +44,11 @@ HWND Window::handle() {
 // Main message handler
 LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
                             const WPARAM wParam, const LPARAM lParam) {
-    auto engine = reinterpret_cast<D3D12::Renderer*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
     switch (message) {
-        case WM_CREATE:
-            // Save the Renderer* passed into CreateWindow in GWLP_USERDATA
-            SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(
-                reinterpret_cast<LPCREATESTRUCT>(lParam)->lpCreateParams));
-            return 0;
-        case WM_PAINT:
-            engine->renderFrame();
-            return 0;
         case WM_KEYDOWN:
             if (VK_ESCAPE != wParam) return 0;
             // Otherwise fall through to WM_DESTROY
         case WM_DESTROY:
-            engine->stop();
             PostQuitMessage(0);
             return 0;
         default:

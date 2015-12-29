@@ -23,9 +23,9 @@ Renderer::Renderer(const long resX, const long resY) {
         /* right */  resX,
         /* bottom */ resY
     };
-    // Open a window for rendering output
-    Window::create(resX, resY, this);
-    // Perform the initialization step
+    // Create a (hidden) window for rendering output
+    Window::create(resX, resY);
+    // Perform the Direct3D initialization step
     configureEnvironment();
     // Set up the rendering pipeline
     configurePipeline();

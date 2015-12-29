@@ -9,10 +9,8 @@ namespace D3D12 { class Renderer; }
 class Window {
 public:
    SINGLETON(Window);
-   // Creates a window; takes horizontal and vertical resolution,
-   // as well as the renderer (to handle window updates) as input
-   static void create(const long resX, const long resY,
-                      D3D12::Renderer* const engine);
+   // Creates a window; takes horizontal and vertical resolution as input
+   static void create(const long resX, const long resY);
    // Returns the handle of the window
    static HWND handle();
 private:
