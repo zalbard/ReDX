@@ -32,7 +32,7 @@ int main(const int argc, const char* argv[]) {
             // Process the message
             switch (msg.message) {
             case WM_KEYDOWN:
-                // Process keyboard and mouse input
+                // Process keyboard input
                 break;
             case WM_PAINT:
                 engine.renderFrame();
