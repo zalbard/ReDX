@@ -61,13 +61,13 @@ void Renderer::configureEnvironment() {
     auto factory = createDxgiFactory4();
     disableFullscreen(factory.Get());
     createDevice(factory.Get());
-    m_directWorkQueue.init(m_device.Get(), m_singleGpuNodeMask);
+    createGraphicsWorkQueue();
     createSwapChain(factory.Get());
     createDescriptorHeap();
     createRenderTargetViews();
 }
 
-void Renderer::createDevice(IDXGIFactory4 * const factory) {
+void Renderer::createDevice(IDXGIFactory4* const factory) {
     #pragma warning(suppress: 4127)
     if (!m_useWarpDevice) {
         // Use a hardware display adapter
@@ -108,6 +108,17 @@ void Renderer::createWarpDevice(IDXGIFactory4* const factory) {
                "Failed to create a Direct3D device.");
 }
 
+void Renderer::createGraphicsWorkQueue() {
+    // Fill out the command queue description
+    const D3D12_COMMAND_QUEUE_DESC queueDesc = {
+        /* Type */     static_cast<D3D12_COMMAND_LIST_TYPE>(WorkType::GRAPHICS),
+        /* Priority */ D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
+        /* Flags */    D3D12_COMMAND_QUEUE_FLAG_NONE,
+        /* NodeMask */ m_singleGpuNodeMask
+    };
+    m_graphicsWorkQueue = WorkQueue<WorkType::GRAPHICS>{m_device.Get(), queueDesc};
+}
+
 void Renderer::createSwapChain(IDXGIFactory4* const factory) {
     // Fill out the buffer description
     const DXGI_MODE_DESC bufferDesc = {
@@ -136,7 +147,7 @@ void Renderer::createSwapChain(IDXGIFactory4* const factory) {
     };
     // Create a swap chain; it needs a command queue to flush the latter
     auto swapChainAddr = reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf());
-    CHECK_CALL(factory->CreateSwapChain(m_directWorkQueue.commandQueue(), &swapChainDesc,
+    CHECK_CALL(factory->CreateSwapChain(m_graphicsWorkQueue.commandQueue(), &swapChainDesc,
                                         swapChainAddr),
                "Failed to create a swap chain.");
     // Use it to set the current back buffer index
@@ -198,7 +209,7 @@ void Renderer::configurePipeline() {
     const auto rootSignatureDesc = CD3DX12_ROOT_SIGNATURE_DESC{0u, nullptr, 0u, nullptr,
                                    D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT};
     // Create a root signature
-    m_rootSignature = createRootSignature(&rootSignatureDesc);
+    m_rootSignature = createRootSignature(rootSignatureDesc);
     // Import the vertex and the pixel shaders
     const auto vs = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "VSMain", "vs_5_0");
     const auto ps = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "PSMain", "ps_5_0");
@@ -272,7 +283,7 @@ void Renderer::configurePipeline() {
         /* Flags */                 D3D12_PIPELINE_STATE_FLAG_NONE
     };
     // Create a graphics pipeline state object
-    m_pipelineState = createPipelineState(&pipelineStateDesc);
+    m_pipelineState = createGraphicsPipelineState(pipelineStateDesc);
     // Create a graphics command list
     m_graphicsCommandList = createGraphicsCommandList(m_pipelineState.Get());
     // Define a screen-space triangle
@@ -285,14 +296,14 @@ void Renderer::configurePipeline() {
     // Create a vertex buffer
     m_vertexBuffer = createVertexBuffer(triangleVertices, _countof(triangleVertices));
     // Wait until the pipeline setup is finished
-    m_directWorkQueue.waitForCompletion();
+    m_graphicsWorkQueue.waitForCompletion();
 }
 
 ComPtr<ID3D12RootSignature>
-Renderer::createRootSignature(const CD3DX12_ROOT_SIGNATURE_DESC* const rootSignatureDesc) {
+Renderer::createRootSignature(const CD3DX12_ROOT_SIGNATURE_DESC& rootSignatureDesc) {
     // Serialize a root signature from the description
     ComPtr<ID3DBlob> signature, error;
-    CHECK_CALL(D3D12SerializeRootSignature(rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+    CHECK_CALL(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1,
                                            &signature, &error),
                "Failed to serialize a root signature.");
     // Create a root signature layout using the serialized signature
@@ -306,19 +317,19 @@ Renderer::createRootSignature(const CD3DX12_ROOT_SIGNATURE_DESC* const rootSigna
 }
 
 ComPtr<ID3D12PipelineState>
-Renderer::createPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* const pipelineStateDesc) {
+Renderer::createGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& pipelineStateDesc) {
     ComPtr<ID3D12PipelineState> pipelineState;
-    CHECK_CALL(m_device->CreateGraphicsPipelineState(pipelineStateDesc,
+    CHECK_CALL(m_device->CreateGraphicsPipelineState(&pipelineStateDesc,
                                                      IID_PPV_ARGS(&pipelineState)),
                "Failed to create a graphics pipeline state object.");
     return pipelineState;
 }
 
 ComPtr<ID3D12GraphicsCommandList>
-Renderer::createGraphicsCommandList(ID3D12PipelineState* const initState) {
+Renderer::createGraphicsCommandList(ID3D12PipelineState* const initialState) {
     ComPtr<ID3D12GraphicsCommandList> graphicsCommandList;
     CHECK_CALL(m_device->CreateCommandList(m_singleGpuNodeMask, D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                           m_directWorkQueue.listAlloca(), initState,
+                                           m_graphicsWorkQueue.listAlloca(), initialState,
                                            IID_PPV_ARGS(&graphicsCommandList)),
                "Failed to create a command list.");
     // Command lists are created in the recording state, but there is nothing
@@ -327,10 +338,10 @@ Renderer::createGraphicsCommandList(ID3D12PipelineState* const initState) {
     return graphicsCommandList;
 }
 
-template <typename T>
-VertexBuffer Renderer::createVertexBuffer(const T* const vertices, const uint count) {
+
+VertexBuffer Renderer::createVertexBuffer(const Vertex* const vertices, const uint count) {
     VertexBuffer vertexBuffer;
-    const uint vertexBufferSize = count * sizeof(T);
+    const uint vertexBufferSize = count * sizeof(Vertex);
     // Use an upload heap to hold the vertex buffer
     /* TODO: inefficient, change this! */
     const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
@@ -355,7 +366,7 @@ VertexBuffer Renderer::createVertexBuffer(const T* const vertices, const uint co
     vertexBuffer.view = D3D12_VERTEX_BUFFER_VIEW{
         /* BufferLocation */ vertexBuffer.resource->GetGPUVirtualAddress(),
         /* SizeInBytes */    vertexBufferSize,
-        /* StrideInBytes */  sizeof(T)
+        /* StrideInBytes */  sizeof(Vertex)
     };
     return vertexBuffer;
 }
@@ -365,12 +376,12 @@ void Renderer::renderFrame() {
     recordCommandList();
     // Execute the command list
     ID3D12CommandList* commandLists[] = {m_graphicsCommandList.Get()};
-    m_directWorkQueue.executeCommandLists(commandLists);
+    m_graphicsWorkQueue.execute(commandLists);
     // Present the frame
     CHECK_CALL(m_swapChain->Present(1u, 0u), "Failed to display the frame buffer.");
     // Wait until all the queued commands have been executed
     /* TODO: waiting is inefficient, change this! */
-    m_directWorkQueue.waitForCompletion();
+    m_graphicsWorkQueue.waitForCompletion();
     // Flip the frame buffer
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
@@ -379,10 +390,10 @@ void Renderer::recordCommandList() {
     // Command list -allocators- can only be reset when the associated 
     // command lists have finished execution on the GPU; apps should use 
     // fences to determine GPU execution progress
-    CHECK_CALL(m_directWorkQueue.listAlloca()->Reset(), "Failed to reset the command allocator.");
+    CHECK_CALL(m_graphicsWorkQueue.listAlloca()->Reset(), "Failed to reset the command allocator.");
     // However, after ExecuteCommandList() has been called on a particular command list,
     // that command list -itself- can then be reset at any time (and must be before re-recording)
-    CHECK_CALL(m_graphicsCommandList->Reset(m_directWorkQueue.listAlloca(), m_pipelineState.Get()),
+    CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsWorkQueue.listAlloca(), m_pipelineState.Get()),
                "Failed to reset the graphics command list.");
     // Set the necessary state
     m_graphicsCommandList->SetGraphicsRootSignature(m_rootSignature.Get());
@@ -413,5 +424,5 @@ void Renderer::recordCommandList() {
 }
 
 void Renderer::stop() {
-    m_directWorkQueue.finish();
+    m_graphicsWorkQueue.finish();
 }

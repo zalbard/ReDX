@@ -3,15 +3,7 @@
 
 namespace D3D12 {
     template <WorkType T>
-    void WorkQueue<T>::init(ID3D12Device* const device, const uint nodeMask) {
-        assert(!m_commandQueue && "Already initialized.");
-        // Fill out the command queue description
-        const D3D12_COMMAND_QUEUE_DESC queueDesc = {
-            /* Type */     static_cast<D3D12_COMMAND_LIST_TYPE>(T),
-            /* Priority */ D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
-            /* Flags */    D3D12_COMMAND_QUEUE_FLAG_NONE,
-            /* NodeMask */ nodeMask
-        };
+    WorkQueue<T>::WorkQueue(ID3D12Device* const device, const D3D12_COMMAND_QUEUE_DESC& queueDesc) {
         // Create a command queue
         CHECK_CALL(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m_commandQueue)),
                    "Failed to create a command queue.");
@@ -36,7 +28,7 @@ namespace D3D12 {
 
     template<WorkType T>
     template<uint N>
-    void WorkQueue<T>::executeCommandLists(ID3D12CommandList* const (&commandLists)[N]) {
+    void WorkQueue<T>::execute(ID3D12CommandList* const (&commandLists)[N]) const {
         m_commandQueue->ExecuteCommandLists(N, commandLists);
     }
 
@@ -69,12 +61,27 @@ namespace D3D12 {
     }
 
     template<WorkType T>
+    inline const ID3D12CommandQueue* WorkQueue<T>::commandQueue() const {
+        return m_commandQueue.Get();
+    }
+
+    template<WorkType T>
     ID3D12CommandAllocator* WorkQueue<T>::listAlloca() {
         return m_listAlloca.Get();
     }
 
     template<WorkType T>
+    const ID3D12CommandAllocator* WorkQueue<T>::listAlloca() const {
+        return m_listAlloca.Get();
+    }
+
+    template<WorkType T>
     ID3D12CommandAllocator* WorkQueue<T>::bundleAlloca() {
+        return m_bundleAlloca.Get();
+    }
+
+    template<WorkType T>
+    const ID3D12CommandAllocator* WorkQueue<T>::bundleAlloca() const {
         return m_bundleAlloca.Get();
     }
 } // namespace D3D12

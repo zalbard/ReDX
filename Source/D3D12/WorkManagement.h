@@ -9,10 +9,10 @@ namespace D3D12 {
 
     // Corresponds to Direct3D command list types
     enum class WorkType {
-        DIRECT  = D3D12_COMMAND_LIST_TYPE_DIRECT,   // Supports all types of commands
-        COMPUTE = D3D12_COMMAND_LIST_TYPE_COMPUTE,  // Supports compute and copy commands only
-        COPY    = D3D12_COMMAND_LIST_TYPE_COPY      // Supports copy commands only
-    };    
+        GRAPHICS = D3D12_COMMAND_LIST_TYPE_DIRECT,  // Supports all types of commands
+        COMPUTE  = D3D12_COMMAND_LIST_TYPE_COMPUTE, // Supports compute and copy commands only
+        COPY     = D3D12_COMMAND_LIST_TYPE_COPY     // Supports copy commands only
+    };
 
     // Direct3D command queue wrapper class
     template <WorkType T>
@@ -20,21 +20,22 @@ namespace D3D12 {
     public:
         WorkQueue() = default;
         RULE_OF_ZERO_MOVE_ONLY(WorkQueue);
-        // Initializer; takes a Direct3D device and a device (node) mask as input
-        void init(ID3D12Device* const device, const uint nodeMask);
-        // Submits the command lists to the command queue for execution
+        // Ctor; takes a Direct3D device and a command queue description as input
+        explicit WorkQueue(ID3D12Device* const device, const D3D12_COMMAND_QUEUE_DESC& queueDesc);
+        // Submits N command lists to the command queue for execution
         template <uint N>
-        void executeCommandLists(ID3D12CommandList* const (&commandLists)[N]);
+        void execute(ID3D12CommandList* const (&commandLists)[N]) const;
         // Waits (using a fence) until the queue execution is finished
         void waitForCompletion();
         // Waits for all GPU commands to finish, and stops synchronization
         void finish();
-        // Returns the pointer to the command queue
-        ID3D12CommandQueue* commandQueue();
-        // Returns the pointer to the command list allocator
-        ID3D12CommandAllocator* listAlloca();
-        // Returns the pointer to the bundle allocator
-        ID3D12CommandAllocator* bundleAlloca();
+        /* Accessors */
+        ID3D12CommandQueue*            commandQueue();
+        const ID3D12CommandQueue*      commandQueue() const;
+        ID3D12CommandAllocator*        listAlloca();
+        const ID3D12CommandAllocator*  listAlloca() const;
+        ID3D12CommandAllocator*        bundleAlloca();
+        const ID3D12CommandAllocator*  bundleAlloca() const;
     private:
         ComPtr<ID3D12CommandQueue>     m_commandQueue;
         ComPtr<ID3D12CommandAllocator> m_listAlloca, m_bundleAlloca;

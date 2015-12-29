@@ -6,7 +6,6 @@
 
 // Forward declarations
 struct CD3DX12_ROOT_SIGNATURE_DESC;
-struct D3D12_GRAPHICS_PIPELINE_STATE_DESC;
 
 namespace D3D12 {
     // Simple vertex representation
@@ -27,20 +26,19 @@ namespace D3D12 {
         Renderer() = delete;
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
         // Constructor; takes horizontal and vertical resolution as input
-        Renderer(const long resX, const long resY);
+        explicit Renderer(const long resX, const long resY);
         // Creates a root signature according to its description
         ComPtr<ID3D12RootSignature> 
-            createRootSignature(const CD3DX12_ROOT_SIGNATURE_DESC* const rootSignatureDesc);
+        createRootSignature(const CD3DX12_ROOT_SIGNATURE_DESC& rootSignatureDesc);
         // Creates a graphics pipeline state object (PSO) according to its description
         // A PSO describes the input data format, and how the data is processed (rendered)
         ComPtr<ID3D12PipelineState>
-            createPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC* const pipelineStateDesc);
-        // Creates a graphics command list of a specified type, in a specified initial state
+        createGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& pipelineStateDesc);
+        // Creates a graphics command list in the specified initial state
         ComPtr<ID3D12GraphicsCommandList>
-            createGraphicsCommandList(ID3D12PipelineState* const initState);
+        createGraphicsCommandList(ID3D12PipelineState* const initialState);
         // Creates a vertex buffer for the vertex array with the specified number of vertices
-        template <typename T>
-        VertexBuffer createVertexBuffer(const T* const vertices, const uint count);
+        VertexBuffer createVertexBuffer(const Vertex* const vertices, const uint count);
         // Draws a single frame to the frame buffer
         void renderFrame();
         // Finishes the current frame and stops the execution
@@ -55,6 +53,8 @@ namespace D3D12 {
         void createHardwareDevice(IDXGIFactory4* const factory);
         // Creates a WARP (software) Direct3D device
         void createWarpDevice(IDXGIFactory4* const factory);
+        // Creates a graphics work queue
+        void createGraphicsWorkQueue();
         // Creates a swap chain
         void createSwapChain(IDXGIFactory4* const factory);
         // Creates a descriptor heap
@@ -67,18 +67,18 @@ namespace D3D12 {
         void recordCommandList();
     private:
         // Rendering is performed on a single GPU.
-        static const uint                 m_singleGpuNodeMask = 0u;
+        static constexpr uint             m_singleGpuNodeMask = 0u;
         // Double buffering is used: present the front, render to the back
-        static const uint                 m_bufferCount       = 2u;
+        static constexpr uint             m_bufferCount       = 2u;
         // Software rendering flag
-        static const bool                 m_useWarpDevice     = false;
+        static constexpr bool             m_useWarpDevice     = false;
         /* Rendering parameters */
         D3D12_VIEWPORT                    m_viewport;
         D3D12_RECT                        m_scissorRect;
         uint                              m_backBufferIndex;
         /* Pipeline objects */
         ComPtr<ID3D12Device>              m_device;
-        WorkQueue<WorkType::DIRECT>       m_directWorkQueue;
+        WorkQueue<WorkType::GRAPHICS>     m_graphicsWorkQueue;
         ComPtr<IDXGISwapChain3>           m_swapChain;
         ComPtr<ID3D12Resource>            m_renderTargets[m_bufferCount];
         ComPtr<ID3D12DescriptorHeap>      m_rtvHeap;
