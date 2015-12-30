@@ -1,6 +1,5 @@
 #include <cassert>
 #include "Window.h"
-#include "..\D3D12\Renderer.h"
 
 // Static member initialization
 HWND       Window::m_hwnd  = nullptr;

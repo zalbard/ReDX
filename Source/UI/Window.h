@@ -3,8 +3,6 @@
 #include <Windows.h>
 #include "..\Common\Definitions.h"
 
-namespace D3D12 { class Renderer; }
-
 // Singleton GUI Window
 class Window {
 public:
