@@ -25,7 +25,7 @@ int main(const int argc, const char* argv[]) {
     while (true) {
         MSG msg;
         // If the queue is not empty, retrieve a message
-        while (PeekMessage(&msg, nullptr, 0u, 0u, PM_REMOVE)) {
+        while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
             // Forward the message to the window
             TranslateMessage(&msg);
             DispatchMessage(&msg);

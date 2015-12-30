@@ -24,7 +24,7 @@ LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
 
 void Window::open(const long resX, const long resY) {
     // Set up the rectangle position and dimensions
-    m_rect = {0l, 0l, resX, resY};
+    m_rect = {0, 0, resX, resY};
     AdjustWindowRect(&m_rect, WS_OVERLAPPEDWINDOW, FALSE);
     // Set up the window class
     m_class.cbSize        = sizeof(WNDCLASSEX);

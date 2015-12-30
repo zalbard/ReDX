@@ -20,8 +20,8 @@ Renderer::Renderer() {
     };
     // Configure the scissor rectangle used for clipping
     m_scissorRect = D3D12_RECT{
-        /* left */   0l,
-        /* top */    0l, 
+        /* left */   0,
+        /* top */    0, 
         /* right */  resX,
         /* bottom */ resY
     };
@@ -79,7 +79,7 @@ void Renderer::createDevice(IDXGIFactory4* const factory) {
 }
 
 void Renderer::createHardwareDevice(IDXGIFactory4* const factory) {
-    for (uint adapterIndex = 0u; ; ++adapterIndex) {
+    for (uint adapterIndex = 0; ; ++adapterIndex) {
         // Select the next adapter
         ComPtr<IDXGIAdapter1> adapter;
         if (DXGI_ERROR_NOT_FOUND == factory->EnumAdapters1(adapterIndex, &adapter)) {
@@ -131,8 +131,8 @@ void Renderer::createSwapChain(IDXGIFactory4* const factory) {
     };
     // Fill out the multi-sampling parameters
     const DXGI_SAMPLE_DESC sampleDesc = {
-        /* Count */   1u,   // No multi-sampling
-        /* Quality */ 0u    // Default sampler
+        /* Count */   1,    // No multi-sampling
+        /* Quality */ 0     // Default sampler
     };
     // Fill out the swap chain description
     DXGI_SWAP_CHAIN_DESC swapChainDesc = {
@@ -143,7 +143,7 @@ void Renderer::createSwapChain(IDXGIFactory4* const factory) {
         /* OutputWindow */ Window::handle(),
         /* Windowed */     TRUE,
         /* SwapEffect */   DXGI_SWAP_EFFECT_FLIP_DISCARD,
-        /* Flags */        0u
+        /* Flags */        0
     };
     // Create a swap chain; it needs a command queue to flush the latter
     auto swapChainAddr = reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf());
@@ -172,7 +172,7 @@ void Renderer::createDescriptorHeap() {
 void Renderer::createRenderTargetViews() {
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart()};
     // Create a Render Target View (RTV) for each frame buffer
-    for (uint bufferIndex = 0u; bufferIndex < m_bufferCount; ++bufferIndex) {
+    for (uint bufferIndex = 0; bufferIndex < m_bufferCount; ++bufferIndex) {
         CHECK_CALL(m_swapChain->GetBuffer(bufferIndex, IID_PPV_ARGS(&m_renderTargets[bufferIndex])),
                    "Failed to acquire a swap chain buffer.");
         m_device->CreateRenderTargetView(m_renderTargets[bufferIndex].Get(),
@@ -191,12 +191,12 @@ static inline ComPtr<ID3DBlob> loadAndCompileShader(const wchar_t* const pathAnd
         // Enable debugging symbol information, and disable certain optimizations
         constexpr uint compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
     #else
-        constexpr uint compileFlags = 0u;
+        constexpr uint compileFlags = 0;
     #endif
     // Load and compile the shader
     ComPtr<ID3DBlob> shader, errors;
     if (FAILED(D3DCompileFromFile(pathAndFileName, nullptr, nullptr, entryPoint,
-                                  type, compileFlags, 0u, &shader, &errors))) {
+                                  type, compileFlags, 0, &shader, &errors))) {
         printError("Failed to load and compile a shader.");
         printError(static_cast<const char* const>(errors->GetBufferPointer()));
         TERMINATE();
@@ -206,7 +206,7 @@ static inline ComPtr<ID3DBlob> loadAndCompileShader(const wchar_t* const pathAnd
 
 void Renderer::configurePipeline() {
     // Fill out the root signature description
-    const auto rootSignatureDesc = CD3DX12_ROOT_SIGNATURE_DESC{0u, nullptr, 0u, nullptr,
+    const auto rootSignatureDesc = CD3DX12_ROOT_SIGNATURE_DESC{0, nullptr, 0, nullptr,
                                    D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT};
     // Create a root signature
     m_rootSignature = createRootSignature(rootSignatureDesc);
@@ -219,8 +219,8 @@ void Renderer::configurePipeline() {
         /* DepthWriteMask */   D3D12_DEPTH_WRITE_MASK_ZERO,
         /* DepthFunc */        D3D12_COMPARISON_FUNC_NEVER,
         /* StencilEnable */    FALSE,
-        /* StencilReadMask */  0u,
-        /* StencilWriteMask */ 0u,
+        /* StencilReadMask */  0,
+        /* StencilWriteMask */ 0,
         /* FrontFace */        D3D12_DEPTH_STENCILOP_DESC{},
         /* BackFace */         D3D12_DEPTH_STENCILOP_DESC{}
     };
@@ -228,21 +228,21 @@ void Renderer::configurePipeline() {
     const D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
         {
             /* SemanticName */         "POSITION",
-            /* SemanticIndex */        0u,
+            /* SemanticIndex */        0,
             /* Format */               DXGI_FORMAT_R32G32B32_FLOAT,
-            /* InputSlot */            0u,
-            /* AlignedByteOffset */    0u,
+            /* InputSlot */            0,
+            /* AlignedByteOffset */    0,
             /* InputSlotClass */       D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-            /* InstanceDataStepRate */ 0u
+            /* InstanceDataStepRate */ 0
         },
         {
             /* SemanticName */         "COLOR",
-            /* SemanticIndex */        0u,
+            /* SemanticIndex */        0,
             /* Format */               DXGI_FORMAT_R32G32B32_FLOAT,
-            /* InputSlot */            0u,
-            /* AlignedByteOffset */    12u,
+            /* InputSlot */            0,
+            /* AlignedByteOffset */    12,
             /* InputSlotClass */       D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-            /* InstanceDataStepRate */ 0u
+            /* InstanceDataStepRate */ 0
         }
     };
     const D3D12_INPUT_LAYOUT_DESC inputLayoutDesc = {
@@ -251,8 +251,8 @@ void Renderer::configurePipeline() {
     };
     // Fill out the multi-sampling parameters
     const DXGI_SAMPLE_DESC sampleDesc = {
-        /* Count */   1u,   // No multi-sampling
-        /* Quality */ 0u    // Default sampler
+        /* Count */   1,    // No multi-sampling
+        /* Quality */ 0     // Default sampler
     };
     // Fill out the pipeline state object description
     const D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {
@@ -274,7 +274,7 @@ void Renderer::configurePipeline() {
         /* InputLayout */           inputLayoutDesc,
         /* IBStripCutValue */       D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
         /* PrimitiveTopologyType */ D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-        /* NumRenderTargets */      1u,
+        /* NumRenderTargets */      1,
         /* RTVFormats[8] */         {DXGI_FORMAT_R8G8B8A8_UNORM},
         /* DSVFormat */             DXGI_FORMAT_UNKNOWN,
         /* SampleDesc */            sampleDesc,
@@ -352,9 +352,9 @@ VertexBuffer Renderer::createVertexBuffer(const Vertex* const vertices, const ui
                "Failed to create an upload heap.");
     // Acquire a CPU pointer to the buffer (sub-resource "subRes")
     uint8* vertexData;
-    constexpr uint subRes = 0u;
+    constexpr uint subRes = 0;
     // Note: we don't intend to read from this resource on the CPU
-    const CD3DX12_RANGE emptyReadRange{0ull, 0ull};
+    const CD3DX12_RANGE emptyReadRange{0, 0};
     CHECK_CALL(vertexBuffer.resource->Map(subRes, &emptyReadRange,
                                           reinterpret_cast<void**>(&vertexData)),
                "Failed to map the vertex buffer.");
@@ -378,7 +378,7 @@ void Renderer::renderFrame() {
     ID3D12CommandList* commandLists[] = {m_graphicsCommandList.Get()};
     m_graphicsWorkQueue.execute(commandLists);
     // Present the frame
-    CHECK_CALL(m_swapChain->Present(1u, 0u), "Failed to display the frame buffer.");
+    CHECK_CALL(m_swapChain->Present(1, 0), "Failed to display the frame buffer.");
     // Wait until all the queued commands have been executed
     /* TODO: waiting is inefficient, change this! */
     m_graphicsWorkQueue.waitForCompletion();
@@ -397,28 +397,28 @@ void Renderer::recordCommandList() {
                "Failed to reset the graphics command list.");
     // Set the necessary state
     m_graphicsCommandList->SetGraphicsRootSignature(m_rootSignature.Get());
-    m_graphicsCommandList->RSSetViewports(1u, &m_viewport);
-    m_graphicsCommandList->RSSetScissorRects(1u, &m_scissorRect);
+    m_graphicsCommandList->RSSetViewports(1, &m_viewport);
+    m_graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
     // Transition the back buffer state: Presenting -> Render Target
     auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
     auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
                       D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    m_graphicsCommandList->ResourceBarrier(1u, &barrier);
+    m_graphicsCommandList->ResourceBarrier(1, &barrier);
     // Set the back buffer as the render target
     const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart(),
                                                   static_cast<int>(m_backBufferIndex),
                                                   m_rtvHandleIncrSz};
-    m_graphicsCommandList->OMSetRenderTargets(1u, &rtvHandle, FALSE, nullptr);
+    m_graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
     // Record commands
     constexpr float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
-    m_graphicsCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0u, nullptr);
+    m_graphicsCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     m_graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_graphicsCommandList->IASetVertexBuffers(0u, 1u, &m_vertexBuffer.view);
-    m_graphicsCommandList->DrawInstanced(3u, 1u, 0u, 0u);
+    m_graphicsCommandList->IASetVertexBuffers(0, 1, &m_vertexBuffer.view);
+    m_graphicsCommandList->DrawInstanced(3, 1, 0, 0);
     // Transition the back buffer state: Render Target -> Presenting
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
               D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-    m_graphicsCommandList->ResourceBarrier(1u, &barrier);
+    m_graphicsCommandList->ResourceBarrier(1, &barrier);
     // Finalize the list
     CHECK_CALL(m_graphicsCommandList->Close(), "Failed to close the command list.");
 }

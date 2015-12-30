@@ -65,9 +65,9 @@ namespace D3D12 {
         void recordCommandList();
     private:
         // Rendering is performed on a single GPU.
-        static constexpr uint             m_singleGpuNodeMask = 0u;
+        static constexpr uint             m_singleGpuNodeMask = 0;
         // Double buffering is used: present the front, render to the back
-        static constexpr uint             m_bufferCount       = 2u;
+        static constexpr uint             m_bufferCount       = 2;
         // Software rendering flag
         static constexpr bool             m_useWarpDevice     = false;
         /* Rendering parameters */

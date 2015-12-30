@@ -15,7 +15,7 @@ namespace D3D12 {
                                                   IID_PPV_ARGS(&m_bundleAlloca)),
                    "Failed to create a bundle command allocator.");
         // Create a 0-initialized memory fence object
-        m_fenceValue = 0ull;
+        m_fenceValue = 0;
         CHECK_CALL(device->CreateFence(m_fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&m_fence)),
                    "Failed to create a memory fence object.");
         // Create a synchronization event
