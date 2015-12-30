@@ -6,7 +6,7 @@ int main(const int argc, const char* argv[]) {
     // Parse command line arguments
 	if (argc > 1) {
 		printError("The following command line arguments have been ignored:");
-        for (auto i = 1; i < argc; ++i) {
+        for (int i = 1; i < argc; ++i) {
             printError("%s", argv[i]);
         }
 	}

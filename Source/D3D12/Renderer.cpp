@@ -240,7 +240,7 @@ void Renderer::configurePipeline() {
             /* SemanticIndex */        0,
             /* Format */               DXGI_FORMAT_R32G32B32_FLOAT,
             /* InputSlot */            0,
-            /* AlignedByteOffset */    12,
+            /* AlignedByteOffset */    sizeof(Vertex::position),
             /* InputSlotClass */       D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
             /* InstanceDataStepRate */ 0
         }
@@ -258,11 +258,11 @@ void Renderer::configurePipeline() {
     const D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {
         /* pRootSignature */        m_rootSignature.Get(),
         /* VS */                    D3D12_SHADER_BYTECODE{
-            /* pShaderBytecode */       reinterpret_cast<uint8*>(vs->GetBufferPointer()),
+            /* pShaderBytecode */       vs->GetBufferPointer(),
             /* BytecodeLength  */       vs->GetBufferSize()
                                     },
         /* PS */                    D3D12_SHADER_BYTECODE{
-            /* pShaderBytecode */       reinterpret_cast<uint8*>(ps->GetBufferPointer()),
+            /* pShaderBytecode */       ps->GetBufferPointer(),
             /* BytecodeLength  */       ps->GetBufferSize()
                                     },
         /* DS, HS, GS */            {}, {}, {},
