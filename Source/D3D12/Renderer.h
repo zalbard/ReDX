@@ -23,10 +23,8 @@ namespace D3D12 {
     // Direct3D renderer
     class Renderer {
     public:
-        Renderer() = delete;
+        Renderer();
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
-        // Constructor; takes horizontal and vertical resolution as input
-        explicit Renderer(const long resX, const long resY);
         // Creates a root signature according to its description
         ComPtr<ID3D12RootSignature> 
         createRootSignature(const CD3DX12_ROOT_SIGNATURE_DESC& rootSignatureDesc);

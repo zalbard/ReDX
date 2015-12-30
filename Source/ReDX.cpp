@@ -17,10 +17,10 @@ int main(const int argc, const char* argv[]) {
     }
     constexpr long resX = 1280;
     constexpr long resY = 720;
-    // Initialize the renderer
-    D3D12::Renderer engine{resX, resY};
-    // Open the window
-    ShowWindow(Window::handle(), SW_SHOWNORMAL);
+    // Create a window for rendering output
+    Window::open(resX, resY);
+    // Initialize the renderer (internally uses the Window)
+    D3D12::Renderer engine;
     // Main loop
     while (true) {
         MSG msg;
@@ -40,6 +40,7 @@ int main(const int argc, const char* argv[]) {
                 return static_cast<int>(msg.wParam);
             }
         }
+        // The message queue is now empty; execute engine code
         engine.renderFrame();
     }
 }

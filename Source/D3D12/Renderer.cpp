@@ -6,7 +6,9 @@
 
 using namespace D3D12;
 
-Renderer::Renderer(const long resX, const long resY) {
+Renderer::Renderer() {
+    const long resX = Window::width();
+    const long resY = Window::height();
     // Configure the viewport
     m_viewport = D3D12_VIEWPORT{
         /* TopLeftX */ 0.0f,
@@ -23,8 +25,6 @@ Renderer::Renderer(const long resX, const long resY) {
         /* right */  resX,
         /* bottom */ resY
     };
-    // Create a (hidden) window for rendering output
-    Window::create(resX, resY);
     // Perform the Direct3D initialization step
     configureEnvironment();
     // Set up the rendering pipeline
