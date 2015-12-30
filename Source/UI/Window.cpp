@@ -1,6 +1,5 @@
 #include <cassert>
 #include "Window.h"
-#include "..\D3D12\Renderer.h"
 
 // Static member initialization
 HWND       Window::m_hwnd  = nullptr;
@@ -8,14 +7,24 @@ RECT       Window::m_rect  = {};
 WNDCLASSEX Window::m_class = {};
 WCHAR*     Window::m_title = L"ReDX";
 
-// WindowProc function prototype
+// Main message handler
 LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
-                            const WPARAM wParam, const LPARAM lParam);
+                            const WPARAM wParam, const LPARAM lParam) {
+    switch (message) {
+        case WM_KEYDOWN:
+            if (VK_ESCAPE != wParam) return 0;
+            // Otherwise fall through to WM_DESTROY
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            return 0;
+        default:
+            return DefWindowProc(hWnd, message, wParam, lParam);
+    }
+}
 
-void Window::create(const LONG resX, const LONG resY,
-                    D3D12::Renderer* const engine) {
+void Window::open(const long resX, const long resY) {
     // Set up the rectangle position and dimensions
-    m_rect = {0l, 0l, resX, resY};
+    m_rect = {0, 0, resX, resY};
     AdjustWindowRect(&m_rect, WS_OVERLAPPEDWINDOW, FALSE);
     // Set up the window class
     m_class.cbSize        = sizeof(WNDCLASSEX);
@@ -30,13 +39,12 @@ void Window::create(const LONG resX, const LONG resY,
                           m_title,
                           WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,  // Disable resizing
                           CW_USEDEFAULT, CW_USEDEFAULT,
-                          m_rect.right  - m_rect.left,
-                          m_rect.bottom - m_rect.top,
+                          width(), height(),
                           nullptr, nullptr,                         // No parent window, no menus
                           GetModuleHandle(nullptr),
-                          engine);
-    // Display the window
-    ShowWindow(m_hwnd, SW_SHOWNORMAL);
+                          nullptr);
+    // Make the window visible
+    ShowWindow(Window::handle(), SW_SHOWNORMAL);
 }
 
 HWND Window::handle() {
@@ -44,28 +52,14 @@ HWND Window::handle() {
     return m_hwnd;
 }
 
-// Main message handler
-LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
-                            const WPARAM wParam, const LPARAM lParam) {
-    auto engine = reinterpret_cast<D3D12::Renderer*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
-    switch (message) {
-        case WM_CREATE:
-            // Save the Renderer* passed into CreateWindow in GWLP_USERDATA
-            SetWindowLongPtr(hWnd, GWLP_USERDATA,
-                reinterpret_cast<LONG_PTR>(reinterpret_cast<LPCREATESTRUCT>(lParam)->lpCreateParams));
-            return 0;
-        case WM_PAINT:
-            //OnUpdate();
-            engine->renderFrame();
-            return 0;
-        case WM_KEYDOWN:
-            if (VK_ESCAPE != wParam) return 0;
-            // Otherwise fall through to WM_DESTROY
-        case WM_DESTROY:
-            engine->stop();
-            PostQuitMessage(0);
-            return 0;
-        default:
-            return DefWindowProc(hWnd, message, wParam, lParam);
-    }
+long Window::width() {
+    return m_rect.right - m_rect.left;
+}
+
+long Window::height() {
+    return m_rect.bottom - m_rect.top;
+}
+
+float Window::aspectRatio() {
+    return static_cast<float>(width())/static_cast<float>(height());
 }

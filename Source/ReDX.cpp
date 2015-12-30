@@ -1,5 +1,6 @@
 #include "Common\Utility.h"
 #include "D3D12\Renderer.h"
+#include "UI\Window.h"
 
 int main(const int argc, const char* argv[]) {
     // Parse command line arguments
@@ -14,19 +15,32 @@ int main(const int argc, const char* argv[]) {
         printError("The CPU doesn't support SSE2. Aborting.");
         return -1;
     }
-    static const LONG resX = 1280;
-    static const LONG resY = 720;
-    // Initialize the renderer
-    D3D12::Renderer engine{resX, resY};
+    constexpr long resX = 1280;
+    constexpr long resY = 720;
+    // Create a window for rendering output
+    Window::open(resX, resY);
+    // Initialize the renderer (internally uses the Window)
+    D3D12::Renderer engine;
     // Main loop
-    MSG msg = {};
-    while (WM_QUIT != msg.message) {
-        // Process the messages in the queue
-        if (PeekMessage(&msg, nullptr, 0u, 0u, PM_REMOVE)) {
+    while (true) {
+        MSG msg;
+        // If the queue is not empty, retrieve a message
+        while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+            // Forward the message to the window
             TranslateMessage(&msg);
             DispatchMessage(&msg);
+            // Process the message locally
+            switch (msg.message) {
+            case WM_KEYDOWN:
+                // TODO: Process keyboard input
+                break;
+            case WM_QUIT:
+                engine.stop();
+                // Return this part of the WM_QUIT message to Windows
+                return static_cast<int>(msg.wParam);
+            }
         }
+        // The message queue is now empty; execute engine code
+        engine.renderFrame();
     }
-    // Return this part of the WM_QUIT message to Windows
-    return static_cast<int>(msg.wParam);
 }

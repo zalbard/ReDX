@@ -3,20 +3,21 @@
 #include <Windows.h>
 #include "..\Common\Definitions.h"
 
-namespace D3D12 { class Renderer; }
-
 // Singleton GUI Window
 class Window {
 public:
-   // Creates a window; takes horizontal and vertical resolution,
-   // as well as the renderer (to handle window updates) as input
-   static void create(const LONG resX, const LONG resY,
-                      D3D12::Renderer* const engine);
+   SINGLETON(Window);
+   // Creates a window; takes horizontal and vertical resolution as input
+   static void open(const long resX, const long resY);
    // Returns the handle of the window
    static HWND handle();
+   // Returns the width (in pixels) of the drawable window area
+   static long width();
+   // Returns the height (in pixels) of the drawable window area
+   static long height();
+   // Returns the width/height ratio of the drawable window area
+   static float aspectRatio();
 private:
-   RULE_OF_ZERO_MOVE_ONLY(Window);
-   /* Data members */
    static HWND       m_hwnd;        // Handle
    static RECT       m_rect;        // Screen-space rectangle
    static WNDCLASSEX m_class;       // Window class

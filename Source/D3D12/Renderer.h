@@ -1,44 +1,58 @@
 #pragma once
 
-#include <d3d12.h>
 #include <dxgi1_4.h>
-#include <wrl\client.h>
 #include <DirectXMath.h>
-#include "..\Common\Definitions.h"
+#include "WorkManagement.h"
+
+// Forward declarations
+struct CD3DX12_ROOT_SIGNATURE_DESC;
 
 namespace D3D12 {
-    using DirectX::XMFLOAT3;
-    using DirectX::XMFLOAT4;
-    using Microsoft::WRL::ComPtr;
-
-    // Simple vertex represenation
+    // Simple vertex representation
     struct Vertex {
-        XMFLOAT3 position;  // Homogeneous screen-space coordinates from [-0.5, 0.5]
-        XMFLOAT4 color;     // RGBA color
+        DirectX::XMFLOAT3 position;  // Homogeneous screen-space coordinates from [-0.5, 0.5]
+        DirectX::XMFLOAT4 color;     // RGBA color
+    };
+
+    // Direct3D vertex buffer
+    struct VertexBuffer {
+        ComPtr<ID3D12Resource>   resource;  // Direct3D buffer interface
+        D3D12_VERTEX_BUFFER_VIEW view;      // Buffer properties
     };
 
     // Direct3D renderer
     class Renderer {
     public:
+        Renderer();
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
-        // Constructor; takes horizontal and vertical resolution as input
-        Renderer(const LONG resX, const LONG resY);
-        // Draws a single frame to the framebuffer
+        // Creates a root signature according to its description
+        ComPtr<ID3D12RootSignature> 
+        createRootSignature(const CD3DX12_ROOT_SIGNATURE_DESC& rootSignatureDesc);
+        // Creates a graphics pipeline state object (PSO) according to its description
+        // A PSO describes the input data format, and how the data is processed (rendered)
+        ComPtr<ID3D12PipelineState>
+        createGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& pipelineStateDesc);
+        // Creates a graphics command list in the specified initial state
+        ComPtr<ID3D12GraphicsCommandList>
+        createGraphicsCommandList(ID3D12PipelineState* const initialState);
+        // Creates a vertex buffer for the vertex array with the specified number of vertices
+        VertexBuffer createVertexBuffer(const Vertex* const vertices, const uint count);
+        // Draws a single frame to the frame buffer
         void renderFrame();
-        // Waits for all GPU commands to finish
+        // Finishes the current frame and stops the execution
         void stop();
     private:
-        // Configures the hardware and the software layers
+        // Configures the hardware and the software layers (infrastructure)
         // This step is independent from the rendering pipeline
         void configureEnvironment();
-        // Enables the Direct3D debug layer
-        void enableDebugLayer() const;
-        // Creates a WARP (software) Direct3D device
-        void createWarpDevice(IDXGIFactory4* const factory);
+        // Creates a Direct3D device that represents the display adapter
+        void createDevice(IDXGIFactory4* const factory);
         // Creates a hardware Direct3D device
         void createHardwareDevice(IDXGIFactory4* const factory);
-        // Creates a command queue
-        void createCommandQueue();
+        // Creates a WARP (software) Direct3D device
+        void createWarpDevice(IDXGIFactory4* const factory);
+        // Creates a graphics work queue
+        void createGraphicsWorkQueue();
         // Creates a swap chain
         void createSwapChain(IDXGIFactory4* const factory);
         // Creates a descriptor heap
@@ -47,47 +61,30 @@ namespace D3D12 {
         void createRenderTargetViews();
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
-        // Creates a root signature
-        void createRootSignature();
-        // Creates a graphics pieline state object which describes
-        // the input data format and how its processed (rendered)
-        void createPipelineStateObject();
-        // Creates a command list
-        void createCommandList();
-        // Creates a vertex buffer
-        void createVertexBuffer();
-        // Creates synchronization primitives, such as
-        // memory fences and synchronization events
-        void createSyncPrims();
         // Resets and then populates the graphics command list
         void recordCommandList();
-        // Waits for frame rendering to finish
-        void waitForPreviousFrame();
-        /* Private data members */
-        static const UINT                 m_singleGpuNodeMask = 0u;
-        static const UINT                 m_bufferCount       = 2u;
-        static const bool                 m_useWarpDevice     = false;
+    private:
+        // Rendering is performed on a single GPU.
+        static constexpr uint             m_singleGpuNodeMask = 0;
+        // Double buffering is used: present the front, render to the back
+        static constexpr uint             m_bufferCount       = 2;
+        // Software rendering flag
+        static constexpr bool             m_useWarpDevice     = false;
         /* Rendering parameters */
         D3D12_VIEWPORT                    m_viewport;
         D3D12_RECT                        m_scissorRect;
-        UINT                              m_backBufferIndex;
+        uint                              m_backBufferIndex;
         /* Pipeline objects */
         ComPtr<ID3D12Device>              m_device;
+        WorkQueue<WorkType::GRAPHICS>     m_graphicsWorkQueue;
         ComPtr<IDXGISwapChain3>           m_swapChain;
-        ComPtr<ID3D12CommandAllocator>    m_commandAllocator;
-        ComPtr<ID3D12CommandQueue>        m_commandQueue;
-        ComPtr<ID3D12GraphicsCommandList> m_commandList;
-        ComPtr<ID3D12RootSignature>       m_rootSignature;
-        ComPtr<ID3D12PipelineState>       m_pipelineState;
         ComPtr<ID3D12Resource>            m_renderTargets[m_bufferCount];
         ComPtr<ID3D12DescriptorHeap>      m_rtvHeap;
-        UINT                              m_rtvDescriptorSize;
+        uint                              m_rtvHandleIncrSz;
         /* Application resources */
-        ComPtr<ID3D12Resource>            m_vertexBuffer;
-        D3D12_VERTEX_BUFFER_VIEW          m_vertexBufferView;
-        /* Synchronization objects */
-        HANDLE                            m_syncEvent;
-        ComPtr<ID3D12Fence>               m_fence;
-        UINT64                            m_fenceValue;
+        ComPtr<ID3D12RootSignature>       m_rootSignature;
+        ComPtr<ID3D12PipelineState>       m_pipelineState;
+        ComPtr<ID3D12GraphicsCommandList> m_graphicsCommandList;
+        VertexBuffer                      m_vertexBuffer;
     };
 } // namespace D3D12
