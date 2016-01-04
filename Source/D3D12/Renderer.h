@@ -63,8 +63,6 @@ namespace D3D12 {
         void createRenderTargetViews();
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
-        // Resets and then populates the graphics command list
-        void recordCommandList();
     private:
         // Rendering is performed on a single GPU.
         static constexpr uint             m_singleGpuNodeMask = 0;
