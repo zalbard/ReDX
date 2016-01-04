@@ -358,7 +358,7 @@ VertexBuffer Renderer::createVertexBuffer(const Vertex* const vertices, const ui
     return vertexBuffer;
 }
 
-void Renderer::beginNewFrame() {
+void Renderer::startNewFrame() {
     // Wait until all the previously issued commands have been executed
     /* TODO: waiting is inefficient, change this! */
     m_graphicsWorkQueue.waitForCompletion();

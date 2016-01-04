@@ -38,7 +38,7 @@ namespace D3D12 {
         // Creates a vertex buffer for the vertex array with the specified number of vertices
         VertexBuffer createVertexBuffer(const Vertex* const vertices, const uint count);
         // Initializes the frame rendering process
-        void beginNewFrame();
+        void startNewFrame();
         // Draws the geometry from the vertex buffer to the frame buffer
         void draw(const VertexBuffer& vbo);
         // Finishes the current frame and stops the execution

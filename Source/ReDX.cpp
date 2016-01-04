@@ -50,7 +50,7 @@ int main(const int argc, const char* argv[]) {
             }
         }
         // The message queue is now empty; execute engine code
-        engine.beginNewFrame();
+        engine.startNewFrame();
         engine.draw(vertexBuffer);
     }
 }
