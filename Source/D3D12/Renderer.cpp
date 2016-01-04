@@ -204,7 +204,7 @@ static inline ComPtr<ID3DBlob> loadAndCompileShader(const wchar_t* const pathAnd
 
 void Renderer::configurePipeline() {
     // Fill out the root signature description
-    const auto rootSignatureDesc = CD3DX12_ROOT_SIGNATURE_DESC{0, nullptr, 0, nullptr,
+    const auto rootSignatureDesc = D3D12_ROOT_SIGNATURE_DESC{0, nullptr, 0, nullptr,
                                    D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT};
     // Create a root signature
     m_rootSignature = createRootSignature(rootSignatureDesc);
@@ -287,7 +287,7 @@ void Renderer::configurePipeline() {
 }
 
 ComPtr<ID3D12RootSignature>
-Renderer::createRootSignature(const CD3DX12_ROOT_SIGNATURE_DESC& rootSignatureDesc) {
+Renderer::createRootSignature(const D3D12_ROOT_SIGNATURE_DESC& rootSignatureDesc) {
     // Serialize a root signature from the description
     ComPtr<ID3DBlob> signature, error;
     CHECK_CALL(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1,

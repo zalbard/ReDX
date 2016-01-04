@@ -4,9 +4,6 @@
 #include <DirectXMath.h>
 #include "WorkManagement.h"
 
-// Forward declarations
-struct CD3DX12_ROOT_SIGNATURE_DESC;
-
 namespace D3D12 {
     // Simple vertex representation
     struct Vertex {
@@ -27,7 +24,7 @@ namespace D3D12 {
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
         // Creates a root signature according to its description
         ComPtr<ID3D12RootSignature> 
-        createRootSignature(const CD3DX12_ROOT_SIGNATURE_DESC& rootSignatureDesc);
+        createRootSignature(const D3D12_ROOT_SIGNATURE_DESC& rootSignatureDesc);
         // Creates a graphics pipeline state object (PSO) according to its description
         // A PSO describes the input data format, and how the data is processed (rendered)
         ComPtr<ID3D12PipelineState>
