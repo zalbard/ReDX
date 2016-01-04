@@ -37,8 +37,10 @@ namespace D3D12 {
         createGraphicsCommandList(ID3D12PipelineState* const initialState);
         // Creates a vertex buffer for the vertex array with the specified number of vertices
         VertexBuffer createVertexBuffer(const Vertex* const vertices, const uint count);
-        // Draws a single frame to the frame buffer
-        void renderFrame();
+        // Initializes the frame rendering process
+        void beginNewFrame();
+        // Draws the geometry from the vertex buffer to the frame buffer
+        void draw(const VertexBuffer& vbo);
         // Finishes the current frame and stops the execution
         void stop();
     private:
@@ -85,6 +87,5 @@ namespace D3D12 {
         ComPtr<ID3D12RootSignature>       m_rootSignature;
         ComPtr<ID3D12PipelineState>       m_pipelineState;
         ComPtr<ID3D12GraphicsCommandList> m_graphicsCommandList;
-        VertexBuffer                      m_vertexBuffer;
     };
 } // namespace D3D12

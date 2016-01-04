@@ -150,8 +150,6 @@ void Renderer::createSwapChain(IDXGIFactory4* const factory) {
     CHECK_CALL(factory->CreateSwapChain(m_graphicsWorkQueue.commandQueue(), &swapChainDesc,
                                         swapChainAddr),
                "Failed to create a swap chain.");
-    // Use it to set the current back buffer index
-    m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
 
 void Renderer::createDescriptorHeap() {
@@ -286,17 +284,6 @@ void Renderer::configurePipeline() {
     m_pipelineState = createGraphicsPipelineState(pipelineStateDesc);
     // Create a graphics command list
     m_graphicsCommandList = createGraphicsCommandList(m_pipelineState.Get());
-    // Define a screen-space triangle
-    const float aspectRatio = m_viewport.Width / m_viewport.Height;
-    const Vertex triangleVertices[] = {
-        Vertex{{  0.0f,  0.25f * aspectRatio, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
-        Vertex{{ 0.25f, -0.25f * aspectRatio, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
-        Vertex{{-0.25f, -0.25f * aspectRatio, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}}
-    };
-    // Create a vertex buffer
-    m_vertexBuffer = createVertexBuffer(triangleVertices, _countof(triangleVertices));
-    // Wait until the pipeline setup is finished
-    m_graphicsWorkQueue.waitForCompletion();
 }
 
 ComPtr<ID3D12RootSignature>
@@ -371,29 +358,23 @@ VertexBuffer Renderer::createVertexBuffer(const Vertex* const vertices, const ui
     return vertexBuffer;
 }
 
-void Renderer::renderFrame() {
-    // Record all the commands we need to render the scene into the command list
-    recordCommandList();
-    // Execute the command list
-    ID3D12CommandList* commandLists[] = {m_graphicsCommandList.Get()};
-    m_graphicsWorkQueue.execute(commandLists);
-    // Present the frame
-    CHECK_CALL(m_swapChain->Present(1, 0), "Failed to display the frame buffer.");
-    // Wait until all the queued commands have been executed
+void Renderer::beginNewFrame() {
+    // Wait until all the previously issued commands have been executed
     /* TODO: waiting is inefficient, change this! */
     m_graphicsWorkQueue.waitForCompletion();
-    // Flip the frame buffer
+    // Command list allocators can only be reset when the associated 
+    // command lists have finished execution on the GPU
+    CHECK_CALL(m_graphicsWorkQueue.listAlloca()->Reset(),
+               "Failed to reset the command list allocator.");
+    // Get the index of the frame buffer used for drawing
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
 
-void Renderer::recordCommandList() {
-    // Command list -allocators- can only be reset when the associated 
-    // command lists have finished execution on the GPU; apps should use 
-    // fences to determine GPU execution progress
-    CHECK_CALL(m_graphicsWorkQueue.listAlloca()->Reset(), "Failed to reset the command allocator.");
-    // However, after ExecuteCommandList() has been called on a particular command list,
-    // that command list -itself- can then be reset at any time (and must be before re-recording)
-    CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsWorkQueue.listAlloca(), m_pipelineState.Get()),
+void Renderer::draw(const VertexBuffer& vbo) {
+    // After a command list has been executed, 
+    // it can then be reset at any time (and must be before re-recording)
+    CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsWorkQueue.listAlloca(),
+                                            m_pipelineState.Get()),
                "Failed to reset the graphics command list.");
     // Set the necessary state
     m_graphicsCommandList->SetGraphicsRootSignature(m_rootSignature.Get());
@@ -409,11 +390,11 @@ void Renderer::recordCommandList() {
                                                   static_cast<int>(m_backBufferIndex),
                                                   m_rtvHandleIncrSz};
     m_graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
-    // Record commands
+    // Record the command list
     constexpr float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
     m_graphicsCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     m_graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_graphicsCommandList->IASetVertexBuffers(0, 1, &m_vertexBuffer.view);
+    m_graphicsCommandList->IASetVertexBuffers(0, 1, &vbo.view);
     m_graphicsCommandList->DrawInstanced(3, 1, 0, 0);
     // Transition the back buffer state: Render Target -> Presenting
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
@@ -421,6 +402,11 @@ void Renderer::recordCommandList() {
     m_graphicsCommandList->ResourceBarrier(1, &barrier);
     // Finalize the list
     CHECK_CALL(m_graphicsCommandList->Close(), "Failed to close the command list.");
+    // Execute the command list
+    ID3D12CommandList* commandLists[] = {m_graphicsCommandList.Get()};
+    m_graphicsWorkQueue.execute(commandLists);
+    // Present the frame
+    CHECK_CALL(m_swapChain->Present(1, 0), "Failed to display the frame buffer.");
 }
 
 void Renderer::stop() {
