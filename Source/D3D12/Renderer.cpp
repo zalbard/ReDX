@@ -341,7 +341,7 @@ VertexBuffer Renderer::createVertexBuffer(const Vertex* const vertices, const ui
     uint8* vertexData;
     constexpr uint subRes = 0;
     // Note: we don't intend to read from this resource on the CPU
-    const CD3DX12_RANGE emptyReadRange{0, 0};
+    const D3D12_RANGE emptyReadRange{0, 0};
     CHECK_CALL(vertexBuffer.resource->Map(subRes, &emptyReadRange,
                                           reinterpret_cast<void**>(&vertexData)),
                "Failed to map the vertex buffer.");
