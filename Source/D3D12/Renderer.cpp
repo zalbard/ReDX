@@ -88,9 +88,8 @@ void Renderer::createHardwareDevice(IDXGIFactory4* const factory) {
             TERMINATE();
         }
         // Check whether the adapter supports Direct3D 12
-        ID3D12Device* nullDevice = nullptr;
         if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
-                                        IID_PPV_ARGS(&nullDevice)))) {
+                                        _uuidof(ID3D12Device), nullptr))) {
             // It does -> create a Direct3D device
             CHECK_CALL(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
                                          IID_PPV_ARGS(&m_device)),
