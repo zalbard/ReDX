@@ -6,7 +6,7 @@ int main(const int argc, const char* argv[]) {
     // Parse command line arguments
 	if (argc > 1) {
 		printError("The following command line arguments have been ignored:");
-        for (auto i = 1; i < argc; ++i) {
+        for (int i = 1; i < argc; ++i) {
             printError("%s", argv[i]);
         }
 	}
@@ -15,12 +15,21 @@ int main(const int argc, const char* argv[]) {
         printError("The CPU doesn't support SSE2. Aborting.");
         return -1;
     }
+    // Create a window for rendering output
     constexpr long resX = 1280;
     constexpr long resY = 720;
-    // Create a window for rendering output
     Window::open(resX, resY);
     // Initialize the renderer (internally uses the Window)
     D3D12::Renderer engine;
+    // Provide the scene description
+    const float ar = Window::aspectRatio();
+    const D3D12::Vertex triangleVertices[3] = {
+        {{  0.0f,  0.25f * ar, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
+        {{ 0.25f, -0.25f * ar, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
+        {{-0.25f, -0.25f * ar, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}}
+    };
+    // Initialize graphics resources
+    const auto vertexBuffer = engine.createVertexBuffer(triangleVertices, 3);
     // Main loop
     while (true) {
         MSG msg;
@@ -32,7 +41,7 @@ int main(const int argc, const char* argv[]) {
             // Process the message locally
             switch (msg.message) {
             case WM_KEYDOWN:
-                // TODO: Process keyboard input
+                /* TODO: Process keyboard input */
                 break;
             case WM_QUIT:
                 engine.stop();
@@ -41,6 +50,7 @@ int main(const int argc, const char* argv[]) {
             }
         }
         // The message queue is now empty; execute engine code
-        engine.renderFrame();
+        engine.startNewFrame();
+        engine.draw(vertexBuffer);
     }
 }
