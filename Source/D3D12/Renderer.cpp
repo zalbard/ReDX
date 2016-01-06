@@ -1,7 +1,7 @@
 #include <d3dcompiler.h>
 #include "d3dx12.h"
 #include "Renderer.h"
-#include "WorkManagement.hpp"
+#include "HelperStructs.hpp"
 #include "..\UI\Window.h"
 
 using namespace D3D12;
@@ -61,9 +61,9 @@ void Renderer::configureEnvironment() {
     auto factory = createDxgiFactory4();
     disableFullscreen(factory.Get());
     createDevice(factory.Get());
-    createGraphicsWorkQueue();
+    m_device->createWorkQueue(&m_graphicsWorkQueue);
+    m_device->createDescriptorHeap(&m_rtvDescriptorHeap, m_bufferCount);
     createSwapChain(factory.Get());
-    createDescriptorHeap();
     createRenderTargetViews();
 }
 
@@ -107,17 +107,6 @@ void Renderer::createWarpDevice(IDXGIFactory4* const factory) {
                "Failed to create a Direct3D device.");
 }
 
-void Renderer::createGraphicsWorkQueue() {
-    // Fill out the command queue description
-    const D3D12_COMMAND_QUEUE_DESC queueDesc = {
-        /* Type */     static_cast<D3D12_COMMAND_LIST_TYPE>(WorkType::GRAPHICS),
-        /* Priority */ D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
-        /* Flags */    D3D12_COMMAND_QUEUE_FLAG_NONE,
-        /* NodeMask */ m_singleGpuNodeMask
-    };
-    m_graphicsWorkQueue = WorkQueue<WorkType::GRAPHICS>{m_device.Get(), queueDesc};
-}
-
 void Renderer::createSwapChain(IDXGIFactory4* const factory) {
     // Fill out the buffer description
     const DXGI_MODE_DESC bufferDesc = {
@@ -151,31 +140,16 @@ void Renderer::createSwapChain(IDXGIFactory4* const factory) {
                "Failed to create a swap chain.");
 }
 
-void Renderer::createDescriptorHeap() {
-    // Fill out the descriptor heap description
-    const D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {
-        /* Type */           D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-        /* NumDescriptors */ m_bufferCount,
-        /* Flags */          D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
-        /* NodeMask */       m_singleGpuNodeMask
-    };
-    // Create a descriptor heap
-    CHECK_CALL(m_device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&m_rtvHeap)),
-               "Failed to create a descriptor heap.");
-    // Get the increment size for descriptor handles
-    m_rtvHandleIncrSz = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-}
-
 void Renderer::createRenderTargetViews() {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart()};
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvDescriptorHeap.cpuBegin};
     // Create a Render Target View (RTV) for each frame buffer
     for (uint bufferIndex = 0; bufferIndex < m_bufferCount; ++bufferIndex) {
         CHECK_CALL(m_swapChain->GetBuffer(bufferIndex, IID_PPV_ARGS(&m_renderTargets[bufferIndex])),
                    "Failed to acquire a swap chain buffer.");
         m_device->CreateRenderTargetView(m_renderTargets[bufferIndex].Get(),
                                          nullptr, rtvHandle);
-        // Increment the descriptor pointer by the descriptor size
-        rtvHandle.Offset(1, m_rtvHandleIncrSz);
+        // Get the handle of the next descriptor
+        rtvHandle.Offset(1, m_rtvDescriptorHeap.handleIncrSz);
     }
 }
 
@@ -275,13 +249,12 @@ void Renderer::configurePipeline() {
         /* RTVFormats[8] */         {DXGI_FORMAT_R8G8B8A8_UNORM},
         /* DSVFormat */             DXGI_FORMAT_UNKNOWN,
         /* SampleDesc */            sampleDesc,
-        /* NodeMask */              m_singleGpuNodeMask,
+        /* NodeMask */              m_device->nodeMask,
         /* CachedPSO */             D3D12_CACHED_PIPELINE_STATE{},
         /* Flags */                 D3D12_PIPELINE_STATE_FLAG_NONE
     };
-    // Create a graphics pipeline state object
-    m_pipelineState = createGraphicsPipelineState(pipelineStateDesc);
-    // Create a graphics command list
+    // Create a graphics command list and its initial state
+    m_pipelineState       = createGraphicsPipelineState(pipelineStateDesc);
     m_graphicsCommandList = createGraphicsCommandList(m_pipelineState.Get());
 }
 
@@ -294,7 +267,7 @@ Renderer::createRootSignature(const D3D12_ROOT_SIGNATURE_DESC& rootSignatureDesc
                "Failed to serialize a root signature.");
     // Create a root signature layout using the serialized signature
     ComPtr<ID3D12RootSignature> rootSignature;
-    CHECK_CALL(m_device->CreateRootSignature(m_singleGpuNodeMask,
+    CHECK_CALL(m_device->CreateRootSignature(m_device->nodeMask,
                                              signature->GetBufferPointer(),
                                              signature->GetBufferSize(),
                                              IID_PPV_ARGS(&rootSignature)),
@@ -314,7 +287,7 @@ Renderer::createGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& 
 ComPtr<ID3D12GraphicsCommandList>
 Renderer::createGraphicsCommandList(ID3D12PipelineState* const initialState) {
     ComPtr<ID3D12GraphicsCommandList> graphicsCommandList;
-    CHECK_CALL(m_device->CreateCommandList(m_singleGpuNodeMask, D3D12_COMMAND_LIST_TYPE_DIRECT,
+    CHECK_CALL(m_device->CreateCommandList(m_device->nodeMask, D3D12_COMMAND_LIST_TYPE_DIRECT,
                                            m_graphicsWorkQueue.listAlloca(), initialState,
                                            IID_PPV_ARGS(&graphicsCommandList)),
                "Failed to create a command list.");
@@ -385,9 +358,9 @@ void Renderer::draw(const VertexBuffer& vbo) {
                       D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     m_graphicsCommandList->ResourceBarrier(1, &barrier);
     // Set the back buffer as the render target
-    const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap->GetCPUDescriptorHandleForHeapStart(),
+    const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvDescriptorHeap.cpuBegin,
                                                   static_cast<int>(m_backBufferIndex),
-                                                  m_rtvHandleIncrSz};
+                                                  m_rtvDescriptorHeap.handleIncrSz};
     m_graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
     // Record the command list
     constexpr float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
