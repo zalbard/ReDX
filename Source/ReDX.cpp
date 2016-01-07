@@ -1,3 +1,4 @@
+#include "Common\Timer.h"
 #include "Common\Utility.h"
 #include "D3D12\Renderer.h"
 #include "UI\Window.h"
@@ -30,10 +31,17 @@ int main(const int argc, const char* argv[]) {
     };
     // Initialize graphics resources
     const auto vertexBuffer = engine.createVertexBuffer(triangleVertices, 3);
+    // Start the timer to compute the frame time deltaT
+    uint prevFrameT = HighResTimer::time_ms();
     // Main loop
     while (true) {
-        MSG msg;
+        // Update the timers as we start a new frame
+        const uint currFrameT = HighResTimer::time_ms();
+        const uint deltaT     = currFrameT - prevFrameT;
+        prevFrameT = currFrameT;
+        Window::displayFrameTime(deltaT);
         // If the queue is not empty, retrieve a message
+        MSG msg;
         while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
             // Forward the message to the window
             TranslateMessage(&msg);
