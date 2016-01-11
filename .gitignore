@@ -44,7 +44,3 @@ Temp*/
 # Libraries
 !*.lib
 !*.dll
-
-# Models
-!*.obj
-!*.mtl
