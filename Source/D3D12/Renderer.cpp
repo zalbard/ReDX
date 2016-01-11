@@ -286,6 +286,7 @@ Renderer::createGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& 
 
 ComPtr<ID3D12GraphicsCommandList>
 Renderer::createGraphicsCommandList(ID3D12PipelineState* const initialState) {
+    assert(initialState);
     ComPtr<ID3D12GraphicsCommandList> graphicsCommandList;
     CHECK_CALL(m_device->CreateCommandList(m_device->nodeMask, D3D12_COMMAND_LIST_TYPE_DIRECT,
                                            m_graphicsWorkQueue.listAlloca(), initialState,
@@ -299,6 +300,7 @@ Renderer::createGraphicsCommandList(ID3D12PipelineState* const initialState) {
 
 
 VertexBuffer Renderer::createVertexBuffer(const Vertex* const vertices, const uint count) {
+    assert(vertices && count > 3);
     VertexBuffer vertexBuffer;
     const uint vertexBufferSize = count * sizeof(Vertex);
     // Use an upload heap to hold the vertex buffer
