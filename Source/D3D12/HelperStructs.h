@@ -10,24 +10,18 @@ namespace D3D12 {
 
     // Simple vertex representation
     struct Vertex {
-        Vertex() = default;
-        RULE_OF_ZERO(Vertex);
         DirectX::XMFLOAT3 position;  // Homogeneous screen-space coordinates from [-0.5, 0.5]
         DirectX::XMFLOAT4 color;     // RGBA color
     };
 
     // Direct3D vertex buffer
     struct VertexBuffer {
-        VertexBuffer() = default;
-        RULE_OF_ZERO(VertexBuffer);
         ComPtr<ID3D12Resource>   resource;  // Direct3D buffer interface
         D3D12_VERTEX_BUFFER_VIEW view;      // Buffer descriptor
     };
 
     // Direct3D index buffer
     struct IndexBuffer {
-        IndexBuffer() = default;
-        RULE_OF_ZERO(IndexBuffer);
         ComPtr<ID3D12Resource>  resource;  // Direct3D buffer interface
         D3D12_INDEX_BUFFER_VIEW view;      // Buffer descriptor
     };
@@ -41,7 +35,7 @@ namespace D3D12 {
 
     // Direct3D command queue wrapper class
     template <WorkType T>
-    struct WorkQueue {
+    class WorkQueue {
     public:
         WorkQueue() = default;
         RULE_OF_ZERO(WorkQueue);
