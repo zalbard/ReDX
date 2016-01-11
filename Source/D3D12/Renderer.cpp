@@ -300,7 +300,7 @@ Renderer::createGraphicsCommandList(ID3D12PipelineState* const initialState) {
 
 
 VertexBuffer Renderer::createVertexBuffer(const Vertex* const vertices, const uint count) {
-    assert(vertices && count > 3);
+    assert(vertices && count >= 3);
     VertexBuffer vertexBuffer;
     const uint vertexBufferSize = count * sizeof(Vertex);
     // Use an upload heap to hold the vertex buffer
