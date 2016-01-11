@@ -160,7 +160,6 @@
     <ClCompile Include="Source\Common\Timer.cpp" />
     <ClCompile Include="Source\D3D12\Renderer.cpp" />
     <ClCompile Include="Source\ReDX.cpp" />
-    <ClCompile Include="Source\ThirdParty\tiny_obj_loader.cc" />
     <ClCompile Include="Source\UI\Window.cpp" />
   </ItemGroup>
   <ItemGroup>

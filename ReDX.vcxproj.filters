@@ -41,9 +41,6 @@
     <ClCompile Include="Source\Common\Scene.cpp">
       <Filter>Source Files\Common</Filter>
     </ClCompile>
-    <ClCompile Include="Source\ThirdParty\tiny_obj_loader.cc">
-      <Filter>Source Files\ThirdParty</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\D3D12\Renderer.h">
