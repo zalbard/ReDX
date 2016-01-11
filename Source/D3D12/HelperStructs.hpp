@@ -66,6 +66,7 @@ template<D3D12::WorkType T>
 void D3D12::ID3D12DeviceEx::createWorkQueue(WorkQueue<T>* const workQueue,
                                             const bool isHighPriority,
                                             const bool disableGpuTimeout) {
+    assert(workQueue);
     // Fill out the command queue description
     const D3D12_COMMAND_QUEUE_DESC queueDesc = {
         /* Type */     static_cast<D3D12_COMMAND_LIST_TYPE>(T),
@@ -102,8 +103,8 @@ template<D3D12::DescType T>
 void D3D12::ID3D12DeviceEx::createDescriptorHeap(DescriptorHeap<T>* const descriptorHeap,
                                                  const uint numDescriptors,
                                                  const bool isShaderVisible) {
-    assert((!isShaderVisible || T == DescType::CBV_SRV_UAV || T == DescType::SAMPLER) &&
-           "This type of descriptor heap cannot be made accessible to shaders.");
+    assert(descriptorHeap);
+    assert(T == DescType::CBV_SRV_UAV || T == DescType::SAMPLER || !isShaderVisible);
     constexpr auto nativeType = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);
     // Fill out the descriptor heap description
     const D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {
