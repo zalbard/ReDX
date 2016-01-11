@@ -168,6 +168,9 @@
     <ClInclude Include="Source\D3D12\HelperStructs.h" />
     <ClInclude Include="Source\D3D12\HelperStructs.hpp" />
     <ClInclude Include="Source\D3D12\Renderer.h" />
+    <ClInclude Include="Source\ThirdParty\d3dx12.h" />
+    <ClInclude Include="Source\ThirdParty\stb_image.h" />
+    <ClInclude Include="Source\ThirdParty\tiny_obj_loader.h" />
     <ClInclude Include="Source\UI\Window.h" />
   </ItemGroup>
   <ItemGroup>
