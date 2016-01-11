@@ -21,6 +21,8 @@ namespace D3D12 {
         createGraphicsCommandList(ID3D12PipelineState* const initialState);
         // Creates a vertex buffer for the vertex array with the specified number of vertices
         VertexBuffer createVertexBuffer(const Vertex* const vertices, const uint count);
+        // Creates an index buffer for the index array with the specified number of indices
+        IndexBuffer createIndexBuffer(const uint* const indices, const uint count);
         // Initializes the frame rendering process
         void startNewFrame();
         // Draws the geometry from the vertex buffer to the frame buffer

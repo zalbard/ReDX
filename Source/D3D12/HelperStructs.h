@@ -21,7 +21,15 @@ namespace D3D12 {
         VertexBuffer() = default;
         RULE_OF_ZERO(VertexBuffer);
         ComPtr<ID3D12Resource>   resource;  // Direct3D buffer interface
-        D3D12_VERTEX_BUFFER_VIEW view;      // Buffer properties
+        D3D12_VERTEX_BUFFER_VIEW view;      // Buffer descriptor
+    };
+
+    // Direct3D index buffer
+    struct IndexBuffer {
+        IndexBuffer() = default;
+        RULE_OF_ZERO(IndexBuffer);
+        ComPtr<ID3D12Resource>  resource;  // Direct3D buffer interface
+        D3D12_INDEX_BUFFER_VIEW view;      // Buffer descriptor
     };
 
     // Corresponds to Direct3D command list types

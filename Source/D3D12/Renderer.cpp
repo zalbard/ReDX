@@ -332,6 +332,39 @@ VertexBuffer Renderer::createVertexBuffer(const Vertex* const vertices, const ui
     return vertexBuffer;
 }
 
+IndexBuffer Renderer::createIndexBuffer(const uint* const indices, const uint count) {
+    assert(indices && count >= 3);
+    IndexBuffer indexBuffer;
+    const uint indexBufferSize = count * sizeof(uint);
+    // Use an upload heap to hold the index buffer
+    /* TODO: inefficient, change this! */
+    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
+    const auto idxBufferDesc  = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
+                                                 &idxBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                 nullptr, IID_PPV_ARGS(&indexBuffer.resource)),
+               "Failed to create an upload heap.");
+    // Acquire a CPU pointer to the buffer (sub-resource "subRes")
+    uint8* indexData;
+    constexpr uint subRes = 0;
+    // Note: we don't intend to read from this resource on the CPU
+    const D3D12_RANGE emptyReadRange{0, 0};
+    CHECK_CALL(indexBuffer.resource->Map(subRes, &emptyReadRange,
+                                         reinterpret_cast<void**>(&indexData)),
+               "Failed to map the vertex buffer.");
+    // Copy the triangle data to the index buffer
+    memcpy(indexData, indices, indexBufferSize);
+    // Unmap the buffer
+    indexBuffer.resource->Unmap(subRes, nullptr);
+    // Initialize the index buffer view
+    indexBuffer.view = D3D12_INDEX_BUFFER_VIEW{
+        /* BufferLocation */ indexBuffer.resource->GetGPUVirtualAddress(),
+        /* SizeInBytes */    indexBufferSize,
+        /* Format */         DXGI_FORMAT_R32_UINT
+    };
+    return indexBuffer;
+}
+
 void Renderer::startNewFrame() {
     // Wait until all the previously issued commands have been executed
     /* TODO: waiting is inefficient, change this! */
