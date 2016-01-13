@@ -25,9 +25,9 @@ int main(const int argc, const char* argv[]) {
     // Provide the scene description
     const float ar = Window::aspectRatio();
     const D3D12::Vertex triangleVertices[3] = {
-        {{  0.0f,  0.25f * ar, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
-        {{ 0.25f, -0.25f * ar, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
-        {{-0.25f, -0.25f * ar, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}}
+        {{  0.0f,  0.25f * ar, 0.0f}, {1.0f, 0.0f, 0.0f}},
+        {{ 0.25f, -0.25f * ar, 0.0f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.25f, -0.25f * ar, 0.0f}, {0.0f, 0.0f, 1.0f}}
     };
     // Initialize graphics resources
     const auto vertexBuffer = engine.createVertexBuffer(triangleVertices, 3);

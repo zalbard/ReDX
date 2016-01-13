@@ -11,7 +11,7 @@ namespace D3D12 {
     // Simple vertex representation
     struct Vertex {
         DirectX::XMFLOAT3 position;  // Homogeneous screen-space coordinates from [-0.5, 0.5]
-        DirectX::XMFLOAT4 color;     // RGBA color
+        DirectX::XMFLOAT3 normal;    // World-space normal
     };
 
     // Direct3D vertex buffer

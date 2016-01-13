@@ -207,7 +207,7 @@ void Renderer::configurePipeline() {
             /* InstanceDataStepRate */ 0
         },
         {
-            /* SemanticName */         "COLOR",
+            /* SemanticName */         "NORMAL",
             /* SemanticIndex */        0,
             /* Format */               DXGI_FORMAT_R32G32B32_FLOAT,
             /* InputSlot */            0,
