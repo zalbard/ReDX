@@ -259,7 +259,7 @@ void Renderer::configurePipeline() {
 }
 
 ComPtr<ID3D12RootSignature>
-Renderer::createRootSignature(const D3D12_ROOT_SIGNATURE_DESC& rootSignatureDesc) {
+Renderer::createRootSignature(const D3D12_ROOT_SIGNATURE_DESC& rootSignatureDesc) const {
     // Serialize a root signature from the description
     ComPtr<ID3DBlob> signature, error;
     CHECK_CALL(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1,
@@ -276,10 +276,9 @@ Renderer::createRootSignature(const D3D12_ROOT_SIGNATURE_DESC& rootSignatureDesc
 }
 
 ComPtr<ID3D12PipelineState>
-Renderer::createGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& pipelineStateDesc) {
+Renderer::createGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& stateDesc) const {
     ComPtr<ID3D12PipelineState> pipelineState;
-    CHECK_CALL(m_device->CreateGraphicsPipelineState(&pipelineStateDesc,
-                                                     IID_PPV_ARGS(&pipelineState)),
+    CHECK_CALL(m_device->CreateGraphicsPipelineState(&stateDesc, IID_PPV_ARGS(&pipelineState)),
                "Failed to create a graphics pipeline state object.");
     return pipelineState;
 }
@@ -299,7 +298,7 @@ Renderer::createGraphicsCommandList(ID3D12PipelineState* const initialState) {
 }
 
 
-VertexBuffer Renderer::createVertexBuffer(const uint count, const Vertex* const vertices) {
+VertexBuffer Renderer::createVertexBuffer(const uint count, const Vertex* const vertices) const {
     assert(vertices && count >= 3);
     VertexBuffer vertexBuffer;
     vertexBuffer.count = count;
@@ -315,7 +314,7 @@ VertexBuffer Renderer::createVertexBuffer(const uint count, const Vertex* const 
     return vertexBuffer;
 }
 
-IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indices) {
+IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indices) const {
     assert(indices && count >= 3);
     IndexBuffer indexBuffer;
     indexBuffer.count = count;
@@ -332,7 +331,7 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
 }
 
 ComPtr<ID3D12Resource>
-Renderer::createConstantBuffer(const uint byteSz, const void* const data) {
+Renderer::createConstantBuffer(const uint byteSz, const void* const data) const {
     ComPtr<ID3D12Resource> constBuffer;
     // Use an upload heap to hold the buffer
     /* TODO: inefficient, change this! */
