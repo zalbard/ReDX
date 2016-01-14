@@ -36,6 +36,7 @@ Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine) {
     for (uint i = 0; i < numObjects; ++i) {
         vertices.clear();
         const auto& mesh = shapes[i].mesh;
+        assert(mesh.positions.size() == mesh.normals.size() && 0 == mesh.positions.size() % 3);
         for (uint j = 0, jMax = static_cast<uint>(mesh.positions.size()); j < jMax; j += 3) {
             D3D12::Vertex v{{mesh.positions[j],
                              mesh.positions[j + 1],
