@@ -32,7 +32,7 @@ namespace D3D12 {
     private:
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
-        // Creates a constant buffer (using an upload heap) of the specified size in bytes
+        // Creates a constant buffer of the specified size in bytes
         // Optionally, it also uploads the data to the device
         ComPtr<ID3D12Resource>
         createConstantBuffer(const uint byteSz, const void* const data = nullptr) const;
@@ -45,7 +45,7 @@ namespace D3D12 {
         D3D12_VIEWPORT                    m_viewport;
         D3D12_RECT                        m_scissorRect;
         uint                              m_backBufferIndex;
-        /* Application resources */
+        /* Direct3D resources */
         mutable ComPtr<ID3D12DeviceEx>    m_device;
         WorkQueue<WorkType::GRAPHICS>     m_graphicsWorkQueue;
         ComPtr<IDXGISwapChain3>           m_swapChain;

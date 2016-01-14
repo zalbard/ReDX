@@ -33,11 +33,11 @@ Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine) {
     vbos = std::make_unique<D3D12::VertexBuffer[]>(numObjects);
     ibos = std::make_unique<D3D12::IndexBuffer[]>(numObjects);
     std::vector<D3D12::Vertex> vertices;
-    for (uint i = 0; i < numObjects; ++i) {
+    for (uint i = 0, n = numObjects; i < n; ++i) {
         vertices.clear();
         const auto& mesh = shapes[i].mesh;
         assert(mesh.positions.size() == mesh.normals.size() && 0 == mesh.positions.size() % 3);
-        for (uint j = 0, jMax = static_cast<uint>(mesh.positions.size()); j < jMax; j += 3) {
+        for (uint j = 0, m = static_cast<uint>(mesh.positions.size()); j < m; j += 3) {
             D3D12::Vertex v{{mesh.positions[j],
                              mesh.positions[j + 1],
                              mesh.positions[j + 2]},

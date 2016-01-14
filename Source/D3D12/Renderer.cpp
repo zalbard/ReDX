@@ -59,10 +59,12 @@ Renderer::Renderer() {
     };
     // Enable the Direct3D debug layer
     #ifdef _DEBUG
+    {
         ComPtr<ID3D12Debug> debugController;
         CHECK_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)),
                    "Failed to initialize the D3D debug layer.");
         debugController->EnableDebugLayer();
+    }
     #endif
     // Create a DirectX Graphics Infrastructure (DXGI) 1.1 factory
     // IDXGIFactory4 inherits from IDXGIFactory1 (4 -> 3 -> 2 -> 1)
