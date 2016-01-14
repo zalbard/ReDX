@@ -9,7 +9,7 @@
     #include "..\ThirdParty\tiny_obj_loader.h"
 #pragma warning(default : 4706)
 
-Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine) {
+Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine) {
     assert(objFilePath);
     // Compute the .mtl base path from 'objFilePath'
     const auto lastBackslash = strrchr(objFilePath, '\\');
