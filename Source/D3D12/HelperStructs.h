@@ -19,12 +19,14 @@ namespace D3D12 {
     struct VertexBuffer {
         ComPtr<ID3D12Resource>   resource;          // Direct3D buffer interface
         D3D12_VERTEX_BUFFER_VIEW view;              // Buffer descriptor
+        uint                     count;             // Number of elements 
     };
 
     // Direct3D index buffer
     struct IndexBuffer {
         ComPtr<ID3D12Resource>  resource;           // Direct3D buffer interface
         D3D12_INDEX_BUFFER_VIEW view;               // Buffer descriptor
+        uint                    count;              // Number of elements 
     };
 
     // Corresponds to Direct3D command list types

@@ -4,7 +4,10 @@
 #include "..\D3D12\Renderer.h"
 #include "..\D3D12\HelperStructs.hpp"
 #include "..\ThirdParty\stb_image.h"
-#include "..\ThirdParty\tiny_obj_loader.h"
+#pragma warning(disable : 4706)
+    #define TINYOBJLOADER_IMPLEMENTATION
+    #include "..\ThirdParty\tiny_obj_loader.h"
+#pragma warning(default : 4706)
 
 Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine) {
     assert(objFilePath);
@@ -26,14 +29,25 @@ Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine) {
     }
     printInfo("Scene loaded successfully.");
     // Initialize Direct3D resources
-    const auto numObjects = static_cast<uint>(shapes.size());
-    objects = std::make_unique<Object[]>(numObjects);
+    numObjects = static_cast<uint>(shapes.size());
+    vbos = std::make_unique<D3D12::VertexBuffer[]>(numObjects);
+    ibos = std::make_unique<D3D12::IndexBuffer[]>(numObjects);
+    std::vector<D3D12::Vertex> vertices;
     for (uint i = 0; i < numObjects; ++i) {
-        const auto& mesh    = shapes[i].mesh;
-        const auto vertices = reinterpret_cast<const D3D12::Vertex*>(mesh.positions.data());
-        const auto numVerts = static_cast<uint>(mesh.positions.size() / 3);
-        objects[i].vbo      = engine.createVertexBuffer(vertices, numVerts);
-        objects[i].ibo      = engine.createIndexBuffer(mesh.indices.data(),
-                                                       static_cast<uint>(mesh.indices.size()));
+        vertices.clear();
+        const auto& mesh = shapes[i].mesh;
+        for (uint j = 0, jMax = static_cast<uint>(mesh.positions.size()); j < jMax; j += 3) {
+            D3D12::Vertex v{{mesh.positions[j],
+                             mesh.positions[j + 1],
+                             mesh.positions[j + 2]},
+                            {mesh.normals[j],
+                             mesh.normals[j + 1],
+                             mesh.normals[j + 2]}};
+            vertices.emplace_back(std::move(v));
+        }
+        vbos[i] = engine.createVertexBuffer(static_cast<uint>(vertices.size()),
+                                            vertices.data());
+        ibos[i] = engine.createIndexBuffer(static_cast<uint>(mesh.indices.size()),
+                                           mesh.indices.data());
     }
 }

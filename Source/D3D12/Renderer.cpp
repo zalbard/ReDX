@@ -15,8 +15,8 @@ Renderer::Renderer() {
         /* TopLeftY */ 0.0f,
         /* Width */    static_cast<float>(resX),
         /* Height */   static_cast<float>(resY),
-        /* MinDepth */ 0.0f,
-        /* MaxDepth */ 1.0f
+        /* MinDepth */ 0.01f,
+        /* MaxDepth */ 10000.0f
     };
     // Configure the scissor rectangle used for clipping
     m_scissorRect = D3D12_RECT{
@@ -299,30 +299,13 @@ Renderer::createGraphicsCommandList(ID3D12PipelineState* const initialState) {
 }
 
 
-VertexBuffer Renderer::createVertexBuffer(const Vertex* const vertices, const uint count) {
+VertexBuffer Renderer::createVertexBuffer(const uint count, const Vertex* const vertices) {
     assert(vertices && count >= 3);
     VertexBuffer vertexBuffer;
-    const uint vertexBufferSize = count * sizeof(Vertex);
-    // Use an upload heap to hold the vertex buffer
-    /* TODO: inefficient, change this! */
-    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
-    const auto vertBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
-    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &vertBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
-                                                 nullptr, IID_PPV_ARGS(&vertexBuffer.resource)),
-               "Failed to create an upload heap.");
-    // Acquire a CPU pointer to the buffer (sub-resource "subRes")
-    uint8* vertexData;
-    constexpr uint subRes = 0;
-    // Note: we don't intend to read from this resource on the CPU
-    const D3D12_RANGE emptyReadRange{0, 0};
-    CHECK_CALL(vertexBuffer.resource->Map(subRes, &emptyReadRange,
-                                          reinterpret_cast<void**>(&vertexData)),
-               "Failed to map the vertex buffer.");
-    // Copy the triangle data to the vertex buffer
-    memcpy(vertexData, vertices, vertexBufferSize);
-    // Unmap the buffer
-    vertexBuffer.resource->Unmap(subRes, nullptr);
+    vertexBuffer.count = count;
+    const uint vertexBufferSize = vertexBuffer.count * sizeof(Vertex);
+    // Initialize the buffer and copy the data
+    vertexBuffer.resource = createConstantBuffer(vertexBufferSize, vertices);
     // Initialize the vertex buffer view
     vertexBuffer.view = D3D12_VERTEX_BUFFER_VIEW{
         /* BufferLocation */ vertexBuffer.resource->GetGPUVirtualAddress(),
@@ -332,30 +315,13 @@ VertexBuffer Renderer::createVertexBuffer(const Vertex* const vertices, const ui
     return vertexBuffer;
 }
 
-IndexBuffer Renderer::createIndexBuffer(const uint* const indices, const uint count) {
+IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indices) {
     assert(indices && count >= 3);
     IndexBuffer indexBuffer;
-    const uint indexBufferSize = count * sizeof(uint);
-    // Use an upload heap to hold the index buffer
-    /* TODO: inefficient, change this! */
-    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
-    const auto idxBufferDesc  = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
-    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &idxBufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
-                                                 nullptr, IID_PPV_ARGS(&indexBuffer.resource)),
-               "Failed to create an upload heap.");
-    // Acquire a CPU pointer to the buffer (sub-resource "subRes")
-    uint8* indexData;
-    constexpr uint subRes = 0;
-    // Note: we don't intend to read from this resource on the CPU
-    const D3D12_RANGE emptyReadRange{0, 0};
-    CHECK_CALL(indexBuffer.resource->Map(subRes, &emptyReadRange,
-                                         reinterpret_cast<void**>(&indexData)),
-               "Failed to map the vertex buffer.");
-    // Copy the triangle data to the index buffer
-    memcpy(indexData, indices, indexBufferSize);
-    // Unmap the buffer
-    indexBuffer.resource->Unmap(subRes, nullptr);
+    indexBuffer.count = count;
+    const uint indexBufferSize = indexBuffer.count * sizeof(uint);
+    // Initialize the buffer and copy the data
+    indexBuffer.resource = createConstantBuffer(indexBufferSize, indices);
     // Initialize the index buffer view
     indexBuffer.view = D3D12_INDEX_BUFFER_VIEW{
         /* BufferLocation */ indexBuffer.resource->GetGPUVirtualAddress(),
@@ -363,6 +329,33 @@ IndexBuffer Renderer::createIndexBuffer(const uint* const indices, const uint co
         /* Format */         DXGI_FORMAT_R32_UINT
     };
     return indexBuffer;
+}
+
+ComPtr<ID3D12Resource>
+Renderer::createConstantBuffer(const uint byteSz, const void* const data) {
+    ComPtr<ID3D12Resource> constBuffer;
+    // Use an upload heap to hold the buffer
+    /* TODO: inefficient, change this! */
+    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
+    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(byteSz);
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
+                                                 &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                 nullptr, IID_PPV_ARGS(&constBuffer)),
+               "Failed to create an upload heap.");
+    if (data) {
+        // Acquire a CPU pointer to the buffer (sub-resource 'subRes')
+        void* buffer;
+        constexpr uint subRes = 0;
+        // Note: we don't intend to read from this resource on the CPU
+        const D3D12_RANGE emptyReadRange{0, 0};
+        CHECK_CALL(constBuffer->Map(subRes, &emptyReadRange, &buffer),
+                   "Failed to map the constant buffer.");
+        // Copy the data to the buffer
+        memcpy(buffer, data, byteSz);
+        // Unmap the buffer
+        constBuffer->Unmap(subRes, nullptr);
+    }
+    return constBuffer;
 }
 
 void Renderer::startNewFrame() {
@@ -377,7 +370,7 @@ void Renderer::startNewFrame() {
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
 
-void Renderer::draw(const VertexBuffer& vbo) {
+void Renderer::draw(const VertexBuffer& vbo, const IndexBuffer& ibo) {
     // After a command list has been executed, 
     // it can then be reset at any time (and must be before re-recording)
     CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsWorkQueue.listAlloca(),
@@ -402,7 +395,8 @@ void Renderer::draw(const VertexBuffer& vbo) {
     m_graphicsCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     m_graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_graphicsCommandList->IASetVertexBuffers(0, 1, &vbo.view);
-    m_graphicsCommandList->DrawInstanced(3, 1, 0, 0);
+    m_graphicsCommandList->IASetIndexBuffer(&ibo.view);
+    m_graphicsCommandList->DrawIndexedInstanced(ibo.count, 1, 0, 0, 0);
     // Transition the back buffer state: Render Target -> Presenting
     barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
               D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);

@@ -20,13 +20,13 @@ namespace D3D12 {
         ComPtr<ID3D12GraphicsCommandList>
         createGraphicsCommandList(ID3D12PipelineState* const initialState);
         // Creates a vertex buffer for the vertex array with the specified number of vertices
-        VertexBuffer createVertexBuffer(const Vertex* const vertices, const uint count);
+        VertexBuffer createVertexBuffer(const uint count, const Vertex* const vertices);
         // Creates an index buffer for the index array with the specified number of indices
-        IndexBuffer createIndexBuffer(const uint* const indices, const uint count);
+        IndexBuffer createIndexBuffer(const uint count, const uint* const indices);
         // Initializes the frame rendering process
         void startNewFrame();
-        // Draws the geometry from the vertex buffer to the frame buffer
-        void draw(const VertexBuffer& vbo);
+        // Draws the geometry from the indexed vertex buffer to the frame buffer
+        void draw(const VertexBuffer& vbo, const IndexBuffer& ibo);
         // Finishes the current frame and stops the execution
         void stop();
     private:
@@ -45,6 +45,10 @@ namespace D3D12 {
         void createRenderTargetViews();
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
+        // Creates a constant buffer (using an upload heap) of the specified size in bytes
+        // Optionally, it also uploads the data to the device
+        ComPtr<ID3D12Resource>
+        createConstantBuffer(const uint byteSz, const void* const data = nullptr);
     private:
         // Double buffering is used: present the front, render to the back
         static constexpr uint             m_bufferCount   = 2;
