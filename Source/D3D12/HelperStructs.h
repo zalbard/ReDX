@@ -6,24 +6,25 @@
 #include "..\Common\Definitions.h"
 
 namespace D3D12 {
+    using DirectX::XMFLOAT3;
     using Microsoft::WRL::ComPtr;
 
     // Simple vertex representation
     struct Vertex {
-        DirectX::XMFLOAT3 position;  // Homogeneous screen-space coordinates from [-0.5, 0.5]
-        DirectX::XMFLOAT3 normal;    // World-space normal
+        XMFLOAT3 position;                          // Object-space vertex coordinates
+        XMFLOAT3 normal;                            // World-space normal vector
     };
 
     // Direct3D vertex buffer
     struct VertexBuffer {
-        ComPtr<ID3D12Resource>   resource;  // Direct3D buffer interface
-        D3D12_VERTEX_BUFFER_VIEW view;      // Buffer descriptor
+        ComPtr<ID3D12Resource>   resource;          // Direct3D buffer interface
+        D3D12_VERTEX_BUFFER_VIEW view;              // Buffer descriptor
     };
 
     // Direct3D index buffer
     struct IndexBuffer {
-        ComPtr<ID3D12Resource>  resource;  // Direct3D buffer interface
-        D3D12_INDEX_BUFFER_VIEW view;      // Buffer descriptor
+        ComPtr<ID3D12Resource>  resource;           // Direct3D buffer interface
+        D3D12_INDEX_BUFFER_VIEW view;               // Buffer descriptor
     };
 
     // Corresponds to Direct3D command list types
