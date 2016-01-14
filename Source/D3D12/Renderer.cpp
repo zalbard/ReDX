@@ -6,6 +6,38 @@
 
 using namespace D3D12;
 
+static inline ComPtr<ID3D12DeviceEx> createWarpDevice(IDXGIFactory4* const factory) {
+    ComPtr<IDXGIAdapter> adapter;
+    CHECK_CALL(factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)),
+               "Failed to create a WARP adapter.");
+    ComPtr<ID3D12DeviceEx> device;
+    CHECK_CALL(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)),
+               "Failed to create a Direct3D device.");
+    return device;
+}
+
+static inline ComPtr<ID3D12DeviceEx> createHardwareDevice(IDXGIFactory4* const factory) {
+    for (uint adapterIndex = 0; ; ++adapterIndex) {
+        // Select the next adapter
+        ComPtr<IDXGIAdapter1> adapter;
+        if (DXGI_ERROR_NOT_FOUND == factory->EnumAdapters1(adapterIndex, &adapter)) {
+            // No more adapters to enumerate
+            printError("Direct3D 12 device not found.");
+            TERMINATE();
+        }
+        // Check whether the adapter supports Direct3D 12
+        if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
+                                        _uuidof(ID3D12Device), nullptr))) {
+            // It does -> create a Direct3D device
+            ComPtr<ID3D12DeviceEx> device;
+            CHECK_CALL(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
+                                         IID_PPV_ARGS(&device)),
+                       "Failed to create a Direct3D device.");
+            return device;
+        }
+    }
+}
+
 Renderer::Renderer() {
     const long resX = Window::width();
     const long resY = Window::height();
@@ -25,132 +57,82 @@ Renderer::Renderer() {
         /* right */  resX,
         /* bottom */ resY
     };
-    // Perform the Direct3D initialization step
-    configureEnvironment();
-    // Set up the rendering pipeline
-    configurePipeline();
-}
-
-// Enables the Direct3D debug layer
-static inline void enableDebugLayer() {
+    // Enable the Direct3D debug layer
     #ifdef _DEBUG
         ComPtr<ID3D12Debug> debugController;
         CHECK_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)),
                    "Failed to initialize the D3D debug layer.");
         debugController->EnableDebugLayer();
     #endif
-}
-
-// Creates a DirectX Graphics Infrastructure (DXGI) 1.1 factory
-static inline ComPtr<IDXGIFactory4> createDxgiFactory4() {
+    // Create a DirectX Graphics Infrastructure (DXGI) 1.1 factory
     // IDXGIFactory4 inherits from IDXGIFactory1 (4 -> 3 -> 2 -> 1)
     ComPtr<IDXGIFactory4> factory;
     CHECK_CALL(CreateDXGIFactory1(IID_PPV_ARGS(&factory)),
                "Failed to create a DXGI 1.1 factory.");
-    return factory;
-}
-
-// Disables transitions from the windowed to the fullscreen mode
-static inline void disableFullscreen(IDXGIFactory4* const factory) {
+    // Disable transitions from the windowed to the fullscreen mode
     CHECK_CALL(factory->MakeWindowAssociation(Window::handle(), DXGI_MWA_NO_ALT_ENTER),
                "Failed to disable fullscreen transitions.");
-}
-
-void Renderer::configureEnvironment() {
-    enableDebugLayer();
-    auto factory = createDxgiFactory4();
-    disableFullscreen(factory.Get());
-    createDevice(factory.Get());
-    m_device->createWorkQueue(&m_graphicsWorkQueue);
-    m_device->createDescriptorHeap(&m_rtvDescriptorHeap, m_bufferCount);
-    createSwapChain(factory.Get());
-    createRenderTargetViews();
-}
-
-void Renderer::createDevice(IDXGIFactory4* const factory) {
+    // Create a Direct3D device that represents the display adapter
     #pragma warning(suppress: 4127)
-    if (!m_useWarpDevice) {
-        // Use a hardware display adapter
-        createHardwareDevice(factory);
+    if (m_useWarpDevice) {
+        // Use software rendering
+        m_device = createWarpDevice(factory.Get());
     } else {
-        // Use a software display adapter
-        createWarpDevice(factory);
+        // Use hardware acceleration
+        m_device = createHardwareDevice(factory.Get());
     }
-}
-
-void Renderer::createHardwareDevice(IDXGIFactory4* const factory) {
-    for (uint adapterIndex = 0; ; ++adapterIndex) {
-        // Select the next adapter
-        ComPtr<IDXGIAdapter1> adapter;
-        if (DXGI_ERROR_NOT_FOUND == factory->EnumAdapters1(adapterIndex, &adapter)) {
-            // No more adapters to enumerate
-            printError("Direct3D 12 device not found.");
-            TERMINATE();
+    // Create a graphics work queue
+    m_device->createWorkQueue(&m_graphicsWorkQueue);
+    // Create a buffer swap chain
+    {
+        // Fill out the buffer description
+        const DXGI_MODE_DESC bufferDesc = {
+            /* Width */            static_cast<uint>(m_scissorRect.right - m_scissorRect.left),
+            /* Height */           static_cast<uint>(m_scissorRect.bottom - m_scissorRect.top),
+            /* RefreshRate */      DXGI_RATIONAL{},
+            /* Format */           DXGI_FORMAT_R8G8B8A8_UNORM,
+            /* ScanlineOrdering */ DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
+            /* Scaling */          DXGI_MODE_SCALING_UNSPECIFIED
+        };
+        // Fill out the multi-sampling parameters
+        const DXGI_SAMPLE_DESC sampleDesc = {
+            /* Count */   1,    // No multi-sampling
+            /* Quality */ 0     // Default sampler
+        };
+        // Fill out the swap chain description
+        DXGI_SWAP_CHAIN_DESC swapChainDesc = {
+            /* BufferDesc */   bufferDesc,
+            /* SampleDesc */   sampleDesc,
+            /* BufferUsage */  DXGI_USAGE_RENDER_TARGET_OUTPUT,
+            /* BufferCount */  m_bufferCount,
+            /* OutputWindow */ Window::handle(),
+            /* Windowed */     TRUE,
+            /* SwapEffect */   DXGI_SWAP_EFFECT_FLIP_DISCARD,
+            /* Flags */        0
+        };
+        // Create a swap chain; it needs a command queue to flush the latter
+        auto swapChainAddr = reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf());
+        CHECK_CALL(factory->CreateSwapChain(m_graphicsWorkQueue.commandQueue(),
+                                            &swapChainDesc, swapChainAddr),
+                   "Failed to create a swap chain.");
+    }
+    // Create a render target view (RTV) descriptor heap
+    m_device->createDescriptorHeap(&m_rtvDescriptorHeap, m_bufferCount);
+    // Create 2x RTVs
+    {
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvDescriptorHeap.cpuBegin};
+        // Create an RTV for each frame buffer
+        for (uint bufferIdx = 0; bufferIdx < m_bufferCount; ++bufferIdx) {
+            CHECK_CALL(m_swapChain->GetBuffer(bufferIdx,
+                                              IID_PPV_ARGS(&m_renderTargets[bufferIdx])),
+                       "Failed to acquire a swap chain buffer.");
+            m_device->CreateRenderTargetView(m_renderTargets[bufferIdx].Get(), nullptr, rtvHandle);
+            // Get the handle of the next descriptor
+            rtvHandle.Offset(1, m_rtvDescriptorHeap.handleIncrSz);
         }
-        // Check whether the adapter supports Direct3D 12
-        if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
-                                        _uuidof(ID3D12Device), nullptr))) {
-            // It does -> create a Direct3D device
-            CHECK_CALL(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
-                                         IID_PPV_ARGS(&m_device)),
-                       "Failed to create a Direct3D device.");
-            return;
-        }
     }
-}
-
-void Renderer::createWarpDevice(IDXGIFactory4* const factory) {
-    ComPtr<IDXGIAdapter> adapter;
-    CHECK_CALL(factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)),
-               "Failed to create a WARP adapter.");
-    CHECK_CALL(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m_device)),
-               "Failed to create a Direct3D device.");
-}
-
-void Renderer::createSwapChain(IDXGIFactory4* const factory) {
-    // Fill out the buffer description
-    const DXGI_MODE_DESC bufferDesc = {
-        /* Width */            static_cast<uint>(m_scissorRect.right - m_scissorRect.left),
-        /* Height */           static_cast<uint>(m_scissorRect.bottom - m_scissorRect.top),
-        /* RefreshRate */      DXGI_RATIONAL{},
-        /* Format */           DXGI_FORMAT_R8G8B8A8_UNORM,
-        /* ScanlineOrdering */ DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
-        /* Scaling */          DXGI_MODE_SCALING_UNSPECIFIED
-    };
-    // Fill out the multi-sampling parameters
-    const DXGI_SAMPLE_DESC sampleDesc = {
-        /* Count */   1,    // No multi-sampling
-        /* Quality */ 0     // Default sampler
-    };
-    // Fill out the swap chain description
-    DXGI_SWAP_CHAIN_DESC swapChainDesc = {
-        /* BufferDesc */   bufferDesc,
-        /* SampleDesc */   sampleDesc,
-        /* BufferUsage */  DXGI_USAGE_RENDER_TARGET_OUTPUT,
-        /* BufferCount */  m_bufferCount,
-        /* OutputWindow */ Window::handle(),
-        /* Windowed */     TRUE,
-        /* SwapEffect */   DXGI_SWAP_EFFECT_FLIP_DISCARD,
-        /* Flags */        0
-    };
-    // Create a swap chain; it needs a command queue to flush the latter
-    auto swapChainAddr = reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf());
-    CHECK_CALL(factory->CreateSwapChain(m_graphicsWorkQueue.commandQueue(), &swapChainDesc,
-                                        swapChainAddr),
-               "Failed to create a swap chain.");
-}
-
-void Renderer::createRenderTargetViews() {
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvDescriptorHeap.cpuBegin};
-    // Create a Render Target View (RTV) for each frame buffer
-    for (uint bufferIndex = 0; bufferIndex < m_bufferCount; ++bufferIndex) {
-        CHECK_CALL(m_swapChain->GetBuffer(bufferIndex, IID_PPV_ARGS(&m_renderTargets[bufferIndex])),
-                   "Failed to acquire a swap chain buffer.");
-        m_device->CreateRenderTargetView(m_renderTargets[bufferIndex].Get(),
-                                         nullptr, rtvHandle);
-        // Get the handle of the next descriptor
-        rtvHandle.Offset(1, m_rtvDescriptorHeap.handleIncrSz);
-    }
+    // Set up the rendering pipeline
+    configurePipeline();
 }
 
 // Loads and compiles vertex and pixel shaders; takes the full path to the shader file,

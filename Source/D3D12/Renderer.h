@@ -30,19 +30,6 @@ namespace D3D12 {
         // Finishes the current frame and stops the execution
         void stop();
     private:
-        // Configures the hardware and the software layers (infrastructure)
-        // This step is independent from the rendering pipeline
-        void configureEnvironment();
-        // Creates a Direct3D device that represents the display adapter
-        void createDevice(IDXGIFactory4* const factory);
-        // Creates a hardware Direct3D device
-        void createHardwareDevice(IDXGIFactory4* const factory);
-        // Creates a WARP (software) Direct3D device
-        void createWarpDevice(IDXGIFactory4* const factory);
-        // Creates a swap chain
-        void createSwapChain(IDXGIFactory4* const factory);
-        // Creates RTVs for each frame buffer
-        void createRenderTargetViews();
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
         // Creates a constant buffer (using an upload heap) of the specified size in bytes
