@@ -13,7 +13,7 @@ Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine) {
     // Compute the .mtl base path from 'objFilePath'
     const auto lastBackslash = strrchr(objFilePath, '\\');
     const auto pathStrLen = lastBackslash - objFilePath + 1;
-    const auto mtlPath = static_cast<char*>(_alloca(pathStrLen + 1));
+    const auto mtlPath = static_cast<char*>(alloca(pathStrLen + 1));
     strncpy_s(mtlPath, pathStrLen + 1, objFilePath, pathStrLen);
     // Load the .obj and the referenced .mtl files
     printInfo("Loading the scene from the file: %s.", objFilePath);
