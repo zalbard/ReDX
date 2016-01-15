@@ -231,7 +231,7 @@ void Renderer::configurePipeline() {
         /* PrimitiveTopologyType */ D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         /* NumRenderTargets */      1,
         /* RTVFormats[8] */         {DXGI_FORMAT_R8G8B8A8_UNORM},
-        /* DSVFormat */             DXGI_FORMAT_UNKNOWN,
+        /* DSVFormat */             DXGI_FORMAT_D24_UNORM_S8_UINT,
         /* SampleDesc */            sampleDesc,
         /* NodeMask */              m_device->nodeMask,
         /* CachedPSO */             D3D12_CACHED_PIPELINE_STATE{},
