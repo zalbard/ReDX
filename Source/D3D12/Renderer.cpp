@@ -170,12 +170,12 @@ void Renderer::configurePipeline() {
     const auto ps = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "PSMain", "ps_5_0");
     // Fill out the depth stencil description
     const D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {
-        /* DepthEnable */      FALSE,
-        /* DepthWriteMask */   D3D12_DEPTH_WRITE_MASK_ZERO,
-        /* DepthFunc */        D3D12_COMPARISON_FUNC_NEVER,
+        /* DepthEnable */      TRUE,
+        /* DepthWriteMask */   D3D12_DEPTH_WRITE_MASK_ALL,
+        /* DepthFunc */        D3D12_COMPARISON_FUNC_LESS,
         /* StencilEnable */    FALSE,
-        /* StencilReadMask */  0,
-        /* StencilWriteMask */ 0,
+        /* StencilReadMask */  D3D12_DEFAULT_STENCIL_READ_MASK,
+        /* StencilWriteMask */ D3D12_DEFAULT_STENCIL_WRITE_MASK,
         /* FrontFace */        D3D12_DEPTH_STENCILOP_DESC{},
         /* BackFace */         D3D12_DEPTH_STENCILOP_DESC{}
     };
