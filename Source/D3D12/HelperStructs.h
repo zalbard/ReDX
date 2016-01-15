@@ -95,12 +95,12 @@ namespace D3D12 {
         // Creates a work queue of the specified type
         // Optionally, the work priority can be set to "high", and the GPU timeout can be disabled
         template <WorkType T>
-        void createWorkQueue(WorkQueue<T>* const workQueue, 
+        void CreateWorkQueue(WorkQueue<T>* const workQueue, 
                              const bool isHighPriority    = false, 
                              const bool disableGpuTimeout = false);
         // Creates a descriptor heap of the given type, size and shader visibility
         template <DescType T>
-        void createDescriptorHeap(DescriptorHeap<T>* const descriptorHeap,
+        void CreateDescriptorHeap(DescriptorHeap<T>* const descriptorHeap,
                                   const uint numDescriptors,
                                   const bool isShaderVisible = false);
         // Multi-GPU-adapter mask. Rendering is performed on a single GPU

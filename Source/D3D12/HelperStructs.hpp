@@ -63,7 +63,7 @@ const ID3D12CommandAllocator* D3D12::WorkQueue<T>::bundleAlloca() const {
 }
 
 template<D3D12::WorkType T>
-void D3D12::ID3D12DeviceEx::createWorkQueue(WorkQueue<T>* const workQueue,
+void D3D12::ID3D12DeviceEx::CreateWorkQueue(WorkQueue<T>* const workQueue,
                                             const bool isHighPriority,
                                             const bool disableGpuTimeout) {
     assert(workQueue);
@@ -100,7 +100,7 @@ void D3D12::ID3D12DeviceEx::createWorkQueue(WorkQueue<T>* const workQueue,
 }
 
 template<D3D12::DescType T>
-void D3D12::ID3D12DeviceEx::createDescriptorHeap(DescriptorHeap<T>* const descriptorHeap,
+void D3D12::ID3D12DeviceEx::CreateDescriptorHeap(DescriptorHeap<T>* const descriptorHeap,
                                                  const uint numDescriptors,
                                                  const bool isShaderVisible) {
     assert(descriptorHeap);
@@ -115,7 +115,8 @@ void D3D12::ID3D12DeviceEx::createDescriptorHeap(DescriptorHeap<T>* const descri
         /* NodeMask */       nodeMask
     };
     // Create a descriptor heap
-    CHECK_CALL(CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeap->nativePtr)),
+    const auto device = static_cast<ID3D12Device*>(this);
+    CHECK_CALL(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeap->nativePtr)),
                "Failed to create a descriptor heap.");
     // Get handles of the first descriptor of the heap
     descriptorHeap->cpuBegin = descriptorHeap->nativePtr->GetCPUDescriptorHandleForHeapStart();

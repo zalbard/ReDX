@@ -84,7 +84,7 @@ Renderer::Renderer() {
         m_device = createHardwareDevice(factory.Get());
     }
     // Create a graphics work queue
-    m_device->createWorkQueue(&m_graphicsWorkQueue);
+    m_device->CreateWorkQueue(&m_graphicsWorkQueue);
     // Create a buffer swap chain
     {
         // Fill out the buffer description
@@ -119,7 +119,7 @@ Renderer::Renderer() {
                    "Failed to create a swap chain.");
     }
     // Create a render target view (RTV) descriptor heap
-    m_device->createDescriptorHeap(&m_rtvDescriptorHeap, m_bufferCount);
+    m_device->CreateDescriptorHeap(&m_rtvDescriptorHeap, m_bufferCount);
     // Create 2x RTVs
     {
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvDescriptorHeap.cpuBegin};
