@@ -1,4 +1,3 @@
-
 #include <cassert>
 #include "Scene.h"
 #include "..\D3D12\Renderer.h"
@@ -13,15 +12,15 @@ Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine) {
     assert(objFilePath);
     // Compute the .mtl base path from 'objFilePath'
     const auto lastBackslash = strrchr(objFilePath, '\\');
-    const auto mtlPathLen    = lastBackslash - objFilePath + 1;
-    auto mtlPath = std::make_unique<char[]>(mtlPathLen + 1);
-    strncpy_s(mtlPath.get(), mtlPathLen + 1, objFilePath, mtlPathLen);
+    const auto pathStrLen = lastBackslash - objFilePath + 1;
+    const auto mtlPath = static_cast<char*>(_alloca(pathStrLen + 1));
+    strncpy_s(mtlPath, pathStrLen + 1, objFilePath, pathStrLen);
     // Load the .obj and the referenced .mtl files
     printInfo("Loading the scene from the file: %s.", objFilePath);
     std::string warnMsg;
     std::vector<tinyobj::shape_t>    shapes;
     std::vector<tinyobj::material_t> materials;
-    if (!tinyobj::LoadObj(shapes, materials, warnMsg, objFilePath, mtlPath.get())) {
+    if (!tinyobj::LoadObj(shapes, materials, warnMsg, objFilePath, mtlPath)) {
         printError("Failed to load the file: %s.", objFilePath);
         TERMINATE();
     } else if (!warnMsg.empty()) {
