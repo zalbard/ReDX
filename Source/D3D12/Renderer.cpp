@@ -359,15 +359,15 @@ void Renderer::draw(const VertexBuffer& vbo, const IndexBuffer& ibo) {
     CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsWorkQueue.listAlloca(),
                                             m_pipelineState.Get()),
                "Failed to reset the graphics command list.");
-    // Set the necessary state
-    m_graphicsCommandList->SetGraphicsRootSignature(m_rootSignature.Get());
-    m_graphicsCommandList->RSSetViewports(1, &m_viewport);
-    m_graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
     // Transition the back buffer state: Presenting -> Render Target
     auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
     auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
                       D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     m_graphicsCommandList->ResourceBarrier(1, &barrier);
+    // Set the necessary state
+    m_graphicsCommandList->SetGraphicsRootSignature(m_rootSignature.Get());
+    m_graphicsCommandList->RSSetViewports(1, &m_viewport);
+    m_graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
     // Set the back buffer as the render target
     const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvDescriptorHeap.cpuBegin,
                                                   static_cast<int>(m_backBufferIndex),
