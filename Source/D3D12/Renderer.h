@@ -13,7 +13,6 @@ namespace D3D12 {
         ComPtr<ID3D12RootSignature>
         createRootSignature(const D3D12_ROOT_SIGNATURE_DESC& rootSignatureDesc) const;
         // Creates a graphics pipeline state object (PSO) according to its description
-        // A PSO describes the input data format, and how the data is processed (rendered)
         ComPtr<ID3D12PipelineState>
         createGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& stateDesc) const;
         // Creates a graphics command list in the specified initial state
