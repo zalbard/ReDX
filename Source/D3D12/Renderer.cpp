@@ -230,7 +230,7 @@ void Renderer::configurePipeline() {
         /* IBStripCutValue */       D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
         /* PrimitiveTopologyType */ D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         /* NumRenderTargets */      1,
-        /* RTVFormats[8] */         {DXGI_FORMAT_R8G8B8A8_UNORM},
+        /* RTVFormats[8] */         {DXGI_FORMAT_R8G8B8A8_UNORM_SRGB},
         /* DSVFormat */             DXGI_FORMAT_D24_UNORM_S8_UINT,
         /* SampleDesc */            sampleDesc,
         /* NodeMask */              m_device->nodeMask,
