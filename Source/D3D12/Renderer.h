@@ -24,9 +24,11 @@ namespace D3D12 {
         // Creates an index buffer for the index array with the specified number of indices
         IndexBuffer createIndexBuffer(const uint count, const uint* const indices) const;
         // Initializes the frame rendering process
-        void startNewFrame();
+        void startFrame();
         // Draws the geometry from the indexed vertex buffer to the frame buffer
         void draw(const VertexBuffer& vbo, const IndexBuffer& ibo);
+        // Finalizes the frame rendering process
+        void finalizeFrame();
         // Finishes the current frame and stops the execution
         void stop();
     private:

@@ -341,7 +341,7 @@ Renderer::createConstantBuffer(const uint byteSz, const void* const data) const 
     return constBuffer;
 }
 
-void Renderer::startNewFrame() {
+void Renderer::startFrame() {
     // Wait until all the previously issued commands have been executed
     /* TODO: waiting is inefficient, change this! */
     m_graphicsWorkQueue.waitForCompletion();
@@ -389,6 +389,9 @@ void Renderer::draw(const VertexBuffer& vbo, const IndexBuffer& ibo) {
     // Execute the command list
     ID3D12CommandList* commandLists[] = {m_graphicsCommandList.Get()};
     m_graphicsWorkQueue.execute(commandLists);
+}
+
+void Renderer::finalizeFrame() {
     // Present the frame
     CHECK_CALL(m_swapChain->Present(1, 0), "Failed to display the frame buffer.");
 }
