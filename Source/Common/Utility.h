@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdarg>
-#include <time.h>
+#include <ctime>
 
 // Computes the square of the value
 template <typename T>
