@@ -1,6 +1,6 @@
-/*cbuffer ConstantBuffer : register(b0) {
-    float4x4 viewProj;
-};*/
+//cbuffer : register(b0) {
+//    float4x4 viewProj;
+//};
 
 struct PSInput {
     float4 position : SV_POSITION;
@@ -10,10 +10,10 @@ struct PSInput {
 PSInput VSMain(float3 position : POSITION, float3 normal : NORMAL) {
     const float4x4 viewProj =
     {
-        4.22172548e-07f, -2.97481347e-06f, -0.993231297f, -0.993230343f,
-        0.000000000f, 2.61818786e-05f, -0.112936541f, -0.112936437f,
-        -1.54263234e-05f, -8.14117911e-08f, -0.0271817837f, -0.0271817576f,
-        0.000163963952f, -0.00571857393f, 908.843384f, 908.852539f
+        -0.0277499631f, -0.195538431f, -0.993240297f, -0.993230343f,
+        0.000000000f, 1.72096956f, -0.112937570f, -0.112936437f,
+        1.01399267f, -0.00535130501f, -0.0271820296f, -0.0271817576f,
+        -10.7775688f, -375.889465f, 908.761658f, 908.852539f
     };
 
     PSInput result;

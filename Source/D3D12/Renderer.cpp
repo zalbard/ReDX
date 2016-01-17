@@ -47,7 +47,7 @@ Renderer::Renderer() {
         /* TopLeftY */ 0.0f,
         /* Width */    static_cast<float>(resX),
         /* Height */   static_cast<float>(resY),
-        /* MinDepth */ 0.01f,
+        /* MinDepth */ 0.1f,
         /* MaxDepth */ 10000.0f
     };
     // Configure the scissor rectangle used for clipping
