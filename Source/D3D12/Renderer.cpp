@@ -165,13 +165,13 @@ Renderer::Renderer() {
             /* Height */           height(m_scissorRect),
             /* DepthOrArraySize */ 1,
             /* MipLevels */        0,   // Automatic
-            /* Format */           DXGI_FORMAT_D32_FLOAT/*DXGI_FORMAT_D24_UNORM_S8_UINT*/,
+            /* Format */           DXGI_FORMAT_D24_UNORM_S8_UINT,
             /* SampleDesc */       sampleDesc,
             /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
             /* Flags */            D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
         };
         const CD3DX12_CLEAR_VALUE clearValue{
-            /* Format */  DXGI_FORMAT_D32_FLOAT/*DXGI_FORMAT_D24_UNORM_S8_UINT*/,
+            /* Format */  DXGI_FORMAT_D24_UNORM_S8_UINT,
             /* Depth */   0.f,
             /* Stencil */ 0
         };
@@ -181,7 +181,7 @@ Renderer::Renderer() {
                                                      &clearValue, IID_PPV_ARGS(&m_depthBuffer)),
                    "Failed to allocate a depth buffer.");
         const D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {
-            /* Format */        DXGI_FORMAT_D32_FLOAT/*DXGI_FORMAT_D24_UNORM_S8_UINT*/,
+            /* Format */        DXGI_FORMAT_D24_UNORM_S8_UINT,
             /* ViewDimension */ D3D12_DSV_DIMENSION_TEXTURE2D,
             /* Flags */         D3D12_DSV_FLAG_NONE,
             /* Texture2D */     {}
@@ -307,7 +307,7 @@ void Renderer::configurePipeline() {
         /* PrimitiveTopologyType */ D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         /* NumRenderTargets */      1,
         /* RTVFormats[8] */         {DXGI_FORMAT_R8G8B8A8_UNORM_SRGB},
-        /* DSVFormat */             DXGI_FORMAT_D32_FLOAT/*DXGI_FORMAT_D24_UNORM_S8_UINT*/,
+        /* DSVFormat */             DXGI_FORMAT_D24_UNORM_S8_UINT,
         /* SampleDesc */            sampleDesc,
         /* NodeMask */              m_device->nodeMask,
         /* CachedPSO */             D3D12_CACHED_PIPELINE_STATE{},
