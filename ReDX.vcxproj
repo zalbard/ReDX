@@ -110,6 +110,7 @@
       <PreprocessorDefinitions>_CONSOLE;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <TreatWarningAsError>true</TreatWarningAsError>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -146,6 +147,7 @@
       <PreprocessorDefinitions>_CONSOLE;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <TreatWarningAsError>true</TreatWarningAsError>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -156,16 +158,24 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Source\Common\Scene.cpp" />
+    <ClCompile Include="Source\Common\Timer.cpp" />
     <ClCompile Include="Source\D3D12\Renderer.cpp" />
     <ClCompile Include="Source\ReDX.cpp" />
     <ClCompile Include="Source\UI\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Common\Definitions.h" />
+    <ClInclude Include="Source\Common\Math.h" />
+    <ClInclude Include="Source\Common\Scene.h" />
+    <ClInclude Include="Source\Common\Timer.h" />
     <ClInclude Include="Source\Common\Utility.h" />
     <ClInclude Include="Source\D3D12\HelperStructs.h" />
     <ClInclude Include="Source\D3D12\HelperStructs.hpp" />
     <ClInclude Include="Source\D3D12\Renderer.h" />
+    <ClInclude Include="Source\ThirdParty\d3dx12.h" />
+    <ClInclude Include="Source\ThirdParty\stb_image.h" />
+    <ClInclude Include="Source\ThirdParty\tiny_obj_loader.h" />
     <ClInclude Include="Source\UI\Window.h" />
   </ItemGroup>
   <ItemGroup>

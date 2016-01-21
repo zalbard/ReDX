@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstdarg>
-#include <time.h>
+#include <ctime>
 
 // Computes the square of the value
 template <typename T>
@@ -14,7 +14,7 @@ static inline T sq(const T v) {
 // Computes the inverse square of the value
 template <typename T>
 static inline float invSq(const T v) {
-    return 1.0f / (v * v);
+    return 1.f / (v * v);
 }
 
 // For internal use only!
@@ -29,7 +29,7 @@ static inline void printInternal(FILE* const stream, const char* const fmt, cons
     vfprintf(stream, fmt, args);
 }
 
-// Prints information to stdout (printf syntax)
+// Prints information to stdout (printf syntax) and appends a newline at the end
 static inline void printInfo(const char* const fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -38,7 +38,7 @@ static inline void printInfo(const char* const fmt, ...) {
     fputs("\n", stdout);
 }
 
-// Prints warnings/errors to stderr (printf syntax)
+// Prints warnings/errors to stderr (printf syntax) and appends a newline at the end
 static inline void printError(const char* const fmt, ...) {
     va_list args;
     va_start(args, fmt);

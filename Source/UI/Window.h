@@ -17,9 +17,9 @@ public:
    static long height();
    // Returns the width/height ratio of the drawable window area
    static float aspectRatio();
+   // Displays the frame time (in milliseconds) in the title bar
+   static void displayFrameTime(const uint dt);
 private:
-   static HWND       m_hwnd;        // Handle
-   static RECT       m_rect;        // Screen-space rectangle
-   static WNDCLASSEX m_class;       // Window class
-   static WCHAR*     m_title;       // Title string
+   static HWND m_hwnd;      // Handle
+   static RECT m_rect;      // Screen-space rectangle
 };

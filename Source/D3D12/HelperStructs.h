@@ -6,22 +6,27 @@
 #include "..\Common\Definitions.h"
 
 namespace D3D12 {
+    using DirectX::XMFLOAT3;
     using Microsoft::WRL::ComPtr;
 
     // Simple vertex representation
     struct Vertex {
-        Vertex() = default;
-        RULE_OF_ZERO(Vertex);
-        DirectX::XMFLOAT3 position;  // Homogeneous screen-space coordinates from [-0.5, 0.5]
-        DirectX::XMFLOAT4 color;     // RGBA color
+        XMFLOAT3 position;                          // Object-space vertex coordinates
+        XMFLOAT3 normal;                            // World-space normal vector
     };
 
     // Direct3D vertex buffer
     struct VertexBuffer {
-        VertexBuffer() = default;
-        RULE_OF_ZERO(VertexBuffer);
-        ComPtr<ID3D12Resource>   resource;  // Direct3D buffer interface
-        D3D12_VERTEX_BUFFER_VIEW view;      // Buffer properties
+        ComPtr<ID3D12Resource>   resource;          // Direct3D buffer interface
+        D3D12_VERTEX_BUFFER_VIEW view;              // Buffer descriptor
+        uint                     count;             // Number of elements 
+    };
+
+    // Direct3D index buffer
+    struct IndexBuffer {
+        ComPtr<ID3D12Resource>  resource;           // Direct3D buffer interface
+        D3D12_INDEX_BUFFER_VIEW view;               // Buffer descriptor
+        uint                    count;              // Number of elements 
     };
 
     // Corresponds to Direct3D command list types
@@ -33,7 +38,7 @@ namespace D3D12 {
 
     // Direct3D command queue wrapper class
     template <WorkType T>
-    struct WorkQueue {
+    class WorkQueue {
     public:
         WorkQueue() = default;
         RULE_OF_ZERO(WorkQueue);
@@ -90,12 +95,12 @@ namespace D3D12 {
         // Creates a work queue of the specified type
         // Optionally, the work priority can be set to "high", and the GPU timeout can be disabled
         template <WorkType T>
-        void createWorkQueue(WorkQueue<T>* const workQueue, 
+        void CreateWorkQueue(WorkQueue<T>* const workQueue, 
                              const bool isHighPriority    = false, 
                              const bool disableGpuTimeout = false);
         // Creates a descriptor heap of the given type, size and shader visibility
         template <DescType T>
-        void createDescriptorHeap(DescriptorHeap<T>* const descriptorHeap,
+        void CreateDescriptorHeap(DescriptorHeap<T>* const descriptorHeap,
                                   const uint numDescriptors,
                                   const bool isShaderVisible = false);
         // Multi-GPU-adapter mask. Rendering is performed on a single GPU

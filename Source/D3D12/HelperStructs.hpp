@@ -3,6 +3,14 @@
 #include "HelperStructs.h"
 #include "..\Common\Utility.h"
 
+static inline uint width(const D3D12_RECT& rect) {
+    return static_cast<uint>(rect.right - rect.left);
+}
+
+static inline uint height(const D3D12_RECT& rect) {
+    return static_cast<uint>(rect.bottom - rect.top);
+}
+
 template<D3D12::WorkType T>
 template<uint N>
 void D3D12::WorkQueue<T>::execute(ID3D12CommandList* const (&commandLists)[N]) const {
@@ -63,9 +71,10 @@ const ID3D12CommandAllocator* D3D12::WorkQueue<T>::bundleAlloca() const {
 }
 
 template<D3D12::WorkType T>
-void D3D12::ID3D12DeviceEx::createWorkQueue(WorkQueue<T>* const workQueue,
+void D3D12::ID3D12DeviceEx::CreateWorkQueue(WorkQueue<T>* const workQueue,
                                             const bool isHighPriority,
                                             const bool disableGpuTimeout) {
+    assert(workQueue);
     // Fill out the command queue description
     const D3D12_COMMAND_QUEUE_DESC queueDesc = {
         /* Type */     static_cast<D3D12_COMMAND_LIST_TYPE>(T),
@@ -99,11 +108,11 @@ void D3D12::ID3D12DeviceEx::createWorkQueue(WorkQueue<T>* const workQueue,
 }
 
 template<D3D12::DescType T>
-void D3D12::ID3D12DeviceEx::createDescriptorHeap(DescriptorHeap<T>* const descriptorHeap,
+void D3D12::ID3D12DeviceEx::CreateDescriptorHeap(DescriptorHeap<T>* const descriptorHeap,
                                                  const uint numDescriptors,
                                                  const bool isShaderVisible) {
-    assert((!isShaderVisible || T == DescType::CBV_SRV_UAV || T == DescType::SAMPLER) &&
-           "This type of descriptor heap cannot be made accessible to shaders.");
+    assert(descriptorHeap);
+    assert(T == DescType::CBV_SRV_UAV || T == DescType::SAMPLER || !isShaderVisible);
     constexpr auto nativeType = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);
     // Fill out the descriptor heap description
     const D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {
@@ -114,7 +123,8 @@ void D3D12::ID3D12DeviceEx::createDescriptorHeap(DescriptorHeap<T>* const descri
         /* NodeMask */       nodeMask
     };
     // Create a descriptor heap
-    CHECK_CALL(CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeap->nativePtr)),
+    const auto device = static_cast<ID3D12Device*>(this);
+    CHECK_CALL(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeap->nativePtr)),
                "Failed to create a descriptor heap.");
     // Get handles of the first descriptor of the heap
     descriptorHeap->cpuBegin = descriptorHeap->nativePtr->GetCPUDescriptorHandleForHeapStart();

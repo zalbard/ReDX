@@ -1,11 +1,10 @@
+#include <cwchar>
 #include <cassert>
 #include "Window.h"
 
 // Static member initialization
-HWND       Window::m_hwnd  = nullptr;
-RECT       Window::m_rect  = {};
-WNDCLASSEX Window::m_class = {};
-WCHAR*     Window::m_title = L"ReDX";
+HWND Window::m_hwnd = nullptr;
+RECT Window::m_rect = {};
 
 // Main message handler
 LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
@@ -27,16 +26,17 @@ void Window::open(const long resX, const long resY) {
     m_rect = {0, 0, resX, resY};
     AdjustWindowRect(&m_rect, WS_OVERLAPPEDWINDOW, FALSE);
     // Set up the window class
-    m_class.cbSize        = sizeof(WNDCLASSEX);
-    m_class.style         = CS_HREDRAW | CS_VREDRAW;
-    m_class.lpfnWndProc   = WindowProc;
-    m_class.hInstance     = GetModuleHandle(nullptr);
-    m_class.hCursor       = LoadCursor(nullptr, IDC_ARROW);
-    m_class.lpszClassName = L"ReDXWindowClass";
-    RegisterClassEx(&m_class);
+    WNDCLASSEX wndClass    = {};
+    wndClass.cbSize        = sizeof(WNDCLASSEX);
+    wndClass.style         = CS_HREDRAW | CS_VREDRAW;
+    wndClass.lpfnWndProc   = WindowProc;
+    wndClass.hInstance     = GetModuleHandle(nullptr);
+    wndClass.hCursor       = LoadCursor(nullptr, IDC_ARROW);
+    wndClass.lpszClassName = L"ReDXWindowClass";
+    RegisterClassEx(&wndClass);
     // Create a window and store its handle
-    m_hwnd = CreateWindow(m_class.lpszClassName,
-                          m_title,
+    m_hwnd = CreateWindow(wndClass.lpszClassName,
+                          L"ReDX",
                           WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,  // Disable resizing
                           CW_USEDEFAULT, CW_USEDEFAULT,
                           width(), height(),
@@ -62,4 +62,11 @@ long Window::height() {
 
 float Window::aspectRatio() {
     return static_cast<float>(width())/static_cast<float>(height());
+}
+
+void Window::displayFrameTime(const uint dt) {
+    // Only print up to 3 digits
+    wchar_t title[] = L"ReDX : 000 ms";
+    swprintf(title + 7, 6, L"%u ms", min(dt, 999));
+    SetWindowText(m_hwnd, title);
 }

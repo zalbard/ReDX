@@ -1,31 +1,33 @@
-//*********************************************************
-//
-// Copyright (c) Microsoft. All rights reserved.
-// This code is licensed under the MIT License (MIT).
-// THIS CODE IS PROVIDED *AS IS* WITHOUT WARRANTY OF
-// ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY
-// IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR
-// PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.
-//
-//*********************************************************
+//cbuffer : register(b0) {
+//    float4x4 viewProj;
+//};
 
-struct PSInput
-{
-	float4 position : SV_POSITION;
-	float4 color : COLOR;
+struct VSInput {
+    float3 position : POSITION;
+    float3 normal   : NORMAL;
 };
 
-PSInput VSMain(float4 position : POSITION, float4 color : COLOR)
-{
-	PSInput result;
+struct PSInput {
+    float4 position : SV_POSITION;
+    float4 color    : TEXCOORD0;
+};
 
-	result.position = position;
-	result.color = color;
+PSInput VSMain(VSInput input) {
+    const float4x4 viewProj = {
+        -0.0277499594, -0.195538431, 0.000000000, -0.993230343,
+        0.000000000, 1.72096956, 0.000000000, -0.112936437,
+        1.01399255, -0.00535130501, 0.000000000, -0.0271817576,
+        -10.7775679, -375.889465, 1.00000000, 908.852539
+    };
 
-	return result;
+    PSInput result;
+
+    result.position = mul(float4(input.position, 1.f), viewProj);
+    result.color    = float4(abs(input.normal), 1.f);
+
+    return result;
 }
 
-float4 PSMain(PSInput input) : SV_TARGET
-{
-	return input.color;
+float4 PSMain(PSInput input) : SV_TARGET {
+    return input.color;
 }

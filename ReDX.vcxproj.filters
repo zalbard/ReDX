@@ -18,6 +18,9 @@
     <Filter Include="Source Files\UI">
       <UniqueIdentifier>{361778c5-ff74-45da-8e19-1177a4fe7f42}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\ThirdParty">
+      <UniqueIdentifier>{0723f6bb-cd79-46f8-baa3-4ab402d8803e}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Source Files\Shaders">
       <UniqueIdentifier>{6ed28e94-a687-4792-9c05-45f54d1b2196}</UniqueIdentifier>
     </Filter>
@@ -31,6 +34,12 @@
     </ClCompile>
     <ClCompile Include="Source\UI\Window.cpp">
       <Filter>Source Files\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Common\Timer.cpp">
+      <Filter>Source Files\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Common\Scene.cpp">
+      <Filter>Source Files\Common</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -51,6 +60,24 @@
     </ClInclude>
     <ClInclude Include="Source\D3D12\HelperStructs.hpp">
       <Filter>Source Files\D3D12</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Common\Timer.h">
+      <Filter>Source Files\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ThirdParty\stb_image.h">
+      <Filter>Source Files\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ThirdParty\d3dx12.h">
+      <Filter>Source Files\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\ThirdParty\tiny_obj_loader.h">
+      <Filter>Source Files\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Common\Scene.h">
+      <Filter>Source Files\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Common\Math.h">
+      <Filter>Source Files\Common</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

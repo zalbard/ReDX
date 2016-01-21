@@ -11,38 +11,32 @@ namespace D3D12 {
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
         // Creates a root signature according to its description
         ComPtr<ID3D12RootSignature>
-        createRootSignature(const D3D12_ROOT_SIGNATURE_DESC& rootSignatureDesc);
+        createRootSignature(const D3D12_ROOT_SIGNATURE_DESC& rootSignatureDesc) const;
         // Creates a graphics pipeline state object (PSO) according to its description
-        // A PSO describes the input data format, and how the data is processed (rendered)
         ComPtr<ID3D12PipelineState>
-        createGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& pipelineStateDesc);
+        createGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& stateDesc) const;
         // Creates a graphics command list in the specified initial state
         ComPtr<ID3D12GraphicsCommandList>
         createGraphicsCommandList(ID3D12PipelineState* const initialState);
         // Creates a vertex buffer for the vertex array with the specified number of vertices
-        VertexBuffer createVertexBuffer(const Vertex* const vertices, const uint count);
+        VertexBuffer createVertexBuffer(const uint count, const Vertex* const vertices) const;
+        // Creates an index buffer for the index array with the specified number of indices
+        IndexBuffer createIndexBuffer(const uint count, const uint* const indices) const;
         // Initializes the frame rendering process
-        void startNewFrame();
-        // Draws the geometry from the vertex buffer to the frame buffer
-        void draw(const VertexBuffer& vbo);
+        void startFrame();
+        // Draws the geometry from the indexed vertex buffer to the frame buffer
+        void draw(const VertexBuffer& vbo, const IndexBuffer& ibo);
+        // Finalizes the frame rendering process
+        void finalizeFrame();
         // Finishes the current frame and stops the execution
         void stop();
     private:
-        // Configures the hardware and the software layers (infrastructure)
-        // This step is independent from the rendering pipeline
-        void configureEnvironment();
-        // Creates a Direct3D device that represents the display adapter
-        void createDevice(IDXGIFactory4* const factory);
-        // Creates a hardware Direct3D device
-        void createHardwareDevice(IDXGIFactory4* const factory);
-        // Creates a WARP (software) Direct3D device
-        void createWarpDevice(IDXGIFactory4* const factory);
-        // Creates a swap chain
-        void createSwapChain(IDXGIFactory4* const factory);
-        // Creates RTVs for each frame buffer
-        void createRenderTargetViews();
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
+        // Creates a constant buffer of the specified size in bytes
+        // Optionally, it also uploads the data to the device
+        ComPtr<ID3D12Resource>
+        createConstantBuffer(const uint byteSz, const void* const data = nullptr) const;
     private:
         // Double buffering is used: present the front, render to the back
         static constexpr uint             m_bufferCount   = 2;
@@ -52,13 +46,15 @@ namespace D3D12 {
         D3D12_VIEWPORT                    m_viewport;
         D3D12_RECT                        m_scissorRect;
         uint                              m_backBufferIndex;
-        /* Pipeline objects */
-        ComPtr<ID3D12DeviceEx>            m_device;
+        /* Direct3D resources */
+        mutable ComPtr<ID3D12DeviceEx>    m_device;
         WorkQueue<WorkType::GRAPHICS>     m_graphicsWorkQueue;
         ComPtr<IDXGISwapChain3>           m_swapChain;
         ComPtr<ID3D12Resource>            m_renderTargets[m_bufferCount];
-        DescriptorHeap<DescType::RTV>     m_rtvDescriptorHeap;
-        /* Application resources */
+        DescriptorHeap<DescType::RTV>     m_rtvHeap;
+        ComPtr<ID3D12Resource>            m_depthBuffer;
+        DescriptorHeap<DescType::DSV>     m_dsvHeap;
+        /* Pipeline objects */
         ComPtr<ID3D12RootSignature>       m_rootSignature;
         ComPtr<ID3D12PipelineState>       m_pipelineState;
         ComPtr<ID3D12GraphicsCommandList> m_graphicsCommandList;
