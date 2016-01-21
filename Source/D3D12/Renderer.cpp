@@ -47,8 +47,8 @@ Renderer::Renderer() {
         /* TopLeftY */ 0.0f,
         /* Width */    static_cast<float>(resX),
         /* Height */   static_cast<float>(resY),
-        /* MinDepth */ 0.1f,
-        /* MaxDepth */ 10000.0f
+        /* MinDepth */ 0.0f,
+        /* MaxDepth */ 1.0f
     };
     // Configure the scissor rectangle used for clipping
     m_scissorRect = D3D12_RECT{
@@ -57,6 +57,24 @@ Renderer::Renderer() {
         /* right */  resX,
         /* bottom */ resY
     };
+    /*const auto view = DirectX::XMMatrixLookAtLH({877.909f, 318.274f, 34.6546f},
+                                                {863.187f, 316.600f, 34.2517f},
+                                                {0.0f, 1.0f, 0.0f});
+    const float halfFovY       = DirectX::XM_PI / 6.0f;
+    const float cotHalfFovY    = cosf(halfFovY) / sinf(halfFovY);
+    const float invAspectRatio = static_cast<float>(m_viewport.Height) / static_cast<float>(m_viewport.Width);
+    const float m00 = invAspectRatio * cotHalfFovY;
+    const float m11 = cotHalfFovY;
+    // Infinite Reversed Projection Matrix
+    // http://timothylottes.blogspot.com/2014/07/infinite-projection-matrix-notes.html
+    const auto proj = DirectX::XMMATRIX{
+        m00, 0.f, 0.f, 0.f,
+        0.f, m11, 0.f, 0.f,
+        0.f, 0.f, 0.f, 1.f,
+        0.f, 0.f, 1.f, 0.f
+    };
+    const auto viewProj = view * proj;
+    viewProj;*/
     // Enable the Direct3D debug layer
     #ifdef _DEBUG
     {
