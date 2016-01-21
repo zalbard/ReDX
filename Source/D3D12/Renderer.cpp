@@ -154,7 +154,7 @@ Renderer::Renderer() {
         };
         const CD3DX12_CLEAR_VALUE clearValue{
             /* Format */  DXGI_FORMAT_D32_FLOAT/*DXGI_FORMAT_D24_UNORM_S8_UINT*/,
-            /* Depth */   1.0f,
+            /* Depth */   0.0f,
             /* Stencil */ 0
         };
         const CD3DX12_HEAP_PROPERTIES heapProperties{D3D12_HEAP_TYPE_DEFAULT};
