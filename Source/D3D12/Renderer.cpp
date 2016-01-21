@@ -89,8 +89,8 @@ Renderer::Renderer() {
     {
         // Fill out the buffer description
         const DXGI_MODE_DESC bufferDesc = {
-            /* Width */            static_cast<uint>(m_scissorRect.right - m_scissorRect.left),
-            /* Height */           static_cast<uint>(m_scissorRect.bottom - m_scissorRect.top),
+            /* Width */            width(m_scissorRect),
+            /* Height */           height(m_scissorRect),
             /* RefreshRate */      DXGI_RATIONAL{},
             /* Format */           DXGI_FORMAT_R8G8B8A8_UNORM,
             /* ScanlineOrdering */ DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
@@ -119,19 +119,56 @@ Renderer::Renderer() {
                    "Failed to create a swap chain.");
     }
     // Create a render target view (RTV) descriptor heap
-    m_device->CreateDescriptorHeap(&m_rtvDescriptorHeap, m_bufferCount);
+    m_device->CreateDescriptorHeap(&m_rtvHeap, m_bufferCount);
     // Create 2x RTVs
     {
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvDescriptorHeap.cpuBegin};
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap.cpuBegin};
         // Create an RTV for each frame buffer
         for (uint bufferIdx = 0; bufferIdx < m_bufferCount; ++bufferIdx) {
-            CHECK_CALL(m_swapChain->GetBuffer(bufferIdx,
-                                              IID_PPV_ARGS(&m_renderTargets[bufferIdx])),
+            CHECK_CALL(m_swapChain->GetBuffer(bufferIdx, IID_PPV_ARGS(&m_renderTargets[bufferIdx])),
                        "Failed to acquire a swap chain buffer.");
             m_device->CreateRenderTargetView(m_renderTargets[bufferIdx].Get(), nullptr, rtvHandle);
             // Get the handle of the next descriptor
-            rtvHandle.Offset(1, m_rtvDescriptorHeap.handleIncrSz);
+            rtvHandle.Offset(1, m_rtvHeap.handleIncrSz);
         }
+    }
+    // Create a depth stencil view (DSV) descriptor heap
+    m_device->CreateDescriptorHeap(&m_dsvHeap, 1);
+    // Create a depth buffer
+    {
+        const DXGI_SAMPLE_DESC sampleDesc = {
+            /* Count */   1,            // No multi-sampling
+            /* Quality */ 0             // Default sampler
+        };
+        const D3D12_RESOURCE_DESC bufferDesc = {
+            /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+            /* Alignment */        0,   // Automatic
+            /* Width */            width(m_scissorRect),
+            /* Height */           height(m_scissorRect),
+            /* DepthOrArraySize */ 1,
+            /* MipLevels */        0,   // Automatic
+            /* Format */           DXGI_FORMAT_D32_FLOAT/*DXGI_FORMAT_D24_UNORM_S8_UINT*/,
+            /* SampleDesc */       sampleDesc,
+            /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
+            /* Flags */            D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
+        };
+        const CD3DX12_CLEAR_VALUE clearValue{
+            /* Format */  DXGI_FORMAT_D32_FLOAT/*DXGI_FORMAT_D24_UNORM_S8_UINT*/,
+            /* Depth */   1.0f,
+            /* Stencil */ 0
+        };
+        const CD3DX12_HEAP_PROPERTIES heapProperties{D3D12_HEAP_TYPE_DEFAULT};
+        CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
+                                                     &bufferDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                                                     &clearValue, IID_PPV_ARGS(&m_depthBuffer)),
+                   "Failed to allocate a depth buffer.");
+        const D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {
+            /* Format */        DXGI_FORMAT_D32_FLOAT/*DXGI_FORMAT_D24_UNORM_S8_UINT*/,
+            /* ViewDimension */ D3D12_DSV_DIMENSION_TEXTURE2D,
+            /* Flags */         D3D12_DSV_FLAG_NONE,
+            /* Texture2D */     {}
+        };
+        m_device->CreateDepthStencilView(m_depthBuffer.Get(), &dsvDesc, m_dsvHeap.cpuBegin);
     }
     // Set up the rendering pipeline
     configurePipeline();
@@ -168,16 +205,23 @@ void Renderer::configurePipeline() {
     // Import the vertex and the pixel shaders
     const auto vs = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "VSMain", "vs_5_0");
     const auto ps = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "PSMain", "ps_5_0");
+    // Configure the way depth and stencil tests affect stencil values
+    const D3D12_DEPTH_STENCILOP_DESC depthStencilOpDesc = {
+        /* StencilFailOp */      D3D12_STENCIL_OP_KEEP,
+        /* StencilDepthFailOp */ D3D12_STENCIL_OP_KEEP,
+        /* StencilPassOp  */     D3D12_STENCIL_OP_KEEP,
+        /* StencilFunc */        D3D12_COMPARISON_FUNC_ALWAYS
+    };
     // Fill out the depth stencil description
     const D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {
         /* DepthEnable */      TRUE,
         /* DepthWriteMask */   D3D12_DEPTH_WRITE_MASK_ALL,
-        /* DepthFunc */        D3D12_COMPARISON_FUNC_LESS,
+        /* DepthFunc */        D3D12_COMPARISON_FUNC_GREATER,
         /* StencilEnable */    FALSE,
         /* StencilReadMask */  D3D12_DEFAULT_STENCIL_READ_MASK,
         /* StencilWriteMask */ D3D12_DEFAULT_STENCIL_WRITE_MASK,
-        /* FrontFace */        D3D12_DEPTH_STENCILOP_DESC{},
-        /* BackFace */         D3D12_DEPTH_STENCILOP_DESC{}
+        /* FrontFace */        depthStencilOpDesc,
+        /* BackFace */         depthStencilOpDesc
     };
     // Define the vertex input layout
     const D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
@@ -209,6 +253,20 @@ void Renderer::configurePipeline() {
         /* Count */   1,    // No multi-sampling
         /* Quality */ 0     // Default sampler
     };
+    // Configure the rasterizer state
+    const D3D12_RASTERIZER_DESC rasterizerDesc = {
+        /* FillMode */              D3D12_FILL_MODE_SOLID,
+        /* CullMode */              D3D12_CULL_MODE_BACK,
+        /* FrontCounterClockwise */ FALSE,
+        /* DepthBias */             D3D12_DEFAULT_DEPTH_BIAS,
+        /* DepthBiasClamp */        D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+        /* SlopeScaledDepthBias */  D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+        /* DepthClipEnable */       TRUE,
+        /* MultisampleEnable */     FALSE,
+        /* AntialiasedLineEnable */ FALSE,
+        /* ForcedSampleCount */     0,
+        /* ConservativeRaster */    D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
+    };
     // Fill out the pipeline state object description
     const D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {
         /* pRootSignature */        m_rootSignature.Get(),
@@ -224,14 +282,14 @@ void Renderer::configurePipeline() {
         /* StreamOutput */          D3D12_STREAM_OUTPUT_DESC{},
         /* BlendState */            CD3DX12_BLEND_DESC{D3D12_DEFAULT},
         /* SampleMask */            UINT_MAX,
-        /* RasterizerState */       CD3DX12_RASTERIZER_DESC{D3D12_DEFAULT},
+        /* RasterizerState */       rasterizerDesc,
         /* DepthStencilState */     depthStencilDesc,
         /* InputLayout */           inputLayoutDesc,
         /* IBStripCutValue */       D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
         /* PrimitiveTopologyType */ D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         /* NumRenderTargets */      1,
         /* RTVFormats[8] */         {DXGI_FORMAT_R8G8B8A8_UNORM_SRGB},
-        /* DSVFormat */             DXGI_FORMAT_D24_UNORM_S8_UINT,
+        /* DSVFormat */             DXGI_FORMAT_D32_FLOAT/*DXGI_FORMAT_D24_UNORM_S8_UINT*/,
         /* SampleDesc */            sampleDesc,
         /* NodeMask */              m_device->nodeMask,
         /* CachedPSO */             D3D12_CACHED_PIPELINE_STATE{},
@@ -324,7 +382,7 @@ Renderer::createConstantBuffer(const uint byteSz, const void* const data) const 
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
                                                  &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
                                                  nullptr, IID_PPV_ARGS(&constBuffer)),
-               "Failed to create an upload heap.");
+               "Failed to allocate a constant buffer.");
     if (data) {
         // Acquire a CPU pointer to the buffer (sub-resource 'subRes')
         void* buffer;
@@ -349,51 +407,58 @@ void Renderer::startFrame() {
     // command lists have finished execution on the GPU
     CHECK_CALL(m_graphicsWorkQueue.listAlloca()->Reset(),
                "Failed to reset the command list allocator.");
-    // Get the index of the frame buffer used for drawing
-    m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
-}
-
-void Renderer::draw(const VertexBuffer& vbo, const IndexBuffer& ibo) {
     // After a command list has been executed, 
     // it can then be reset at any time (and must be before re-recording)
     CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsWorkQueue.listAlloca(),
                                             m_pipelineState.Get()),
                "Failed to reset the graphics command list.");
     // Transition the back buffer state: Presenting -> Render Target
-    auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
-    auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
-                      D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    const auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
+    const auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
+                            D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     m_graphicsCommandList->ResourceBarrier(1, &barrier);
     // Set the necessary state
     m_graphicsCommandList->SetGraphicsRootSignature(m_rootSignature.Get());
     m_graphicsCommandList->RSSetViewports(1, &m_viewport);
     m_graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
     // Set the back buffer as the render target
-    const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvDescriptorHeap.cpuBegin,
+    const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap.cpuBegin,
                                                   static_cast<int>(m_backBufferIndex),
-                                                  m_rtvDescriptorHeap.handleIncrSz};
-    m_graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
-    // Record the command list
-    constexpr float clearColor[] = {0.0f, 0.2f, 0.4f, 1.0f};
-    m_graphicsCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+                                                  m_rtvHeap.handleIncrSz};
+    const CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle{m_dsvHeap.cpuBegin};
+    m_graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+    // Clear the RTV and the DSV
+    constexpr float clearColor[] = {0.0f, 0.0f, 0.0f, 1.0f};
+    m_graphicsCommandList->ClearRenderTargetView(rtvHandle, clearColor,
+                                                 0, nullptr);
+    m_graphicsCommandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0,
+                                                 0, nullptr);
+    // Set the primitive/topology type
     m_graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+}
+
+void Renderer::draw(const VertexBuffer& vbo, const IndexBuffer& ibo) {
+    // Record the commands into the command list
     m_graphicsCommandList->IASetVertexBuffers(0, 1, &vbo.view);
     m_graphicsCommandList->IASetIndexBuffer(&ibo.view);
     m_graphicsCommandList->DrawIndexedInstanced(ibo.count, 1, 0, 0, 0);
+}
+
+void Renderer::finalizeFrame() {
     // Transition the back buffer state: Render Target -> Presenting
-    barrier = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
-              D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+    const auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
+    const auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
+                            D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     m_graphicsCommandList->ResourceBarrier(1, &barrier);
     // Finalize the list
     CHECK_CALL(m_graphicsCommandList->Close(), "Failed to close the command list.");
     // Execute the command list
     ID3D12CommandList* commandLists[] = {m_graphicsCommandList.Get()};
     m_graphicsWorkQueue.execute(commandLists);
-}
-
-void Renderer::finalizeFrame() {
     // Present the frame
     CHECK_CALL(m_swapChain->Present(1, 0), "Failed to display the frame buffer.");
+    // Update the index of the frame buffer used for drawing
+    m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
 
 void Renderer::stop() {

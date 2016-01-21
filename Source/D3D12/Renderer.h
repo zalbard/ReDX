@@ -51,7 +51,9 @@ namespace D3D12 {
         WorkQueue<WorkType::GRAPHICS>     m_graphicsWorkQueue;
         ComPtr<IDXGISwapChain3>           m_swapChain;
         ComPtr<ID3D12Resource>            m_renderTargets[m_bufferCount];
-        DescriptorHeap<DescType::RTV>     m_rtvDescriptorHeap;
+        DescriptorHeap<DescType::RTV>     m_rtvHeap;
+        ComPtr<ID3D12Resource>            m_depthBuffer;
+        DescriptorHeap<DescType::DSV>     m_dsvHeap;
         /* Pipeline objects */
         ComPtr<ID3D12RootSignature>       m_rootSignature;
         ComPtr<ID3D12PipelineState>       m_pipelineState;

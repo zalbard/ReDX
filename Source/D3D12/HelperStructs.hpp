@@ -3,6 +3,14 @@
 #include "HelperStructs.h"
 #include "..\Common\Utility.h"
 
+static inline uint width(const D3D12_RECT& rect) {
+    return static_cast<uint>(rect.right - rect.left);
+}
+
+static inline uint height(const D3D12_RECT& rect) {
+    return static_cast<uint>(rect.bottom - rect.top);
+}
+
 template<D3D12::WorkType T>
 template<uint N>
 void D3D12::WorkQueue<T>::execute(ID3D12CommandList* const (&commandLists)[N]) const {
