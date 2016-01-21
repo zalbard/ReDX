@@ -22,8 +22,8 @@ PSInput VSMain(VSInput input) {
 
     PSInput result;
 
-    result.position = mul(float4(input.position, 1.0f), viewProj);
-    result.color    = float4(abs(input.normal), 1.0f);
+    result.position = mul(float4(input.position, 1.f), viewProj);
+    result.color    = float4(abs(input.normal), 1.f);
 
     return result;
 }

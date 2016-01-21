@@ -14,7 +14,7 @@ static inline T sq(const T v) {
 // Computes the inverse square of the value
 template <typename T>
 static inline float invSq(const T v) {
-    return 1.0f / (v * v);
+    return 1.f / (v * v);
 }
 
 // For internal use only!

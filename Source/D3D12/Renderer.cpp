@@ -43,12 +43,12 @@ Renderer::Renderer() {
     const long resY = Window::height();
     // Configure the viewport
     m_viewport = D3D12_VIEWPORT{
-        /* TopLeftX */ 0.0f,
-        /* TopLeftY */ 0.0f,
+        /* TopLeftX */ 0.f,
+        /* TopLeftY */ 0.f,
         /* Width */    static_cast<float>(resX),
         /* Height */   static_cast<float>(resY),
-        /* MinDepth */ 0.0f,
-        /* MaxDepth */ 1.0f
+        /* MinDepth */ 0.f,
+        /* MaxDepth */ 1.f
     };
     // Configure the scissor rectangle used for clipping
     m_scissorRect = D3D12_RECT{
@@ -59,8 +59,8 @@ Renderer::Renderer() {
     };
     /*const auto view = DirectX::XMMatrixLookAtLH({877.909f, 318.274f, 34.6546f},
                                                 {863.187f, 316.600f, 34.2517f},
-                                                {0.0f, 1.0f, 0.0f});
-    const float halfFovY       = DirectX::XM_PI / 6.0f;
+                                                {0.f, 1.f, 0.f});
+    const float halfFovY       = DirectX::XM_PI / 6.f;
     const float cotHalfFovY    = cosf(halfFovY) / sinf(halfFovY);
     const float invAspectRatio = static_cast<float>(m_viewport.Height) / static_cast<float>(m_viewport.Width);
     const float m00 = invAspectRatio * cotHalfFovY;
@@ -172,7 +172,7 @@ Renderer::Renderer() {
         };
         const CD3DX12_CLEAR_VALUE clearValue{
             /* Format */  DXGI_FORMAT_D32_FLOAT/*DXGI_FORMAT_D24_UNORM_S8_UINT*/,
-            /* Depth */   0.0f,
+            /* Depth */   0.f,
             /* Stencil */ 0
         };
         const CD3DX12_HEAP_PROPERTIES heapProperties{D3D12_HEAP_TYPE_DEFAULT};
@@ -446,10 +446,10 @@ void Renderer::startFrame() {
     const CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle{m_dsvHeap.cpuBegin};
     m_graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
     // Clear the RTV and the DSV
-    constexpr float clearColor[] = {0.0f, 0.0f, 0.0f, 1.0f};
+    constexpr float clearColor[] = {0.f, 0.f, 0.f, 1.f};
     m_graphicsCommandList->ClearRenderTargetView(rtvHandle, clearColor,
                                                  0, nullptr);
-    m_graphicsCommandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 0.0f, 0,
+    m_graphicsCommandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 0.f, 0,
                                                  0, nullptr);
     // Set the primitive/topology type
     m_graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
