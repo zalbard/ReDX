@@ -166,6 +166,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\Common\Definitions.h" />
+    <ClInclude Include="Source\Common\Math.h" />
     <ClInclude Include="Source\Common\Scene.h" />
     <ClInclude Include="Source\Common\Timer.h" />
     <ClInclude Include="Source\Common\Utility.h" />
