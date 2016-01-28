@@ -2,8 +2,9 @@
 
 #include <DirectXMath.h>
 
-// Computes an Infinite Reversed Projection Matrix
-// Parameters: the width and the height of the viewport, the horizontal FoV
+// Computes an infinite reversed projection matrix
+// Parameters: the width and the height of the viewport (in pixels),
+// and the horizontal field of view (in radians)
 static inline DirectX::XMMATRIX InfRevProjMatLH(const float viewWidth, const float viewHeight,
                                                 const float fovY) {
     const float cotHalfFovY    = cosf(0.5f * fovY) / sinf(0.5f * fovY);
