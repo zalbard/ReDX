@@ -6,7 +6,8 @@
 #include "..\ThirdParty\load_obj.h"
 //#include "..\ThirdParty\stb_image.h"
 
-Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine) {
+Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine)
+    : numObjects{0} {
     assert(objFilePath);
     // Load the .obj and the referenced .mtl files
     printInfo("Loading the scene from the file: %s.", objFilePath);
@@ -15,9 +16,14 @@ Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine) {
         printError("Failed to load the file: %s.", objFilePath);
         TERMINATE();
     }
-    // Initialize Direct3D resources
-    numObjects = static_cast<uint>(objFile.objects.size());
-    ibos       = std::make_unique<D3D12::IndexBuffer[]>(numObjects);
+    // Compute the total number of objects
+    for (const auto& object : objFile.objects) {
+        for (const auto& group : object.groups) {
+            if (!group.faces.empty()) { ++numObjects; }
+        }
+    }
+    // Populate vertex and index buffers
+    ibos = std::make_unique<D3D12::IndexBuffer[]>(numObjects);
     std::vector<uint> indices;
     std::vector<D3D12::Vertex> vertices;
     vertices.reserve(std::max(objFile.vertices.size(), objFile.normals.size()));
@@ -25,9 +31,12 @@ Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine) {
         // Insert a vertex with a specific position and a 0-initialized normal
         vertices.emplace_back(D3D12::Vertex{{vert.x, vert.y, vert.z},{}});
     }
-    for (uint objId = 0, n = numObjects; objId < n; ++objId) {
-        indices.clear();
-        for (const auto& group : objFile.objects[objId].groups) {
+    uint iid = 0;   // Index buffer id
+    for (const auto& object : objFile.objects) {
+        for (const auto& group : object.groups) {
+            // Test whether the group contains any polygons
+            if (group.faces.empty()) { continue; }
+            indices.clear();
             for (const auto& face : group.faces) {
                 if (face.index_count < 3 || face.index_count > 4) {
                     printError("Encountered a polygon with %i vertices.", face.index_count);
@@ -62,8 +71,9 @@ Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine) {
                     indices.push_back(vid);
                 }
             }
+            ibos[iid++] = engine.createIndexBuffer(static_cast<uint>(indices.size()),
+                                                   indices.data());
         }
-        ibos[objId] = engine.createIndexBuffer(static_cast<uint>(indices.size()), indices.data());
     }
     vbo = engine.createVertexBuffer(static_cast<uint>(vertices.size()), vertices.data());
     printInfo("Scene loaded successfully.");
