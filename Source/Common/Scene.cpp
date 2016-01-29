@@ -31,7 +31,7 @@ Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine)
         // Insert a vertex with a specific position and a 0-initialized normal
         vertices.emplace_back(D3D12::Vertex{{vert.x, vert.y, vert.z},{}});
     }
-    uint iid = 0;   // Index buffer id
+    uint objId = 0;
     for (const auto& object : objFile.objects) {
         for (const auto& group : object.groups) {
             // Test whether the group contains any polygons
@@ -71,8 +71,8 @@ Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine)
                     indices.push_back(vid);
                 }
             }
-            ibos[iid++] = engine.createIndexBuffer(static_cast<uint>(indices.size()),
-                                                   indices.data());
+            ibos[objId++] = engine.createIndexBuffer(static_cast<uint>(indices.size()),
+                                                      indices.data());
         }
     }
     vbo = engine.createVertexBuffer(static_cast<uint>(vertices.size()), vertices.data());
