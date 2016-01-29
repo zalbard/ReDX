@@ -15,7 +15,6 @@ Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine) {
         printError("Failed to load the file: %s.", objFilePath);
         TERMINATE();
     }
-    printInfo("Scene loaded successfully.");
     // Initialize Direct3D resources
     numObjects = static_cast<uint>(objFile.objects.size());
     ibos       = std::make_unique<D3D12::IndexBuffer[]>(numObjects);
@@ -51,13 +50,14 @@ Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine) {
                         vertices.emplace_back(D3D12::Vertex{vertex.position, newNormal});
                     }
                     if (3 == i) {
-                        // Transform the quad into two triangles
+                        // Insert the second triangle of the quad
                         const uint last = static_cast<uint>(indices.size()) - 1;
                         const uint vid0 = indices[last - 2];
                         const uint vid2 = indices[last];
-                        // Duplicate the last two indices
+                        // Duplicate vertex indices 0 and 2
                         indices.push_back(vid0);
                         indices.push_back(vid2);
+                        // Finally, insert the vertex index 3 (vid)
                     }
                     indices.push_back(vid);
                 }
@@ -66,4 +66,5 @@ Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine) {
         ibos[objId] = engine.createIndexBuffer(static_cast<uint>(indices.size()), indices.data());
     }
     vbo = engine.createVertexBuffer(static_cast<uint>(vertices.size()), vertices.data());
+    printInfo("Scene loaded successfully.");
 }
