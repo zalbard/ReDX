@@ -1,8 +1,8 @@
 #pragma once
 
+#include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
-#include <cstdarg>
 #include <ctime>
 
 // Computes the square of the value

@@ -39,6 +39,16 @@
                      T& operator=(T&&) noexcept = delete; \
                      ~T() noexcept              = delete
 
+// Typedefs
 using uint   = unsigned int;
 using uint8  = unsigned char;
 using uint64 = unsigned long long;
+
+// Windows header macro definition removal
+#ifdef min
+#undef min
+#endif
+
+#ifdef max
+#undef max
+#endif

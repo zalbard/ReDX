@@ -1,6 +1,6 @@
 #include <d3dcompiler.h>
-#include "Renderer.h"
 #include "HelperStructs.hpp"
+#include "Renderer.h"
 #include "..\Common\Math.h"
 #include "..\ThirdParty\d3dx12.h"
 #include "..\UI\Window.h"
