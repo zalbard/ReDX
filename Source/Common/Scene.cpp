@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <cassert>
 #include "Scene.h"
 #include "..\D3D12\HelperStructs.hpp"
@@ -25,9 +24,9 @@ Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine)
     // Populate vertex and index buffers
     ibos = std::make_unique<D3D12::IndexBuffer[]>(numObjects);
     std::vector<uint> indices;
-    indices.reserve(256);
+    indices.reserve(16384);
     obj::IndexMap indexMap;
-    indexMap.reserve(std::max(objFile.vertices.size(), objFile.normals.size()));
+    indexMap.reserve(2 * objFile.vertices.size());
     uint objId = 0;
     for (const auto& object : objFile.objects) {
         for (const auto& group : object.groups) {
