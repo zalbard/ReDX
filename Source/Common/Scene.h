@@ -14,7 +14,7 @@ public:
     // The renderer performs Direct3D resource initialization
     Scene(const char* const objFilePath, const D3D12::Renderer& engine);
 public:
-    std::unique_ptr<D3D12::VertexBuffer[]> vbos;
-    std::unique_ptr<D3D12::IndexBuffer[]>  ibos;
     uint numObjects;
+    D3D12::VertexBuffer                   vbo;
+    std::unique_ptr<D3D12::IndexBuffer[]> ibos;
 };

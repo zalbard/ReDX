@@ -54,7 +54,7 @@ int main(const int argc, const char* argv[]) {
         // The message queue is now empty; execute engine code
         engine.startFrame();
         for (uint i = 0, n = scene.numObjects; i < n; ++i) {
-            engine.draw(scene.vbos[i], scene.ibos[i]);
+            engine.draw(scene.vbo, scene.ibos[i]);
         }
         engine.finalizeFrame();
     }
