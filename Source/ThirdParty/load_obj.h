@@ -53,6 +53,35 @@ struct Index {
     int v, n, t;
 };
 
+struct HashIndex {
+    size_t operator () (const obj::Index& i) const {
+        unsigned h = 0, g;
+
+        h = (h << 4) + i.v;
+        g = h & 0xF0000000;
+        h = g ? (h ^ (g >> 24)) : h;
+        h &= ~g;
+
+        h = (h << 4) + i.t;
+        g = h & 0xF0000000;
+        h = g ? (h ^ (g >> 24)) : h;
+        h &= ~g;
+
+        h = (h << 4) + i.n;
+        g = h & 0xF0000000;
+        h = g ? (h ^ (g >> 24)) : h;
+        h &= ~g;
+
+        return h;
+    }
+};
+
+struct CompareIndex {
+    bool operator () (const obj::Index& a, const obj::Index& b) const {
+        return a.v == b.v && a.t == b.t && a.n == b.n;
+    }
+};
+
 struct Face {
     static constexpr int max_indices = 8;
     Index indices[max_indices];
@@ -97,6 +126,8 @@ struct File {
 };
 
 typedef std::unordered_map<std::string, Material> MaterialLib;
+
+typedef std::unordered_map<obj::Index, unsigned, HashIndex, CompareIndex> IndexMap;
 
 }
 

@@ -25,12 +25,9 @@ Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine)
     // Populate vertex and index buffers
     ibos = std::make_unique<D3D12::IndexBuffer[]>(numObjects);
     std::vector<uint> indices;
-    std::vector<D3D12::Vertex> vertices;
-    vertices.reserve(std::max(objFile.vertices.size(), objFile.normals.size()));
-    for (const auto& vert : objFile.vertices) {
-        // Insert a vertex with a specific position and a 0-initialized normal
-        vertices.emplace_back(D3D12::Vertex{{vert.x, vert.y, vert.z},{}});
-    }
+    indices.reserve(256);
+    obj::IndexMap indexMap;
+    indexMap.reserve(std::max(objFile.vertices.size(), objFile.normals.size()));
     uint objId = 0;
     for (const auto& object : objFile.objects) {
         for (const auto& group : object.groups) {
@@ -38,42 +35,34 @@ Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine)
             if (group.faces.empty()) { continue; }
             indices.clear();
             for (const auto& face : group.faces) {
-                if (face.index_count < 3 || face.index_count > 4) {
-                    printError("Encountered a polygon with %i vertices.", face.index_count);
-                    TERMINATE();
-                }
+                // Populate the vertex index map
                 for (int i = 0; i < face.index_count; ++i) {
-                    uint        vid       = face.indices[i].v;
-                    auto&       vertex    = vertices[vid];
-                    const auto& newNormal = objFile.normals[face.indices[i].n];
-                    if (0.f == vertex.normal.x &&
-                        0.f == vertex.normal.y &&
-                        0.f == vertex.normal.z) {
-                        // No normal has been defined for this vertex; fill it in
-                        vertex.normal = newNormal;
-                    } else if (newNormal.x != vertex.normal.x ||
-                               newNormal.y != vertex.normal.y ||
-                               newNormal.z != vertex.normal.z) {
-                        // The stored normal is different; copy the vertex with a new normal
-                        vid = static_cast<uint>(vertices.size());
-                        vertices.emplace_back(D3D12::Vertex{vertex.position, newNormal});
+                    if (indexMap.find(face.indices[i]) == indexMap.end()) {
+                        // Insert a new key-value pair (vertex index : position in buffer)
+                        indexMap.insert(std::make_pair(face.indices[i],
+                                                       static_cast<uint>(indexMap.size())));
                     }
-                    if (3 == i) {
-                        // Insert the second triangle of the quad
-                        const uint last = static_cast<uint>(indices.size()) - 1;
-                        const uint vid0 = indices[last - 2];
-                        const uint vid2 = indices[last];
-                        // Duplicate vertex indices 0 and 2
-                        indices.push_back(vid0);
-                        indices.push_back(vid2);
-                        // Finally, insert the vertex index 3 (vid)
-                    }
-                    indices.push_back(vid);
+                }
+                // Create indexed triangle(s)
+                const uint v0   = indexMap[face.indices[0]];
+                uint       prev = indexMap[face.indices[1]];
+                for (int i = 1, n = face.index_count - 1; i < n; ++i) {
+                    const uint next       = indexMap[face.indices[i + 1]];
+                    const uint triangle[] = {v0, prev, next};
+                    indices.insert(std::end(indices), triangle, triangle + 3);
+                    prev = next;
                 }
             }
             ibos[objId++] = engine.createIndexBuffer(static_cast<uint>(indices.size()),
-                                                      indices.data());
+                                                     indices.data());
         }
+    }
+    // Create a vertex buffer
+    std::vector<D3D12::Vertex> vertices{indexMap.size()};
+    for (const auto& entry : indexMap) {
+        const auto& pos  = objFile.vertices[entry.first.v];
+        const auto& norm = objFile.normals[entry.first.n];
+        vertices[entry.second] = {pos, norm};
     }
     vbo = engine.createVertexBuffer(static_cast<uint>(vertices.size()), vertices.data());
     printInfo("Scene loaded successfully.");
