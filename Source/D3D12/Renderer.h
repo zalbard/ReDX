@@ -4,7 +4,6 @@
 #include "HelperStructs.h"
 
 namespace D3D12 {
-    // Direct3D renderer
     class Renderer {
     public:
         Renderer();
@@ -36,7 +35,7 @@ namespace D3D12 {
         // Creates a constant buffer of the specified size in bytes
         // Optionally, it also uploads the data to the device
         ComPtr<ID3D12Resource>
-        createConstantBuffer(const uint byteSz, const void* const data = nullptr) const;
+        createConstantBuffer(const uint size, const void* const data = nullptr) const;
     private:
         // Double buffering is used: present the front, render to the back
         static constexpr uint             m_bufferCount   = 2;
@@ -51,9 +50,9 @@ namespace D3D12 {
         WorkQueue<WorkType::GRAPHICS>     m_graphicsWorkQueue;
         ComPtr<IDXGISwapChain3>           m_swapChain;
         ComPtr<ID3D12Resource>            m_renderTargets[m_bufferCount];
-        DescriptorHeap<DescType::RTV>     m_rtvHeap;
+        DescriptorPool<DescType::RTV>     m_rtvPool;
         ComPtr<ID3D12Resource>            m_depthBuffer;
-        DescriptorHeap<DescType::DSV>     m_dsvHeap;
+        DescriptorPool<DescType::DSV>     m_dsvPool;
         /* Pipeline objects */
         ComPtr<ID3D12RootSignature>       m_rootSignature;
         ComPtr<ID3D12PipelineState>       m_pipelineState;

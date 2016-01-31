@@ -3,14 +3,6 @@
 #include "HelperStructs.h"
 #include "..\Common\Utility.h"
 
-static inline uint width(const D3D12_RECT& rect) {
-    return static_cast<uint>(rect.right - rect.left);
-}
-
-static inline uint height(const D3D12_RECT& rect) {
-    return static_cast<uint>(rect.bottom - rect.top);
-}
-
 template<D3D12::WorkType T>
 template<uint N>
 void D3D12::WorkQueue<T>::execute(ID3D12CommandList* const (&commandLists)[N]) const {
@@ -70,8 +62,33 @@ const ID3D12CommandAllocator* D3D12::WorkQueue<T>::bundleAlloca() const {
     return m_bundleAlloca.Get();
 }
 
+template<D3D12::DescType T>
+void D3D12::ID3D12DeviceEx::createDescriptorPool(DescriptorPool<T>* const descriptorPool,
+                                                 const uint count, const bool isShaderVisible) {
+    assert(descriptorPool);
+    assert(T == DescType::CBV_SRV_UAV || T == DescType::SAMPLER || !isShaderVisible);
+    constexpr auto nativeType = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);
+    // Fill out the descriptor heap description
+    const D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {
+        /* Type */           nativeType,
+        /* NumDescriptors */ count,
+        /* Flags */          isShaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+                                             : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
+        /* NodeMask */       nodeMask
+    };
+    // Create a descriptor heap
+    const auto device = static_cast<ID3D12Device*>(this);
+    CHECK_CALL(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorPool->heap)),
+               "Failed to create a descriptor heap.");
+    // Get handles for the first descriptor of the heap
+    descriptorPool->cpuBegin = descriptorPool->heap->GetCPUDescriptorHandleForHeapStart();
+    descriptorPool->gpuBegin = descriptorPool->heap->GetGPUDescriptorHandleForHeapStart();
+    // Get the increment size for descriptor handles
+    descriptorPool->handleIncrSz = GetDescriptorHandleIncrementSize(nativeType);
+}
+
 template<D3D12::WorkType T>
-void D3D12::ID3D12DeviceEx::CreateWorkQueue(WorkQueue<T>* const workQueue,
+void D3D12::ID3D12DeviceEx::createWorkQueue(WorkQueue<T>* const workQueue,
                                             const bool isHighPriority,
                                             const bool disableGpuTimeout) {
     assert(workQueue);
@@ -105,30 +122,4 @@ void D3D12::ID3D12DeviceEx::CreateWorkQueue(WorkQueue<T>* const workQueue,
         CHECK_CALL(HRESULT_FROM_WIN32(GetLastError()),
                    "Failed to create a synchronization event.");
     }
-}
-
-template<D3D12::DescType T>
-void D3D12::ID3D12DeviceEx::CreateDescriptorHeap(DescriptorHeap<T>* const descriptorHeap,
-                                                 const uint numDescriptors,
-                                                 const bool isShaderVisible) {
-    assert(descriptorHeap);
-    assert(T == DescType::CBV_SRV_UAV || T == DescType::SAMPLER || !isShaderVisible);
-    constexpr auto nativeType = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);
-    // Fill out the descriptor heap description
-    const D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {
-        /* Type */           nativeType,
-        /* NumDescriptors */ numDescriptors,
-        /* Flags */          isShaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
-                                             : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
-        /* NodeMask */       nodeMask
-    };
-    // Create a descriptor heap
-    const auto device = static_cast<ID3D12Device*>(this);
-    CHECK_CALL(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeap->nativePtr)),
-               "Failed to create a descriptor heap.");
-    // Get handles of the first descriptor of the heap
-    descriptorHeap->cpuBegin = descriptorHeap->nativePtr->GetCPUDescriptorHandleForHeapStart();
-    descriptorHeap->gpuBegin = descriptorHeap->nativePtr->GetGPUDescriptorHandleForHeapStart();
-    // Get the increment size for descriptor handles
-    descriptorHeap->handleIncrSz = GetDescriptorHandleIncrementSize(nativeType);
 }

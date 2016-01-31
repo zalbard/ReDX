@@ -7,6 +7,14 @@
 
 using namespace D3D12;
 
+static inline uint width(const D3D12_RECT& rect) {
+    return static_cast<uint>(rect.right - rect.left);
+}
+
+static inline uint height(const D3D12_RECT& rect) {
+    return static_cast<uint>(rect.bottom - rect.top);
+}
+
 static inline ComPtr<ID3D12DeviceEx> createWarpDevice(IDXGIFactory4* const factory) {
     ComPtr<IDXGIAdapter> adapter;
     CHECK_CALL(factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)),
@@ -58,12 +66,14 @@ Renderer::Renderer() {
         /* right */  resX,
         /* bottom */ resY
     };
+
     //const auto view = DirectX::XMMatrixLookAtLH({877.909f, 318.274f, 34.6546f},
     //                                            {863.187f, 316.600f, 34.2517f},
     //                                            {0.f, 1.f, 0.f});
     //const auto proj = InfRevProjMatLH(m_viewport.Width, m_viewport.Height, DirectX::XM_PI / 3.f);
     //const auto viewProj = view * proj;
     //viewProj;
+
     // Enable the Direct3D debug layer
     #ifdef _DEBUG
     {
@@ -91,7 +101,7 @@ Renderer::Renderer() {
         m_device = createHardwareDevice(factory.Get());
     }
     // Create a graphics work queue
-    m_device->CreateWorkQueue(&m_graphicsWorkQueue);
+    m_device->createWorkQueue(&m_graphicsWorkQueue);
     // Create a buffer swap chain
     {
         // Fill out the buffer description
@@ -125,22 +135,22 @@ Renderer::Renderer() {
                                             &swapChainDesc, swapChainAddr),
                    "Failed to create a swap chain.");
     }
-    // Create a render target view (RTV) descriptor heap
-    m_device->CreateDescriptorHeap(&m_rtvHeap, m_bufferCount);
+    // Create a render target view (RTV) descriptor pool
+    m_device->createDescriptorPool(&m_rtvPool, m_bufferCount);
     // Create 2x RTVs
     {
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap.cpuBegin};
+        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvPool.cpuBegin};
         // Create an RTV for each frame buffer
         for (uint bufferIdx = 0; bufferIdx < m_bufferCount; ++bufferIdx) {
             CHECK_CALL(m_swapChain->GetBuffer(bufferIdx, IID_PPV_ARGS(&m_renderTargets[bufferIdx])),
                        "Failed to acquire a swap chain buffer.");
             m_device->CreateRenderTargetView(m_renderTargets[bufferIdx].Get(), nullptr, rtvHandle);
             // Get the handle of the next descriptor
-            rtvHandle.Offset(1, m_rtvHeap.handleIncrSz);
+            rtvHandle.Offset(1, m_rtvPool.handleIncrSz);
         }
     }
-    // Create a depth stencil view (DSV) descriptor heap
-    m_device->CreateDescriptorHeap(&m_dsvHeap, 1);
+    // Create a depth stencil view (DSV) descriptor pool
+    m_device->createDescriptorPool(&m_dsvPool, 1);
     // Create a depth buffer
     {
         const DXGI_SAMPLE_DESC sampleDesc = {
@@ -175,7 +185,7 @@ Renderer::Renderer() {
             /* Flags */         D3D12_DSV_FLAG_NONE,
             /* Texture2D */     {}
         };
-        m_device->CreateDepthStencilView(m_depthBuffer.Get(), &dsvDesc, m_dsvHeap.cpuBegin);
+        m_device->CreateDepthStencilView(m_depthBuffer.Get(), &dsvDesc, m_dsvPool.cpuBegin);
     }
     // Set up the rendering pipeline
     configurePipeline();
@@ -380,12 +390,12 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
 }
 
 ComPtr<ID3D12Resource>
-Renderer::createConstantBuffer(const uint byteSz, const void* const data) const {
+Renderer::createConstantBuffer(const uint size, const void* const data) const {
     ComPtr<ID3D12Resource> constBuffer;
     // Use an upload heap to hold the buffer
     /* TODO: inefficient, change this! */
     const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
-    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(byteSz);
+    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
                                                  &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
                                                  nullptr, IID_PPV_ARGS(&constBuffer)),
@@ -399,7 +409,7 @@ Renderer::createConstantBuffer(const uint byteSz, const void* const data) const 
         CHECK_CALL(constBuffer->Map(subRes, &emptyReadRange, &buffer),
                    "Failed to map the constant buffer.");
         // Copy the data to the buffer
-        memcpy(buffer, data, byteSz);
+        memcpy(buffer, data, size);
         // Unmap the buffer
         constBuffer->Unmap(subRes, nullptr);
     }
@@ -429,10 +439,10 @@ void Renderer::startFrame() {
     m_graphicsCommandList->RSSetViewports(1, &m_viewport);
     m_graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
     // Set the back buffer as the render target
-    const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvHeap.cpuBegin,
+    const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvPool.cpuBegin,
                                                   static_cast<int>(m_backBufferIndex),
-                                                  m_rtvHeap.handleIncrSz};
-    const CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle{m_dsvHeap.cpuBegin};
+                                                  m_rtvPool.handleIncrSz};
+    const CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle{m_dsvPool.cpuBegin};
     m_graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
     // Clear the RTV and the DSV
     constexpr float clearColor[] = {0.f, 0.f, 0.f, 1.f};

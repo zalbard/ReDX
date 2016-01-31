@@ -9,24 +9,13 @@ namespace D3D12 {
     using DirectX::XMFLOAT3;
     using Microsoft::WRL::ComPtr;
 
-    // Simple vertex representation
-    struct Vertex {
-        XMFLOAT3 position;                          // Object-space vertex coordinates
-        XMFLOAT3 normal;                            // World-space normal vector
-    };
-
-    // Direct3D vertex buffer
-    struct VertexBuffer {
-        ComPtr<ID3D12Resource>   resource;          // Direct3D buffer interface
-        D3D12_VERTEX_BUFFER_VIEW view;              // Buffer descriptor
-        uint                     count;             // Number of elements 
-    };
-
-    // Direct3D index buffer
-    struct IndexBuffer {
-        ComPtr<ID3D12Resource>  resource;           // Direct3D buffer interface
-        D3D12_INDEX_BUFFER_VIEW view;               // Buffer descriptor
-        uint                    count;              // Number of elements 
+    // Corresponds to Direct3D descriptor types
+    enum class DescType {
+        // Constant Buffer Views | Shader Resource Views | Unordered Access Views
+        CBV_SRV_UAV = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 
+        SAMPLER     = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,     // Samplers
+        RTV         = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,         // Render Target Views
+        DSV         = D3D12_DESCRIPTOR_HEAP_TYPE_DSV          // Depth Stencil Views
     };
 
     // Corresponds to Direct3D command list types
@@ -36,9 +25,41 @@ namespace D3D12 {
         COPY     = D3D12_COMMAND_LIST_TYPE_COPY     // Supports copy commands only
     };
 
-    // Direct3D command queue wrapper class
+    struct Vertex {
+        XMFLOAT3 position;                          // Object-space vertex coordinates
+        XMFLOAT3 normal;                            // World-space normal vector
+    };
+
+    struct VertexBuffer {
+        ComPtr<ID3D12Resource>   resource;          // Buffer interface
+        D3D12_VERTEX_BUFFER_VIEW view;              // Buffer descriptor
+        uint                     count;             // Number of elements 
+    };
+
+    struct IndexBuffer {
+        ComPtr<ID3D12Resource>  resource;           // Buffer interface
+        D3D12_INDEX_BUFFER_VIEW view;               // Buffer descriptor
+        uint                    count;              // Number of elements 
+    };
+
+    struct UploadBuffer {
+        ComPtr<ID3D12Resource> resource;            // Buffer interface
+        void*                  data;                // CPU virtual memory-mapped address
+        uint                   size;                // Buffer size in bytes
+    };
+
+    // Descriptor heap wrapper
+    template <DescType T>
+    struct DescriptorPool {
+        ComPtr<ID3D12DescriptorHeap> heap;          // Descriptor heap interface
+        D3D12_CPU_DESCRIPTOR_HANDLE  cpuBegin;      // CPU handle of the 1st descriptor of the pool
+        D3D12_GPU_DESCRIPTOR_HANDLE  gpuBegin;      // GPU handle of the 1st descriptor of the pool
+        uint                         handleIncrSz;  // Handle increment size
+    };
+
+    // Command queue wrapper
     template <WorkType T>
-    class WorkQueue {
+    struct WorkQueue {
     public:
         WorkQueue() = default;
         RULE_OF_ZERO(WorkQueue);
@@ -57,33 +78,15 @@ namespace D3D12 {
         ID3D12CommandAllocator*        bundleAlloca();
         const ID3D12CommandAllocator*  bundleAlloca() const;
     private:
-        friend struct ID3D12DeviceEx;
-        ComPtr<ID3D12CommandQueue>     m_commandQueue;
-        ComPtr<ID3D12CommandAllocator> m_listAlloca, m_bundleAlloca;
+        ComPtr<ID3D12CommandQueue>     m_commandQueue;  // Command queue interface
+        ComPtr<ID3D12CommandAllocator> m_listAlloca,    // Bundle allocator interface
+                                       m_bundleAlloca;  // Command list allocator interface
         /* Synchronization objects */
         ComPtr<ID3D12Fence>            m_fence;
         uint64                         m_fenceValue;
         HANDLE                         m_syncEvent;
-    };
-
-    // Corresponds to Direct3D descriptor types
-    enum class DescType {
-        // Constant Buffer Views | Shader Resource Views | Unordered Access Views
-        CBV_SRV_UAV = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 
-        SAMPLER     = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER,     // Samplers
-        RTV         = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,         // Render Target Views
-        DSV         = D3D12_DESCRIPTOR_HEAP_TYPE_DSV          // Depth Stencil Views
-    };
-
-    // Direct3D descriptor heap
-    template <DescType T>
-    struct DescriptorHeap {
-        DescriptorHeap() = default;
-        RULE_OF_ZERO(DescriptorHeap);
-        ComPtr<ID3D12DescriptorHeap> nativePtr;     // Ref-counted descriptor heap pointer
-        D3D12_CPU_DESCRIPTOR_HANDLE  cpuBegin;      // CPU handle of the 1st descriptor of the heap
-        D3D12_GPU_DESCRIPTOR_HANDLE  gpuBegin;      // GPU handle of the 1st descriptor of the heap
-        uint                         handleIncrSz;  // Handle increment size
+        /* Accessors */
+        friend struct ID3D12DeviceEx;
     };
 
     // ID3D12Device extension; uses the same UUID as ID3D12Device
@@ -92,17 +95,16 @@ namespace D3D12 {
     public:
         ID3D12DeviceEx() = delete;
         RULE_OF_ZERO(ID3D12DeviceEx);
+        // Creates a descriptor pool of the specified type, capacity and shader visibility
+        template <DescType T>
+        void createDescriptorPool(DescriptorPool<T>* const descriptorPool,
+                                  const uint count, const bool isShaderVisible = false);
         // Creates a work queue of the specified type
         // Optionally, the work priority can be set to "high", and the GPU timeout can be disabled
         template <WorkType T>
-        void CreateWorkQueue(WorkQueue<T>* const workQueue, 
+        void createWorkQueue(WorkQueue<T>* const workQueue, 
                              const bool isHighPriority    = false, 
                              const bool disableGpuTimeout = false);
-        // Creates a descriptor heap of the given type, size and shader visibility
-        template <DescType T>
-        void CreateDescriptorHeap(DescriptorHeap<T>* const descriptorHeap,
-                                  const uint numDescriptors,
-                                  const bool isShaderVisible = false);
         // Multi-GPU-adapter mask. Rendering is performed on a single GPU
         static constexpr uint nodeMask = 0;
     };
