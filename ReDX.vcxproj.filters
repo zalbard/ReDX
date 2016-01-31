@@ -82,6 +82,9 @@
     <ClInclude Include="Source\ThirdParty\load_obj.h">
       <Filter>Source Files\ThirdParty</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Common\Constants.h">
+      <Filter>Source Files\Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore">

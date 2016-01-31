@@ -18,9 +18,7 @@ int main(const int argc, const char* argv[]) {
         return -1;
     }
     // Create a window for rendering output
-    constexpr long resX = 1280;
-    constexpr long resY = 720;
-    Window::open(resX, resY);
+    Window::open(WND_WIDTH, WND_HEIGHT);
     // Initialize the renderer (internally uses the Window)
     D3D12::Renderer engine;
     // Provide the scene description

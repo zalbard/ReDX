@@ -167,6 +167,7 @@
     <ClCompile Include="Source\UI\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\Common\Constants.h" />
     <ClInclude Include="Source\Common\Definitions.h" />
     <ClInclude Include="Source\Common\Math.h" />
     <ClInclude Include="Source\Common\Scene.h" />

@@ -2,6 +2,7 @@
 
 #include <dxgi1_4.h>
 #include "HelperStructs.h"
+#include "..\Common\Constants.h"
 
 namespace D3D12 {
     class Renderer {
@@ -37,10 +38,6 @@ namespace D3D12 {
         ComPtr<ID3D12Resource>
         createConstantBuffer(const uint size, const void* const data = nullptr) const;
     private:
-        // Double buffering is used: present the front, render to the back
-        static constexpr uint             m_bufferCount   = 2;
-        // Software rendering flag
-        static constexpr bool             m_useWarpDevice = false;
         /* Rendering parameters */
         D3D12_VIEWPORT                    m_viewport;
         D3D12_RECT                        m_scissorRect;
@@ -49,10 +46,11 @@ namespace D3D12 {
         mutable ComPtr<ID3D12DeviceEx>    m_device;
         WorkQueue<WorkType::GRAPHICS>     m_graphicsWorkQueue;
         ComPtr<IDXGISwapChain3>           m_swapChain;
-        ComPtr<ID3D12Resource>            m_renderTargets[m_bufferCount];
+        ComPtr<ID3D12Resource>            m_renderTargets[BUFFER_COUNT];
         DescriptorPool<DescType::RTV>     m_rtvPool;
         ComPtr<ID3D12Resource>            m_depthBuffer;
         DescriptorPool<DescType::DSV>     m_dsvPool;
+        UploadBuffer                      m_uploadBuffer;
         /* Pipeline objects */
         ComPtr<ID3D12RootSignature>       m_rootSignature;
         ComPtr<ID3D12PipelineState>       m_pipelineState;

@@ -93,7 +93,7 @@ Renderer::Renderer() {
                "Failed to disable fullscreen transitions.");
     // Create a Direct3D device that represents the display adapter
     #pragma warning(suppress: 4127)
-    if (m_useWarpDevice) {
+    if (USE_WARP_DEVICE) {
         // Use software rendering
         m_device = createWarpDevice(factory.Get());
     } else {
@@ -109,7 +109,7 @@ Renderer::Renderer() {
             /* Width */            width(m_scissorRect),
             /* Height */           height(m_scissorRect),
             /* RefreshRate */      DXGI_RATIONAL{},
-            /* Format */           DXGI_FORMAT_R8G8B8A8_UNORM,
+            /* Format */           RTV_FORMAT,
             /* ScanlineOrdering */ DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
             /* Scaling */          DXGI_MODE_SCALING_UNSPECIFIED
         };
@@ -123,7 +123,7 @@ Renderer::Renderer() {
             /* BufferDesc */   bufferDesc,
             /* SampleDesc */   sampleDesc,
             /* BufferUsage */  DXGI_USAGE_RENDER_TARGET_OUTPUT,
-            /* BufferCount */  m_bufferCount,
+            /* BufferCount */  BUFFER_COUNT,
             /* OutputWindow */ Window::handle(),
             /* Windowed */     TRUE,
             /* SwapEffect */   DXGI_SWAP_EFFECT_FLIP_DISCARD,
@@ -136,12 +136,12 @@ Renderer::Renderer() {
                    "Failed to create a swap chain.");
     }
     // Create a render target view (RTV) descriptor pool
-    m_device->createDescriptorPool(&m_rtvPool, m_bufferCount);
+    m_device->createDescriptorPool(&m_rtvPool, BUFFER_COUNT);
     // Create 2x RTVs
     {
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvPool.cpuBegin};
         // Create an RTV for each frame buffer
-        for (uint bufferIdx = 0; bufferIdx < m_bufferCount; ++bufferIdx) {
+        for (uint bufferIdx = 0; bufferIdx < BUFFER_COUNT; ++bufferIdx) {
             CHECK_CALL(m_swapChain->GetBuffer(bufferIdx, IID_PPV_ARGS(&m_renderTargets[bufferIdx])),
                        "Failed to acquire a swap chain buffer.");
             m_device->CreateRenderTargetView(m_renderTargets[bufferIdx].Get(), nullptr, rtvHandle);
@@ -164,13 +164,13 @@ Renderer::Renderer() {
             /* Height */           height(m_scissorRect),
             /* DepthOrArraySize */ 1,
             /* MipLevels */        0,   // Automatic
-            /* Format */           DXGI_FORMAT_D24_UNORM_S8_UINT,
+            /* Format */           DSV_FORMAT,
             /* SampleDesc */       sampleDesc,
             /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
             /* Flags */            D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
         };
         const CD3DX12_CLEAR_VALUE clearValue{
-            /* Format */  DXGI_FORMAT_D24_UNORM_S8_UINT,
+            /* Format */  DSV_FORMAT,
             /* Depth */   0.f,
             /* Stencil */ 0
         };
@@ -180,7 +180,7 @@ Renderer::Renderer() {
                                                      &clearValue, IID_PPV_ARGS(&m_depthBuffer)),
                    "Failed to allocate a depth buffer.");
         const D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {
-            /* Format */        DXGI_FORMAT_D24_UNORM_S8_UINT,
+            /* Format */        DSV_FORMAT,
             /* ViewDimension */ D3D12_DSV_DIMENSION_TEXTURE2D,
             /* Flags */         D3D12_DSV_FLAG_NONE,
             /* Texture2D */     {}
@@ -305,8 +305,8 @@ void Renderer::configurePipeline() {
         /* IBStripCutValue */       D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
         /* PrimitiveTopologyType */ D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         /* NumRenderTargets */      1,
-        /* RTVFormats[8] */         {DXGI_FORMAT_R8G8B8A8_UNORM_SRGB},
-        /* DSVFormat */             DXGI_FORMAT_D24_UNORM_S8_UINT,
+        /* RTVFormats[8] */         {RTV_FORMAT_SRGB},
+        /* DSVFormat */             DSV_FORMAT,
         /* SampleDesc */            sampleDesc,
         /* NodeMask */              m_device->nodeMask,
         /* CachedPSO */             D3D12_CACHED_PIPELINE_STATE{},

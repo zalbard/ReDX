@@ -23,9 +23,9 @@ LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
     }
 }
 
-void Window::open(const long resX, const long resY) {
+void Window::open(const long width, const long height) {
     // Set up the rectangle position and dimensions
-    m_rect = {0, 0, resX, resY};
+    m_rect = {0, 0, width, height};
     AdjustWindowRect(&m_rect, WS_OVERLAPPEDWINDOW, FALSE);
     // Set up the window class
     WNDCLASSEX wndClass    = {};
@@ -41,7 +41,7 @@ void Window::open(const long resX, const long resY) {
                           L"ReDX",
                           WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,  // Disable resizing
                           CW_USEDEFAULT, CW_USEDEFAULT,
-                          width(), height(),
+                          Window::width(), Window::height(),
                           nullptr, nullptr,                         // No parent window, no menus
                           GetModuleHandle(nullptr),
                           nullptr);
