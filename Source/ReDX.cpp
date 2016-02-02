@@ -44,7 +44,6 @@ int main(const int argc, const char* argv[]) {
                 /* TODO: Process keyboard input */
                 break;
             case WM_QUIT:
-                engine.stop();
                 // Return this part of the WM_QUIT message to Windows
                 return static_cast<int>(msg.wParam);
             }

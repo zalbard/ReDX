@@ -34,8 +34,6 @@ namespace D3D12 {
         void draw(const VertexBuffer& vbo, const IndexBuffer& ibo);
         // Finalizes the frame rendering process
         void finalizeFrame();
-        // Finishes the current frame and stops the execution
-        void stop();
     private:
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();

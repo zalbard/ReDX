@@ -534,7 +534,3 @@ void Renderer::finalizeFrame() {
     // Update the index of the frame buffer used for drawing
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
 }
-
-void Renderer::stop() {
-    m_graphicsWorkQueue.finish();
-}

@@ -70,14 +70,12 @@ namespace D3D12 {
     struct WorkQueue {
     public:
         WorkQueue() = default;
-        RULE_OF_ZERO(WorkQueue);
+        RULE_OF_FIVE_MOVE_ONLY(WorkQueue);
         // Submits N command lists to the command queue for execution
         template <uint N>
         void execute(ID3D12CommandList* const (&commandLists)[N]) const;
         // Waits (using a fence) until the queue execution is finished
         void waitForCompletion();
-        // Waits for all GPU commands to finish, and stops synchronization
-        void finish();
         /* Accessors */
         ID3D12CommandQueue*            commandQueue();
         const ID3D12CommandQueue*      commandQueue() const;
@@ -87,8 +85,8 @@ namespace D3D12 {
         const ID3D12CommandAllocator*  bundleAlloca() const;
     private:
         ComPtr<ID3D12CommandQueue>     m_commandQueue;  // Command queue interface
-        ComPtr<ID3D12CommandAllocator> m_listAlloca,    // Bundle allocator interface
-                                       m_bundleAlloca;  // Command list allocator interface
+        ComPtr<ID3D12CommandAllocator> m_listAlloca,    // Command list allocator interface
+                                       m_bundleAlloca;  // Bundle allocator interface
         /* Synchronization objects */
         ComPtr<ID3D12Fence>            m_fence;
         uint64                         m_fenceValue;

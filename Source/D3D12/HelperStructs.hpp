@@ -41,8 +41,24 @@ inline D3D12::UploadBuffer& D3D12::UploadBuffer::operator=(UploadBuffer&& other)
 }
 
 inline D3D12::UploadBuffer::~UploadBuffer() noexcept {
+    // Check if it was moved
     if (begin) {
         resource->Unmap(0, nullptr);
+    }
+}
+
+template <D3D12::WorkType T>
+inline D3D12::WorkQueue<T>::WorkQueue(WorkQueue&&) noexcept = default;
+
+template <D3D12::WorkType T>
+inline D3D12::WorkQueue<T>& D3D12::WorkQueue<T>::operator=(WorkQueue&&) noexcept = default;
+
+template <D3D12::WorkType T>
+inline D3D12::WorkQueue<T>::~WorkQueue() noexcept {
+    // Check if it was moved
+    if (m_fence) {
+        waitForCompletion();
+        CloseHandle(m_syncEvent);
     }
 }
 
@@ -67,12 +83,6 @@ inline void D3D12::WorkQueue<T>::waitForCompletion() {
                    "Failed to set a synchronization event.");
         WaitForSingleObject(m_syncEvent, INFINITE);
     }
-}
-
-template <D3D12::WorkType T>
-inline void D3D12::WorkQueue<T>::finish() {
-    waitForCompletion();
-    CloseHandle(m_syncEvent);
 }
 
 template<D3D12::WorkType T>
