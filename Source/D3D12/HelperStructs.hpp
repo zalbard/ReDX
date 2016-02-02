@@ -3,14 +3,22 @@
 #include "HelperStructs.h"
 #include "..\Common\Utility.h"
 
+inline uint D3D12::VertexBuffer::count() const {
+    return view.SizeInBytes / sizeof(Vertex);
+}
+
+inline uint D3D12::IndexBuffer::count() const {
+    return view.SizeInBytes / sizeof(uint);
+}
+
 template<D3D12::WorkType T>
 template<uint N>
-void D3D12::WorkQueue<T>::execute(ID3D12CommandList* const (&commandLists)[N]) const {
+inline void D3D12::WorkQueue<T>::execute(ID3D12CommandList* const (&commandLists)[N]) const {
     m_commandQueue->ExecuteCommandLists(N, commandLists);
 }
 
 template <D3D12::WorkType T>
-void D3D12::WorkQueue<T>::waitForCompletion() {
+inline void D3D12::WorkQueue<T>::waitForCompletion() {
     // Insert a memory fence (with a new value) into the GPU command queue
     // Once we reach the fence in the queue, a signal will go off,
     // which will set the internal value of the fence object to fenceValue
@@ -27,45 +35,46 @@ void D3D12::WorkQueue<T>::waitForCompletion() {
 }
 
 template <D3D12::WorkType T>
-void D3D12::WorkQueue<T>::finish() {
+inline void D3D12::WorkQueue<T>::finish() {
     waitForCompletion();
     CloseHandle(m_syncEvent);
 }
 
 template<D3D12::WorkType T>
-ID3D12CommandQueue* D3D12::WorkQueue<T>::commandQueue() {
+inline ID3D12CommandQueue* D3D12::WorkQueue<T>::commandQueue() {
     return m_commandQueue.Get();
 }
 
 template<D3D12::WorkType T>
-const ID3D12CommandQueue* D3D12::WorkQueue<T>::commandQueue() const {
+inline const ID3D12CommandQueue* D3D12::WorkQueue<T>::commandQueue() const {
     return m_commandQueue.Get();
 }
 
 template<D3D12::WorkType T>
-ID3D12CommandAllocator* D3D12::WorkQueue<T>::listAlloca() {
+inline ID3D12CommandAllocator* D3D12::WorkQueue<T>::listAlloca() {
     return m_listAlloca.Get();
 }
 
 template<D3D12::WorkType T>
-const ID3D12CommandAllocator* D3D12::WorkQueue<T>::listAlloca() const {
+inline const ID3D12CommandAllocator* D3D12::WorkQueue<T>::listAlloca() const {
     return m_listAlloca.Get();
 }
 
 template<D3D12::WorkType T>
-ID3D12CommandAllocator* D3D12::WorkQueue<T>::bundleAlloca() {
+inline ID3D12CommandAllocator* D3D12::WorkQueue<T>::bundleAlloca() {
     return m_bundleAlloca.Get();
 }
 
 template<D3D12::WorkType T>
-const ID3D12CommandAllocator* D3D12::WorkQueue<T>::bundleAlloca() const {
+inline const ID3D12CommandAllocator* D3D12::WorkQueue<T>::bundleAlloca() const {
     return m_bundleAlloca.Get();
 }
 
 template<D3D12::DescType T>
-void D3D12::ID3D12DeviceEx::createDescriptorPool(DescriptorPool<T>* const descriptorPool,
-                                                 const uint count, const bool isShaderVisible) {
-    assert(descriptorPool);
+inline void D3D12::ID3D12DeviceEx::createDescriptorPool(DescriptorPool<T>* const descriptorPool,
+                                                        const uint count,
+                                                        const bool isShaderVisible) {
+    assert(descriptorPool && count > 0);
     assert(T == DescType::CBV_SRV_UAV || T == DescType::SAMPLER || !isShaderVisible);
     constexpr auto nativeType = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);
     // Fill out the descriptor heap description
@@ -88,7 +97,7 @@ void D3D12::ID3D12DeviceEx::createDescriptorPool(DescriptorPool<T>* const descri
 }
 
 template<D3D12::WorkType T>
-void D3D12::ID3D12DeviceEx::createWorkQueue(WorkQueue<T>* const workQueue,
+inline void D3D12::ID3D12DeviceEx::createWorkQueue(WorkQueue<T>* const workQueue,
                                             const bool isHighPriority,
                                             const bool disableGpuTimeout) {
     assert(workQueue);

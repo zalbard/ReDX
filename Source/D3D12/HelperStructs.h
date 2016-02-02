@@ -2,6 +2,7 @@
 
 #include <d3d12.h>
 #include <DirectXMath.h>
+#include <utility>
 #include <wrl\client.h>
 #include "..\Common\Definitions.h"
 
@@ -30,22 +31,24 @@ namespace D3D12 {
         XMFLOAT3 normal;                            // World-space normal vector
     };
 
-    struct VertexBuffer {
-        ComPtr<ID3D12Resource>   resource;          // Buffer interface
-        D3D12_VERTEX_BUFFER_VIEW view;              // Buffer descriptor
-        uint                     count;             // Number of elements 
+    struct MemoryBuffer {
+        ComPtr<ID3D12Resource>       resource;      // Buffer interface
     };
 
-    struct IndexBuffer {
-        ComPtr<ID3D12Resource>  resource;           // Buffer interface
-        D3D12_INDEX_BUFFER_VIEW view;               // Buffer descriptor
-        uint                    count;              // Number of elements 
+    struct VertexBuffer: public MemoryBuffer {
+        D3D12_VERTEX_BUFFER_VIEW     view;          // Buffer descriptor
+        uint                         count() const; // Returns the number of elements
     };
 
-    struct UploadBuffer {
-        ComPtr<ID3D12Resource> resource;            // Buffer interface
-        void*                  data;                // CPU virtual memory-mapped address
-        uint                   size;                // Buffer size in bytes
+    struct IndexBuffer: public MemoryBuffer {
+        D3D12_INDEX_BUFFER_VIEW      view;          // Buffer descriptor
+        uint                         count() const; // Returns the number of elements
+    };
+
+    struct UploadBuffer: public MemoryBuffer {
+        byte*                        begin;         // CPU virtual memory-mapped address
+        uint                         offset;        // Offset from the beginning of the buffer
+        uint                         capacity;      // Buffer size in bytes
     };
 
     // Descriptor heap wrapper

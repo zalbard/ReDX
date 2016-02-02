@@ -2,6 +2,18 @@
 
 #include <DirectXMath.h>
 
+// Computes the square of the value
+template <typename T>
+static inline T sq(const T v) {
+    return v * v;
+}
+
+// Computes the inverse square of the value
+template <typename T>
+static inline float invSq(const T v) {
+    return 1.f / (v * v);
+}
+
 // Computes an infinite reversed projection matrix
 // Parameters: the width and the height of the viewport (in pixels),
 // and the horizontal field of view (in radians)

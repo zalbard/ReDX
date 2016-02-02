@@ -349,21 +349,50 @@ Renderer::createGraphicsCommandList(ID3D12PipelineState* const initialState) {
     CHECK_CALL(m_device->CreateCommandList(m_device->nodeMask, D3D12_COMMAND_LIST_TYPE_DIRECT,
                                            m_graphicsWorkQueue.listAlloca(), initialState,
                                            IID_PPV_ARGS(&graphicsCommandList)),
-               "Failed to create a command list.");
+               "Failed to create a graphics command list.");
     // Command lists are created in the recording state, but there is nothing
     // to record yet. The main loop expects it to be closed, so close it now.
-    CHECK_CALL(graphicsCommandList->Close(), "Failed to close the command list.");
+    CHECK_CALL(graphicsCommandList->Close(), "Failed to close the graphics command list.");
     return graphicsCommandList;
 }
 
+UploadBuffer Renderer::createUploadBuffer(const uint capacity) const {
+    assert(capacity > 0);
+    UploadBuffer buffer;
+    buffer.capacity = capacity;
+    buffer.offset   = 0;
+    // Allocate the buffer on the upload heap
+    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
+    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(buffer.capacity);
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
+                                                 &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
+                                                 nullptr, IID_PPV_ARGS(&buffer.resource)),
+               "Failed to allocate an upload buffer.");
+    // Note: we don't intend to read from this resource on the CPU
+    const D3D12_RANGE emptyReadRange{0, 0};
+    // Create a persistent mapping of the upload buffer in video memory to a system memory buffer
+    CHECK_CALL(buffer.resource->Map(0, &emptyReadRange, reinterpret_cast<void**>(&buffer.begin)),
+               "Failed to map the upload buffer.");
+    return buffer;
+}
 
-VertexBuffer Renderer::createVertexBuffer(const uint count, const Vertex* const vertices) const {
+VertexBuffer Renderer::createVertexBuffer(const uint count, const Vertex* const vertices,
+                                          UploadBuffer& uploadBuffer) {
     assert(vertices && count >= 3);
     VertexBuffer vertexBuffer;
-    vertexBuffer.count = count;
-    const uint vertexBufferSize = vertexBuffer.count * sizeof(Vertex);
-    // Initialize the buffer and copy the data
-    vertexBuffer.resource = createConstantBuffer(vertexBufferSize, vertices);
+    const uint vertexBufferSize = count * sizeof(Vertex);
+    // Allocate the buffer on the default heap
+    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
+    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
+                                                 &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST,
+                                                 nullptr, IID_PPV_ARGS(&vertexBuffer.resource)),
+               "Failed to allocate a vertex buffer.");
+    // Copy the vertices to video memory using the upload buffer
+    // Max. alignment requirement for vertex data is 4 bytes
+    constexpr uint64 alignment = 4;
+    uploadData<alignment>(vertexBuffer, uploadBuffer, vertexBufferSize, vertices,
+                          D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
     // Initialize the vertex buffer view
     vertexBuffer.view = D3D12_VERTEX_BUFFER_VIEW{
         /* BufferLocation */ vertexBuffer.resource->GetGPUVirtualAddress(),
@@ -373,13 +402,23 @@ VertexBuffer Renderer::createVertexBuffer(const uint count, const Vertex* const 
     return vertexBuffer;
 }
 
-IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indices) const {
+IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indices,
+                                        UploadBuffer& uploadBuffer) {
     assert(indices && count >= 3);
     IndexBuffer indexBuffer;
-    indexBuffer.count = count;
-    const uint indexBufferSize = indexBuffer.count * sizeof(uint);
-    // Initialize the buffer and copy the data
-    indexBuffer.resource = createConstantBuffer(indexBufferSize, indices);
+    const uint indexBufferSize = count * sizeof(uint);
+    // Allocate the buffer on the default heap
+    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
+    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
+                                                 &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST,
+                                                 nullptr, IID_PPV_ARGS(&indexBuffer.resource)),
+               "Failed to allocate an index buffer.");
+    // Copy the indices to video memory using the upload buffer
+    // Max. alignment requirement for indices is 4 bytes
+    constexpr uint64 alignment = 4;
+    uploadData<alignment>(indexBuffer, uploadBuffer, indexBufferSize, indices,
+                          D3D12_RESOURCE_STATE_INDEX_BUFFER);
     // Initialize the index buffer view
     indexBuffer.view = D3D12_INDEX_BUFFER_VIEW{
         /* BufferLocation */ indexBuffer.resource->GetGPUVirtualAddress(),
@@ -389,36 +428,55 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
     return indexBuffer;
 }
 
-ComPtr<ID3D12Resource>
-Renderer::createConstantBuffer(const uint size, const void* const data) const {
-    ComPtr<ID3D12Resource> constBuffer;
-    // Use an upload heap to hold the buffer
-    /* TODO: inefficient, change this! */
-    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
-    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
-    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
-                                                 nullptr, IID_PPV_ARGS(&constBuffer)),
-               "Failed to allocate a constant buffer.");
-    if (data) {
-        // Acquire a CPU pointer to the buffer (sub-resource 'subRes')
-        void* buffer;
-        constexpr uint subRes = 0;
-        // Note: we don't intend to read from this resource on the CPU
-        const D3D12_RANGE emptyReadRange{0, 0};
-        CHECK_CALL(constBuffer->Map(subRes, &emptyReadRange, &buffer),
-                   "Failed to map the constant buffer.");
-        // Copy the data to the buffer
-        memcpy(buffer, data, size);
-        // Unmap the buffer
-        constBuffer->Unmap(subRes, nullptr);
+template<uint64 alignment>
+void Renderer::uploadData(MemoryBuffer& dst, UploadBuffer& tmp,
+                          const uint size, const void* const data,
+                          const D3D12_RESOURCE_STATES finalState) {
+    assert(data && size > 0);
+    // Make sure the data fits into the upload buffer
+    byte* const alignedAddress    = align<alignment>(tmp.begin + tmp.offset);
+    const uint  updatedOffset     = static_cast<uint>(alignedAddress - tmp.begin);
+    const int   remainingCapacity = tmp.capacity - updatedOffset;
+    if (static_cast<int>(size) > remainingCapacity) {
+        printError("Insufficient remaining upload buffer capacity. Current: %i, required: %u.",
+                   remainingCapacity, size);
+        TERMINATE();
     }
-    return constBuffer;
+    // Wait until all the previously issued commands have been executed
+    m_graphicsWorkQueue.waitForCompletion();
+    // Command list allocators can only be reset when the associated 
+    // command lists have finished execution on the GPU
+    CHECK_CALL(m_graphicsWorkQueue.listAlloca()->Reset(),
+               "Failed to reset the command list allocator.");
+    // After a command list has been executed, 
+    // it can then be reset at any time (and must be before re-recording)
+    CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsWorkQueue.listAlloca(),
+                                            m_pipelineState.Get()),
+               "Failed to reset the graphics command list.");
+    // Set the necessary state
+    m_graphicsCommandList->SetGraphicsRootSignature(m_rootSignature.Get());
+    // Load the data into the system memory copy of the upload buffer, and update the offset
+    memcpy(alignedAddress, data, size);
+    tmp.offset = updatedOffset;
+    // Copy the data from the video memory copy of the upload buffer to the destination buffer
+    m_graphicsCommandList->CopyBufferRegion(dst.resource.Get(), 0,
+                                            tmp.resource.Get(), tmp.offset,
+                                            size);
+    // Transition the memory buffer state: Copy Destination -> 'finalState'
+    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(dst.resource.Get(),
+                         D3D12_RESOURCE_STATE_COPY_DEST, finalState);
+    m_graphicsCommandList->ResourceBarrier(1, &barrier);
+    // Finalize the command list
+    CHECK_CALL(m_graphicsCommandList->Close(), "Failed to close the graphics command list.");
+    // Execute the command list
+    ID3D12CommandList* commandLists[] = {m_graphicsCommandList.Get()};
+    m_graphicsWorkQueue.execute(commandLists);
+    // Set the offset to the end of the data
+    tmp.offset += size;
 }
 
 void Renderer::startFrame() {
     // Wait until all the previously issued commands have been executed
-    /* TODO: waiting is inefficient, change this! */
     m_graphicsWorkQueue.waitForCompletion();
     // Command list allocators can only be reset when the associated 
     // command lists have finished execution on the GPU
@@ -446,10 +504,9 @@ void Renderer::startFrame() {
     m_graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
     // Clear the RTV and the DSV
     constexpr float clearColor[] = {0.f, 0.f, 0.f, 1.f};
-    m_graphicsCommandList->ClearRenderTargetView(rtvHandle, clearColor,
-                                                 0, nullptr);
-    m_graphicsCommandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 0.f, 0,
-                                                 0, nullptr);
+    m_graphicsCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+    const D3D12_CLEAR_FLAGS clearFlags = D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL;
+    m_graphicsCommandList->ClearDepthStencilView(dsvHandle, clearFlags, 0.f, 0, 0, nullptr);
     // Set the primitive/topology type
     m_graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
@@ -458,7 +515,7 @@ void Renderer::draw(const VertexBuffer& vbo, const IndexBuffer& ibo) {
     // Record the commands into the command list
     m_graphicsCommandList->IASetVertexBuffers(0, 1, &vbo.view);
     m_graphicsCommandList->IASetIndexBuffer(&ibo.view);
-    m_graphicsCommandList->DrawIndexedInstanced(ibo.count, 1, 0, 0, 0);
+    m_graphicsCommandList->DrawIndexedInstanced(ibo.count(), 1, 0, 0, 0);
 }
 
 void Renderer::finalizeFrame() {
@@ -467,8 +524,8 @@ void Renderer::finalizeFrame() {
     const auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
                             D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     m_graphicsCommandList->ResourceBarrier(1, &barrier);
-    // Finalize the list
-    CHECK_CALL(m_graphicsCommandList->Close(), "Failed to close the command list.");
+    // Finalize the command list
+    CHECK_CALL(m_graphicsCommandList->Close(), "Failed to close the graphics command list.");
     // Execute the command list
     ID3D12CommandList* commandLists[] = {m_graphicsCommandList.Get()};
     m_graphicsWorkQueue.execute(commandLists);

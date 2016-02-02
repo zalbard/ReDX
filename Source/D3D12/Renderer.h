@@ -18,10 +18,16 @@ namespace D3D12 {
         // Creates a graphics command list in the specified initial state
         ComPtr<ID3D12GraphicsCommandList>
         createGraphicsCommandList(ID3D12PipelineState* const initialState);
+        // Creates an upload buffer of the specified size in bytes
+        UploadBuffer createUploadBuffer(const uint capacity) const;
         // Creates a vertex buffer for the vertex array with the specified number of vertices
-        VertexBuffer createVertexBuffer(const uint count, const Vertex* const vertices) const;
+        // The data is copied via an upload buffer
+        VertexBuffer createVertexBuffer(const uint count, const Vertex* const vertices,
+                                        UploadBuffer& uploadBuffer);
         // Creates an index buffer for the index array with the specified number of indices
-        IndexBuffer createIndexBuffer(const uint count, const uint* const indices) const;
+        // The data is copied via an upload buffer
+        IndexBuffer createIndexBuffer(const uint count, const uint* const indices,
+                                      UploadBuffer& uploadBuffer);
         // Initializes the frame rendering process
         void startFrame();
         // Draws the geometry from the indexed vertex buffer to the frame buffer
@@ -33,10 +39,13 @@ namespace D3D12 {
     private:
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
-        // Creates a constant buffer of the specified size in bytes
-        // Optionally, it also uploads the data to the device
-        ComPtr<ID3D12Resource>
-        createConstantBuffer(const uint size, const void* const data = nullptr) const;
+        // Uploads the data of the specified size in bytes and alignment
+        // to the memory buffer via the intermediate upload buffer
+        // Expects 'dst' in D3D12_RESOURCE_STATE_COPY_DEST, and transitions it to the 'finalState'
+        template<uint64 alignment>
+        void uploadData(MemoryBuffer& dst, UploadBuffer& tmp,
+                        const uint size, const void* const data,
+                        const D3D12_RESOURCE_STATES finalState);
     private:
         /* Rendering parameters */
         D3D12_VIEWPORT                    m_viewport;
@@ -50,7 +59,6 @@ namespace D3D12 {
         DescriptorPool<DescType::RTV>     m_rtvPool;
         ComPtr<ID3D12Resource>            m_depthBuffer;
         DescriptorPool<DescType::DSV>     m_dsvPool;
-        UploadBuffer                      m_uploadBuffer;
         /* Pipeline objects */
         ComPtr<ID3D12RootSignature>       m_rootSignature;
         ComPtr<ID3D12PipelineState>       m_pipelineState;

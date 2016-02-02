@@ -4,17 +4,15 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include "Definitions.h"
 
-// Computes the square of the value
-template <typename T>
-static inline T sq(const T v) {
-    return v * v;
-}
-
-// Computes the inverse square of the value
-template <typename T>
-static inline float invSq(const T v) {
-    return 1.f / (v * v);
+// Aligns the address to the next multiple of alignment
+template <uint64 alignment>
+byte* align(const byte* const address) {
+    // Make sure that the alignment is non-zero, and is a power of 2
+    static_assert((0 != alignment) && (0 == (alignment & (alignment - 1))), "Invalid alignment.");
+    const uint64 aligned = reinterpret_cast<uint64>((address + (alignment - 1))) & ~(alignment - 1);
+    return reinterpret_cast<byte*>(aligned);
 }
 
 // For internal use only!
