@@ -33,6 +33,9 @@ namespace D3D12 {
 
     struct MemoryBuffer {
         ComPtr<ID3D12Resource>       resource;      // Buffer interface
+    protected:
+        // Prevent polymorphic deletion
+        ~MemoryBuffer() = default;
     };
 
     struct VertexBuffer: public MemoryBuffer {
