@@ -46,6 +46,8 @@ namespace D3D12 {
     };
 
     struct UploadBuffer: public MemoryBuffer {
+        UploadBuffer();
+        RULE_OF_FIVE_MOVE_ONLY(UploadBuffer);
         byte*                        begin;         // CPU virtual memory-mapped address
         uint                         offset;        // Offset from the beginning of the buffer
         uint                         capacity;      // Buffer size in bytes

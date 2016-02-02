@@ -11,6 +11,41 @@ inline uint D3D12::IndexBuffer::count() const {
     return view.SizeInBytes / sizeof(uint);
 }
 
+inline D3D12::UploadBuffer::UploadBuffer()
+    : MemoryBuffer{nullptr}
+    , begin{nullptr} {}
+
+inline D3D12::UploadBuffer::UploadBuffer(UploadBuffer&& other) noexcept
+    : MemoryBuffer{std::move(other.resource)}
+    , begin{other.begin}
+    , offset{other.offset}
+    , capacity{other.capacity} {
+    // Mark as moved
+    other.begin = nullptr;
+}
+
+inline D3D12::UploadBuffer& D3D12::UploadBuffer::operator=(UploadBuffer&& other) noexcept {
+    if (this != &other) {
+        if (begin) {
+            resource->Unmap(0, nullptr);
+        }
+        // Copy the data
+        resource = std::move(other.resource);
+        begin    = other.begin;
+        offset   = other.offset;
+        capacity = other.capacity;
+        // Mark as moved
+        other.begin = nullptr;
+    }
+    return *this;
+}
+
+inline D3D12::UploadBuffer::~UploadBuffer() noexcept {
+    if (begin) {
+        resource->Unmap(0, nullptr);
+    }
+}
+
 template<D3D12::WorkType T>
 template<uint N>
 inline void D3D12::WorkQueue<T>::execute(ID3D12CommandList* const (&commandLists)[N]) const {
