@@ -460,7 +460,6 @@ void D3D12::Renderer::executeCopyCommands() {
     // Finalize and execute the command list
     CHECK_CALL(m_copyCommandList->Close(), "Failed to close the copy command list.");
     m_copyCommandQueue.execute(m_copyCommandList.Get());
-    //m_graphicsCommandQueue.execute(m_graphicsCommandList.Get());
     // Wait for the copy command list execution to finish
     m_copyCommandQueue.waitForCompletion();
     // Command list allocators can only be reset when the associated 
