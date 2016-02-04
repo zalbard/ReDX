@@ -488,8 +488,9 @@ void Renderer::startFrame() {
         CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsCommandQueue.listAlloca(),
                                                 m_graphicsPipelineState.Get()),
                    "Failed to reset the graphics command list.");
+        // Since we are about to issue commands, set the flag now
+        pendingGraphicsCommands = true;
     }
-    pendingGraphicsCommands = true;
     // Transition the back buffer state: Presenting -> Render Target
     const auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
     const auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
