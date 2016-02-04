@@ -1,9 +1,8 @@
 #include <cassert>
 #include "Scene.h"
-#include "..\D3D12\HelperStructs.hpp"
+#include "Utility.h"
 #include "..\D3D12\Renderer.h"
 #include "..\ThirdParty\load_obj.h"
-//#include "..\ThirdParty\stb_image.h"
 
 Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine)
     : numObjects{0} {
@@ -21,8 +20,6 @@ Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine)
             if (!group.faces.empty()) { ++numObjects; }
         }
     }
-    // Allocate an upload buffer
-    auto uploadBuffer = engine.createUploadBuffer(UPLOAD_BUF_SIZE);
     // Populate vertex and index buffers
     ibos = std::make_unique<D3D12::IndexBuffer[]>(numObjects);
     std::vector<uint> indices;
@@ -55,7 +52,7 @@ Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine)
                 }
             }
             ibos[objId++] = engine.createIndexBuffer(static_cast<uint>(indices.size()),
-                                                     indices.data(), uploadBuffer);
+                                                     indices.data());
         }
     }
     // Create a vertex buffer
@@ -65,7 +62,6 @@ Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine)
         const auto& norm = objFile.normals[entry.first.n];
         vertices[entry.second] = {pos, norm};
     }
-    vbo = engine.createVertexBuffer(static_cast<uint>(vertices.size()), vertices.data(),
-                                    uploadBuffer);
+    vbo = engine.createVertexBuffer(static_cast<uint>(vertices.size()), vertices.data());
     printInfo("Scene loaded successfully.");
 }

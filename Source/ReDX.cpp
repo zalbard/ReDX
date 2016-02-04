@@ -23,6 +23,8 @@ int main(const int argc, const char* argv[]) {
     D3D12::Renderer engine;
     // Provide the scene description
     const Scene scene{"Assets\\Sponza\\sponza.obj", engine};
+    // Copy the scene description to the device
+    engine.executeCopyCommands();
     // Start the timer to compute the frame time deltaT
     uint prevFrameT = HighResTimer::time_ms();
     // Main loop

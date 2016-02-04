@@ -47,7 +47,8 @@ static inline ComPtr<ID3D12DeviceEx> createHardwareDevice(IDXGIFactory4* const f
     }
 }
 
-Renderer::Renderer() {
+Renderer::Renderer()
+    : pendingGraphicsCommands{false} {
     const long resX = Window::width();
     const long resY = Window::height();
     // Configure the viewport
@@ -100,8 +101,9 @@ Renderer::Renderer() {
         // Use hardware acceleration
         m_device = createHardwareDevice(factory.Get());
     }
-    // Create a graphics work queue
-    m_device->createWorkQueue(&m_graphicsWorkQueue);
+    // Create command queues
+    m_device->createCommandQueue(&m_copyCommandQueue);
+    m_device->createCommandQueue(&m_graphicsCommandQueue);
     // Create a buffer swap chain
     {
         // Fill out the buffer description
@@ -131,7 +133,7 @@ Renderer::Renderer() {
         };
         // Create a swap chain; it needs a command queue to flush the latter
         auto swapChainAddr = reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf());
-        CHECK_CALL(factory->CreateSwapChain(m_graphicsWorkQueue.commandQueue(),
+        CHECK_CALL(factory->CreateSwapChain(m_graphicsCommandQueue.get(),
                                             &swapChainDesc, swapChainAddr),
                    "Failed to create a swap chain.");
     }
@@ -187,6 +189,25 @@ Renderer::Renderer() {
         };
         m_device->CreateDepthStencilView(m_depthBuffer.Get(), &dsvDesc, m_dsvPool.cpuBegin);
     }
+    // Create a persistently mapped buffer on the upload heap
+    {
+        m_uploadBuffer.capacity = UPLOAD_BUF_SIZE;
+        m_uploadBuffer.offset   = 0;
+        // Allocate the buffer on the upload heap
+        const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
+        const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(m_uploadBuffer.capacity);
+        CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, 
+                                                     &bufferDesc,
+                                                     D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+                                                     IID_PPV_ARGS(&m_uploadBuffer.resource)),
+                   "Failed to allocate an upload buffer.");
+        // Note: we don't intend to read from this resource on the CPU
+        const D3D12_RANGE emptyReadRange{0, 0};
+        // Map the buffer to a range in the CPU virtual address space
+        CHECK_CALL(m_uploadBuffer.resource->Map(0, &emptyReadRange,
+                                                reinterpret_cast<void**>(&m_uploadBuffer.begin)),
+                   "Failed to map the upload buffer.");
+    }
     // Set up the rendering pipeline
     configurePipeline();
 }
@@ -214,11 +235,28 @@ static inline ComPtr<ID3DBlob> loadAndCompileShader(const wchar_t* const pathAnd
 }
 
 void Renderer::configurePipeline() {
-    // Fill out the root signature description
-    const auto rootSignatureDesc = D3D12_ROOT_SIGNATURE_DESC{0, nullptr, 0, nullptr,
+    // Create a copy command list in the default state
+    CHECK_CALL(m_device->CreateCommandList(m_device->nodeMask, D3D12_COMMAND_LIST_TYPE_COPY,
+                                           m_copyCommandQueue.listAlloca(), nullptr,
+                                           IID_PPV_ARGS(&m_copyCommandList)),
+               "Failed to create a copy command list.");
+    // Create a graphics root signature
+    {
+        // Fill out the root signature description
+        const auto rootSigneDesc = D3D12_ROOT_SIGNATURE_DESC{0, nullptr, 0, nullptr,
                                    D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT};
-    // Create a root signature
-    m_rootSignature = createRootSignature(rootSignatureDesc);
+        // Serialize a root signature from the description
+        ComPtr<ID3DBlob> signature, error;
+        CHECK_CALL(D3D12SerializeRootSignature(&rootSigneDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+                                               &signature, &error),
+                   "Failed to serialize a root signature.");
+        // Create a root signature layout using the serialized signature
+        CHECK_CALL(m_device->CreateRootSignature(m_device->nodeMask,
+                                                 signature->GetBufferPointer(),
+                                                 signature->GetBufferSize(),
+                                                 IID_PPV_ARGS(&m_graphicsRootSignature)),
+                   "Failed to create a graphics root signature.");
+    }
     // Import the vertex and the pixel shaders
     const auto vs = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "VSMain", "vs_5_0");
     const auto ps = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "PSMain", "ps_5_0");
@@ -286,7 +324,7 @@ void Renderer::configurePipeline() {
     };
     // Fill out the pipeline state object description
     const D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {
-        /* pRootSignature */        m_rootSignature.Get(),
+        /* pRootSignature */        m_graphicsRootSignature.Get(),
         /* VS */                    D3D12_SHADER_BYTECODE{
             /* pShaderBytecode */       vs->GetBufferPointer(),
             /* BytecodeLength  */       vs->GetBufferSize()
@@ -305,79 +343,26 @@ void Renderer::configurePipeline() {
         /* IBStripCutValue */       D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
         /* PrimitiveTopologyType */ D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         /* NumRenderTargets */      1,
-        /* RTVFormats[8] */         {RTV_FORMAT_SRGB},
+        /* RTVFormats[8] */         {RTV_FORMAT},
         /* DSVFormat */             DSV_FORMAT,
         /* SampleDesc */            sampleDesc,
         /* NodeMask */              m_device->nodeMask,
         /* CachedPSO */             D3D12_CACHED_PIPELINE_STATE{},
         /* Flags */                 D3D12_PIPELINE_STATE_FLAG_NONE
     };
-    // Create a graphics command list and its initial state
-    m_pipelineState       = createGraphicsPipelineState(pipelineStateDesc);
-    m_graphicsCommandList = createGraphicsCommandList(m_pipelineState.Get());
-}
-
-ComPtr<ID3D12RootSignature>
-Renderer::createRootSignature(const D3D12_ROOT_SIGNATURE_DESC& rootSignatureDesc) const {
-    // Serialize a root signature from the description
-    ComPtr<ID3DBlob> signature, error;
-    CHECK_CALL(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1,
-                                           &signature, &error),
-               "Failed to serialize a root signature.");
-    // Create a root signature layout using the serialized signature
-    ComPtr<ID3D12RootSignature> rootSignature;
-    CHECK_CALL(m_device->CreateRootSignature(m_device->nodeMask,
-                                             signature->GetBufferPointer(),
-                                             signature->GetBufferSize(),
-                                             IID_PPV_ARGS(&rootSignature)),
-               "Failed to create a root signature.");
-    return rootSignature;
-}
-
-ComPtr<ID3D12PipelineState>
-Renderer::createGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& stateDesc) const {
-    ComPtr<ID3D12PipelineState> pipelineState;
-    CHECK_CALL(m_device->CreateGraphicsPipelineState(&stateDesc, IID_PPV_ARGS(&pipelineState)),
+    // Create the initial graphics pipeline state
+    CHECK_CALL(m_device->CreateGraphicsPipelineState(&pipelineStateDesc,
+                                                     IID_PPV_ARGS(&m_graphicsPipelineState)),
                "Failed to create a graphics pipeline state object.");
-    return pipelineState;
-}
-
-ComPtr<ID3D12GraphicsCommandList>
-Renderer::createGraphicsCommandList(ID3D12PipelineState* const initialState) {
-    assert(initialState);
-    ComPtr<ID3D12GraphicsCommandList> graphicsCommandList;
+    // Create a graphics command list
     CHECK_CALL(m_device->CreateCommandList(m_device->nodeMask, D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                           m_graphicsWorkQueue.listAlloca(), initialState,
-                                           IID_PPV_ARGS(&graphicsCommandList)),
+                                           m_graphicsCommandQueue.listAlloca(),
+                                           m_graphicsPipelineState.Get(),
+                                           IID_PPV_ARGS(&m_graphicsCommandList)),
                "Failed to create a graphics command list.");
-    // Command lists are created in the recording state, but there is nothing
-    // to record yet. The main loop expects it to be closed, so close it now.
-    CHECK_CALL(graphicsCommandList->Close(), "Failed to close the graphics command list.");
-    return graphicsCommandList;
 }
 
-UploadBuffer Renderer::createUploadBuffer(const uint capacity) const {
-    assert(capacity > 0);
-    UploadBuffer buffer;
-    buffer.capacity = capacity;
-    buffer.offset   = 0;
-    // Allocate the buffer on the upload heap
-    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
-    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(buffer.capacity);
-    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &bufferDesc, D3D12_RESOURCE_STATE_GENERIC_READ,
-                                                 nullptr, IID_PPV_ARGS(&buffer.resource)),
-               "Failed to allocate an upload buffer.");
-    // Note: we don't intend to read from this resource on the CPU
-    const D3D12_RANGE emptyReadRange{0, 0};
-    // Create a persistent mapping of the upload buffer in video memory to a system memory buffer
-    CHECK_CALL(buffer.resource->Map(0, &emptyReadRange, reinterpret_cast<void**>(&buffer.begin)),
-               "Failed to map the upload buffer.");
-    return buffer;
-}
-
-VertexBuffer Renderer::createVertexBuffer(const uint count, const Vertex* const vertices,
-                                          UploadBuffer& uploadBuffer) {
+VertexBuffer Renderer::createVertexBuffer(const uint count, const Vertex* const vertices) {
     assert(vertices && count >= 3);
     VertexBuffer vertexBuffer;
     const uint vertexBufferSize = count * sizeof(Vertex);
@@ -391,7 +376,7 @@ VertexBuffer Renderer::createVertexBuffer(const uint count, const Vertex* const 
     // Copy the vertices to video memory using the upload buffer
     // Max. alignment requirement for vertex data is 4 bytes
     constexpr uint64 alignment = 4;
-    uploadData<alignment>(vertexBuffer, uploadBuffer, vertexBufferSize, vertices,
+    uploadData<alignment>(vertexBuffer, vertexBufferSize, vertices,
                           D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
     // Initialize the vertex buffer view
     vertexBuffer.view = D3D12_VERTEX_BUFFER_VIEW{
@@ -402,8 +387,7 @@ VertexBuffer Renderer::createVertexBuffer(const uint count, const Vertex* const 
     return vertexBuffer;
 }
 
-IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indices,
-                                        UploadBuffer& uploadBuffer) {
+IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indices) {
     assert(indices && count >= 3);
     IndexBuffer indexBuffer;
     const uint indexBufferSize = count * sizeof(uint);
@@ -417,7 +401,7 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
     // Copy the indices to video memory using the upload buffer
     // Max. alignment requirement for indices is 4 bytes
     constexpr uint64 alignment = 4;
-    uploadData<alignment>(indexBuffer, uploadBuffer, indexBufferSize, indices,
+    uploadData<alignment>(indexBuffer, indexBufferSize, indices,
                           D3D12_RESOURCE_STATE_INDEX_BUFFER);
     // Initialize the index buffer view
     indexBuffer.view = D3D12_INDEX_BUFFER_VIEW{
@@ -429,71 +413,91 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
 }
 
 template<uint64 alignment>
-void Renderer::uploadData(MemoryBuffer& dst, UploadBuffer& tmp,
-                          const uint size, const void* const data,
+void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const data,
                           const D3D12_RESOURCE_STATES finalState) {
     assert(data && size > 0);
-    // Make sure the data fits into the upload buffer
-    byte* const alignedAddress    = align<alignment>(tmp.begin + tmp.offset);
-    const uint  updatedOffset     = static_cast<uint>(alignedAddress - tmp.begin);
-    const int   remainingCapacity = tmp.capacity - updatedOffset;
-    if (static_cast<int>(size) > remainingCapacity) {
-        printError("Insufficient remaining upload buffer capacity. Current: %i, required: %u.",
-                   remainingCapacity, size);
-        TERMINATE();
+    // Make sure the upload buffer is sufficiently large
+    #ifdef _DEBUG
+    {
+        const byte* const alignedBegin    = align<alignment>(m_uploadBuffer.begin);
+        const int64       alignedCapacity = m_uploadBuffer.capacity -
+                                            (alignedBegin - m_uploadBuffer.begin);
+        if (alignedCapacity < size) {
+            printError("Insufficient upload buffer capacity: current (aligned): %i, required: %u.",
+                       alignedCapacity, size);
+            TERMINATE();
+        }
     }
-    // Wait until all the previously issued commands have been executed
-    m_graphicsWorkQueue.waitForCompletion();
-    // Command list allocators can only be reset when the associated 
-    // command lists have finished execution on the GPU
-    CHECK_CALL(m_graphicsWorkQueue.listAlloca()->Reset(),
-               "Failed to reset the command list allocator.");
-    // After a command list has been executed, 
-    // it can then be reset at any time (and must be before re-recording)
-    CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsWorkQueue.listAlloca(),
-                                            m_pipelineState.Get()),
-               "Failed to reset the graphics command list.");
-    // Set the necessary state
-    m_graphicsCommandList->SetGraphicsRootSignature(m_rootSignature.Get());
-    // Load the data into the system memory copy of the upload buffer, and update the offset
+    #endif
+    // Compute the address within the upload buffer which we will copy the data to
+    byte* alignedAddress = align<alignment>(m_uploadBuffer.begin + m_uploadBuffer.offset);
+    int64 updatedOffset  = alignedAddress - m_uploadBuffer.begin;
+    // Check whether the upload buffer has sufficient space left
+    const int64 remainingCapacity = m_uploadBuffer.capacity - updatedOffset;
+    if (remainingCapacity < size) {
+        executeCopyCommands();
+        // Recompute 'alignedAddress' and 'updatedOffset'
+        alignedAddress = align<alignment>(m_uploadBuffer.begin);
+        updatedOffset  = alignedAddress - m_uploadBuffer.begin;
+    }
+    // Load the data into the upload buffer, and update the offset
     memcpy(alignedAddress, data, size);
-    tmp.offset = updatedOffset;
-    // Copy the data from the video memory copy of the upload buffer to the destination buffer
-    m_graphicsCommandList->CopyBufferRegion(dst.resource.Get(), 0,
-                                            tmp.resource.Get(), tmp.offset,
-                                            size);
+    m_uploadBuffer.offset = static_cast<uint>(updatedOffset);
+    // Copy the data from the upload buffer into the memory buffer
+    m_copyCommandList->CopyBufferRegion(dst.resource.Get(), 0,
+                                        m_uploadBuffer.resource.Get(), m_uploadBuffer.offset,
+                                        size);
     // Transition the memory buffer state: Copy Destination -> 'finalState'
     const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(dst.resource.Get(),
                          D3D12_RESOURCE_STATE_COPY_DEST, finalState);
     m_graphicsCommandList->ResourceBarrier(1, &barrier);
-    // Finalize the command list
-    CHECK_CALL(m_graphicsCommandList->Close(), "Failed to close the graphics command list.");
-    // Execute the command list
-    ID3D12CommandList* commandLists[] = {m_graphicsCommandList.Get()};
-    m_graphicsWorkQueue.execute(commandLists);
+    pendingGraphicsCommands = true;
     // Set the offset to the end of the data
-    tmp.offset += size;
+    m_uploadBuffer.offset += size;
+}
+
+void D3D12::Renderer::executeCopyCommands() {
+    // Finalize and execute the command list
+    CHECK_CALL(m_copyCommandList->Close(), "Failed to close the copy command list.");
+    m_copyCommandQueue.execute(m_copyCommandList.Get());
+    //m_graphicsCommandQueue.execute(m_graphicsCommandList.Get());
+    // Wait for the copy command list execution to finish
+    m_copyCommandQueue.waitForCompletion();
+    // Command list allocators can only be reset when the associated 
+    // command lists have finished execution on the GPU
+    CHECK_CALL(m_copyCommandQueue.listAlloca()->Reset(),
+               "Failed to reset the copy command list allocator.");
+    // After a command list has been executed, 
+    // it can then be reset at any time (and must be before re-recording)
+    CHECK_CALL(m_copyCommandList->Reset(m_copyCommandQueue.listAlloca(), nullptr),
+               "Failed to reset the copy command list.");
+    // Reset the current position within the upload buffer back to the beginning
+    m_uploadBuffer.offset = 0;
 }
 
 void Renderer::startFrame() {
     // Wait until all the previously issued commands have been executed
-    m_graphicsWorkQueue.waitForCompletion();
-    // Command list allocators can only be reset when the associated 
-    // command lists have finished execution on the GPU
-    CHECK_CALL(m_graphicsWorkQueue.listAlloca()->Reset(),
-               "Failed to reset the command list allocator.");
-    // After a command list has been executed, 
-    // it can then be reset at any time (and must be before re-recording)
-    CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsWorkQueue.listAlloca(),
-                                            m_pipelineState.Get()),
-               "Failed to reset the graphics command list.");
+    m_graphicsCommandQueue.waitForCompletion();
+    // Check whether the graphics command list is empty
+    if (!pendingGraphicsCommands) {
+        // Command list allocators can only be reset when the associated 
+        // command lists have finished execution on the GPU
+        CHECK_CALL(m_graphicsCommandQueue.listAlloca()->Reset(),
+                   "Failed to reset the graphics command list allocator.");
+        // After a command list has been executed, 
+        // it can then be reset at any time (and must be before re-recording)
+        CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsCommandQueue.listAlloca(),
+                                                m_graphicsPipelineState.Get()),
+                   "Failed to reset the graphics command list.");
+    }
+    pendingGraphicsCommands = true;
     // Transition the back buffer state: Presenting -> Render Target
     const auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
     const auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
                             D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
     m_graphicsCommandList->ResourceBarrier(1, &barrier);
     // Set the necessary state
-    m_graphicsCommandList->SetGraphicsRootSignature(m_rootSignature.Get());
+    m_graphicsCommandList->SetGraphicsRootSignature(m_graphicsRootSignature.Get());
     m_graphicsCommandList->RSSetViewports(1, &m_viewport);
     m_graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
     // Set the back buffer as the render target
@@ -524,11 +528,10 @@ void Renderer::finalizeFrame() {
     const auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
                             D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     m_graphicsCommandList->ResourceBarrier(1, &barrier);
-    // Finalize the command list
+    // Finalize and execute the command list
     CHECK_CALL(m_graphicsCommandList->Close(), "Failed to close the graphics command list.");
-    // Execute the command list
-    ID3D12CommandList* commandLists[] = {m_graphicsCommandList.Get()};
-    m_graphicsWorkQueue.execute(commandLists);
+    m_graphicsCommandQueue.execute(m_graphicsCommandList.Get());
+    pendingGraphicsCommands = false;
     // Present the frame
     CHECK_CALL(m_swapChain->Present(1, 0), "Failed to display the frame buffer.");
     // Update the index of the frame buffer used for drawing

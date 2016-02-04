@@ -41,9 +41,9 @@
 
 // Typedefs
 using byte   = unsigned char;
+using int64  = long long int;
 using uint   = unsigned int;
-using uint8  = unsigned char;
-using uint64 = unsigned long long;
+using uint64 = unsigned long long int;
 
 // Windows header macro definition removal
 #ifdef min

@@ -20,7 +20,7 @@ namespace D3D12 {
     };
 
     // Corresponds to Direct3D command list types
-    enum class WorkType {
+    enum class QueueType {
         GRAPHICS = D3D12_COMMAND_LIST_TYPE_DIRECT,  // Supports all types of commands
         COMPUTE  = D3D12_COMMAND_LIST_TYPE_COMPUTE, // Supports compute and copy commands only
         COPY     = D3D12_COMMAND_LIST_TYPE_COPY     // Supports copy commands only
@@ -66,25 +66,27 @@ namespace D3D12 {
     };
 
     // Command queue wrapper
-    template <WorkType T>
-    struct WorkQueue {
+    template <QueueType T>
+    struct CommandQueue {
     public:
-        WorkQueue() = default;
-        RULE_OF_FIVE_MOVE_ONLY(WorkQueue);
-        // Submits N command lists to the command queue for execution
+        CommandQueue() = default;
+        RULE_OF_FIVE_MOVE_ONLY(CommandQueue);
+        // Submits a single command list for execution
+        void execute(ID3D12CommandList* const commandList) const;
+        // Submits N command lists for execution
         template <uint N>
         void execute(ID3D12CommandList* const (&commandLists)[N]) const;
         // Waits (using a fence) until the queue execution is finished
         void waitForCompletion();
         /* Accessors */
-        ID3D12CommandQueue*            commandQueue();
-        const ID3D12CommandQueue*      commandQueue() const;
+        ID3D12CommandQueue*            get();
+        const ID3D12CommandQueue*      get() const;
         ID3D12CommandAllocator*        listAlloca();
         const ID3D12CommandAllocator*  listAlloca() const;
         ID3D12CommandAllocator*        bundleAlloca();
         const ID3D12CommandAllocator*  bundleAlloca() const;
     private:
-        ComPtr<ID3D12CommandQueue>     m_commandQueue;  // Command queue interface
+        ComPtr<ID3D12CommandQueue>     m_interface;     // Command queue interface
         ComPtr<ID3D12CommandAllocator> m_listAlloca,    // Command list allocator interface
                                        m_bundleAlloca;  // Bundle allocator interface
         /* Synchronization objects */
@@ -105,12 +107,12 @@ namespace D3D12 {
         template <DescType T>
         void createDescriptorPool(DescriptorPool<T>* const descriptorPool,
                                   const uint count, const bool isShaderVisible = false);
-        // Creates a work queue of the specified type
-        // Optionally, the work priority can be set to "high", and the GPU timeout can be disabled
-        template <WorkType T>
-        void createWorkQueue(WorkQueue<T>* const workQueue, 
-                             const bool isHighPriority    = false, 
-                             const bool disableGpuTimeout = false);
+        // Creates a command queue of the specified type
+        // Optionally, the queue priority can be set to "high", and the GPU timeout can be disabled
+        template <QueueType T>
+        void createCommandQueue(CommandQueue<T>* const commandQueue, 
+                                const bool isHighPriority    = false, 
+                                const bool disableGpuTimeout = false);
         // Multi-GPU-adapter mask. Rendering is performed on a single GPU
         static constexpr uint nodeMask = 0;
     };
