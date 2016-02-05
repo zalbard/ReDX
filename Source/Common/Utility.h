@@ -1,20 +1,18 @@
 #pragma once
 
+#include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
-#include <cstdarg>
 #include <ctime>
+#include "Definitions.h"
 
-// Computes the square of the value
-template <typename T>
-static inline T sq(const T v) {
-    return v * v;
-}
-
-// Computes the inverse square of the value
-template <typename T>
-static inline float invSq(const T v) {
-    return 1.f / (v * v);
+// Aligns the address to the next multiple of alignment
+template <uint64 alignment>
+byte* align(const byte* const address) {
+    // Make sure that the alignment is non-zero, and is a power of 2
+    static_assert((0 != alignment) && (0 == (alignment & (alignment - 1))), "Invalid alignment.");
+    const uint64 aligned = reinterpret_cast<uint64>((address + (alignment - 1))) & ~(alignment - 1);
+    return reinterpret_cast<byte*>(aligned);
 }
 
 // For internal use only!
@@ -56,9 +54,13 @@ static inline void printError(const char* const fmt, ...) {
 // Prints the location of the fatal error and terminates the program
 #define TERMINATE() panic(__FILE__, __LINE__)
 
-// Prints the C string (errMsg) if the HRESULT (hr) fails
-#define CHECK_CALL(hr, errMsg)     \
-    if (FAILED(hr)) {              \
-        printError(errMsg);        \
-        panic(__FILE__, __LINE__); \
-    }
+// Prints the C string 'errMsg' if the HRESULT of 'call' fails
+#define CHECK_CALL(call, errMsg)          \
+    do {                                  \
+        volatile const HRESULT HR = call; \
+        if (FAILED(HR)) {                 \
+            DebugBreak();                 \
+            printError(errMsg);           \
+            panic(__FILE__, __LINE__);    \
+        }                                 \
+    } while (0)

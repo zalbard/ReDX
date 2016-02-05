@@ -1,53 +1,67 @@
 #include <cassert>
 #include "Scene.h"
+#include "Utility.h"
 #include "..\D3D12\Renderer.h"
-#include "..\D3D12\HelperStructs.hpp"
-#include "..\ThirdParty\stb_image.h"
-#pragma warning(disable : 4706)
-    #define TINYOBJLOADER_IMPLEMENTATION
-    #include "..\ThirdParty\tiny_obj_loader.h"
-#pragma warning(default : 4706)
+#include "..\ThirdParty\load_obj.h"
 
-Scene::Scene(const char* const objFilePath, const D3D12::Renderer& engine) {
+Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine)
+    : numObjects{0} {
     assert(objFilePath);
-    // Compute the .mtl base path from 'objFilePath'
-    const auto lastBackslash = strrchr(objFilePath, '\\');
-    const auto pathStrLen = lastBackslash - objFilePath + 1;
-    const auto mtlPath = static_cast<char*>(alloca(pathStrLen + 1));
-    strncpy_s(mtlPath, pathStrLen + 1, objFilePath, pathStrLen);
     // Load the .obj and the referenced .mtl files
     printInfo("Loading the scene from the file: %s.", objFilePath);
-    std::string warnMsg;
-    std::vector<tinyobj::shape_t>    shapes;
-    std::vector<tinyobj::material_t> materials;
-    if (!tinyobj::LoadObj(shapes, materials, warnMsg, objFilePath, mtlPath)) {
+    obj::File objFile;
+    if (!load_obj(std::string{objFilePath}, objFile)) {
         printError("Failed to load the file: %s.", objFilePath);
         TERMINATE();
-    } else if (!warnMsg.empty()) {
-        printInfo("%s", warnMsg.c_str());
     }
-    printInfo("Scene loaded successfully.");
-    // Initialize Direct3D resources
-    numObjects = static_cast<uint>(shapes.size());
-    vbos = std::make_unique<D3D12::VertexBuffer[]>(numObjects);
-    ibos = std::make_unique<D3D12::IndexBuffer[]>(numObjects);
-    std::vector<D3D12::Vertex> vertices;
-    for (uint i = 0, n = numObjects; i < n; ++i) {
-        vertices.clear();
-        const auto& mesh = shapes[i].mesh;
-        assert(mesh.positions.size() == mesh.normals.size() && 0 == mesh.positions.size() % 3);
-        for (uint j = 0, m = static_cast<uint>(mesh.positions.size()); j < m; j += 3) {
-            D3D12::Vertex v{{mesh.positions[j],
-                             mesh.positions[j + 1],
-                             mesh.positions[j + 2]},
-                            {mesh.normals[j],
-                             mesh.normals[j + 1],
-                             mesh.normals[j + 2]}};
-            vertices.emplace_back(std::move(v));
+    // Compute the total number of objects
+    for (const auto& object : objFile.objects) {
+        for (const auto& group : object.groups) {
+            if (!group.faces.empty()) { ++numObjects; }
         }
-        vbos[i] = engine.createVertexBuffer(static_cast<uint>(vertices.size()),
-                                            vertices.data());
-        ibos[i] = engine.createIndexBuffer(static_cast<uint>(mesh.indices.size()),
-                                           mesh.indices.data());
     }
+    // Populate vertex and index buffers
+    ibos = std::make_unique<D3D12::IndexBuffer[]>(numObjects);
+    std::vector<uint> indices;
+    indices.reserve(16384);
+    obj::IndexMap indexMap;
+    indexMap.reserve(2 * objFile.vertices.size());
+    uint objId = 0;
+    for (const auto& object : objFile.objects) {
+        for (const auto& group : object.groups) {
+            // Test whether the group contains any polygons
+            if (group.faces.empty()) { continue; }
+            indices.clear();
+            for (const auto& face : group.faces) {
+                // Populate the vertex index map
+                for (int i = 0; i < face.index_count; ++i) {
+                    if (indexMap.find(face.indices[i]) == indexMap.end()) {
+                        // Insert a new key-value pair (vertex index : position in buffer)
+                        indexMap.insert(std::make_pair(face.indices[i],
+                                                       static_cast<uint>(indexMap.size())));
+                    }
+                }
+                // Create indexed triangle(s)
+                const uint v0   = indexMap[face.indices[0]];
+                uint       prev = indexMap[face.indices[1]];
+                for (int i = 1, n = face.index_count - 1; i < n; ++i) {
+                    const uint next       = indexMap[face.indices[i + 1]];
+                    const uint triangle[] = {v0, prev, next};
+                    indices.insert(std::end(indices), triangle, triangle + 3);
+                    prev = next;
+                }
+            }
+            ibos[objId++] = engine.createIndexBuffer(static_cast<uint>(indices.size()),
+                                                     indices.data());
+        }
+    }
+    // Create a vertex buffer
+    std::vector<D3D12::Vertex> vertices{indexMap.size()};
+    for (const auto& entry : indexMap) {
+        const auto& pos  = objFile.vertices[entry.first.v];
+        const auto& norm = objFile.normals[entry.first.n];
+        vertices[entry.second] = {pos, norm};
+    }
+    vbo = engine.createVertexBuffer(static_cast<uint>(vertices.size()), vertices.data());
+    printInfo("Scene loaded successfully.");
 }

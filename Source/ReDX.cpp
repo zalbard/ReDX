@@ -18,13 +18,13 @@ int main(const int argc, const char* argv[]) {
         return -1;
     }
     // Create a window for rendering output
-    constexpr long resX = 1280;
-    constexpr long resY = 720;
-    Window::open(resX, resY);
+    Window::open(WND_WIDTH, WND_HEIGHT);
     // Initialize the renderer (internally uses the Window)
     D3D12::Renderer engine;
     // Provide the scene description
     const Scene scene{"Assets\\Sponza\\sponza.obj", engine};
+    // Copy the scene description to the device
+    engine.executeCopyCommands();
     // Start the timer to compute the frame time deltaT
     uint prevFrameT = HighResTimer::time_ms();
     // Main loop
@@ -54,7 +54,7 @@ int main(const int argc, const char* argv[]) {
         // The message queue is now empty; execute engine code
         engine.startFrame();
         for (uint i = 0, n = scene.numObjects; i < n; ++i) {
-            engine.draw(scene.vbos[i], scene.ibos[i]);
+            engine.draw(scene.vbo, scene.ibos[i]);
         }
         engine.finalizeFrame();
     }

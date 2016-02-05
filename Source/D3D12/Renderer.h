@@ -2,61 +2,60 @@
 
 #include <dxgi1_4.h>
 #include "HelperStructs.h"
+#include "..\Common\Constants.h"
 
 namespace D3D12 {
-    // Direct3D renderer
     class Renderer {
     public:
         Renderer();
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
-        // Creates a root signature according to its description
-        ComPtr<ID3D12RootSignature>
-        createRootSignature(const D3D12_ROOT_SIGNATURE_DESC& rootSignatureDesc) const;
-        // Creates a graphics pipeline state object (PSO) according to its description
-        ComPtr<ID3D12PipelineState>
-        createGraphicsPipelineState(const D3D12_GRAPHICS_PIPELINE_STATE_DESC& stateDesc) const;
-        // Creates a graphics command list in the specified initial state
-        ComPtr<ID3D12GraphicsCommandList>
-        createGraphicsCommandList(ID3D12PipelineState* const initialState);
+        // Creates a constant buffer for the data of the specified size in bytes
+        ConstantBuffer createConstantBuffer(const uint size, const void* const data);
         // Creates a vertex buffer for the vertex array with the specified number of vertices
-        VertexBuffer createVertexBuffer(const uint count, const Vertex* const vertices) const;
+        VertexBuffer createVertexBuffer(const uint count, const Vertex* const vertices);
         // Creates an index buffer for the index array with the specified number of indices
-        IndexBuffer createIndexBuffer(const uint count, const uint* const indices) const;
+        IndexBuffer createIndexBuffer(const uint count, const uint* const indices);
+        // Executes all pending copy commands, blocking the thread until they finish
+        void executeCopyCommands();
         // Initializes the frame rendering process
         void startFrame();
         // Draws the geometry from the indexed vertex buffer to the frame buffer
         void draw(const VertexBuffer& vbo, const IndexBuffer& ibo);
         // Finalizes the frame rendering process
         void finalizeFrame();
-        // Finishes the current frame and stops the execution
+        // Terminates the rendering process
         void stop();
     private:
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
-        // Creates a constant buffer of the specified size in bytes
-        // Optionally, it also uploads the data to the device
-        ComPtr<ID3D12Resource>
-        createConstantBuffer(const uint byteSz, const void* const data = nullptr) const;
+        // Uploads the data of the specified size in bytes and alignment
+        // to the memory buffer via an intermediate upload buffer
+        // Expects 'dst' in D3D12_RESOURCE_STATE_COPY_DEST, and transitions it to the 'finalState'
+        template<uint64 alignment>
+        void uploadData(MemoryBuffer& dst, const uint size, const void* const data,
+                        const D3D12_RESOURCE_STATES finalState);
     private:
-        // Double buffering is used: present the front, render to the back
-        static constexpr uint             m_bufferCount   = 2;
-        // Software rendering flag
-        static constexpr bool             m_useWarpDevice = false;
         /* Rendering parameters */
-        D3D12_VIEWPORT                    m_viewport;
-        D3D12_RECT                        m_scissorRect;
-        uint                              m_backBufferIndex;
+        D3D12_VIEWPORT                             m_viewport;
+        D3D12_RECT                                 m_scissorRect;
+        XMMATRIX                                   m_viewMat;
+        XMMATRIX                                   m_viewProjMat;
+        uint                                       m_backBufferIndex;
         /* Direct3D resources */
-        mutable ComPtr<ID3D12DeviceEx>    m_device;
-        WorkQueue<WorkType::GRAPHICS>     m_graphicsWorkQueue;
-        ComPtr<IDXGISwapChain3>           m_swapChain;
-        ComPtr<ID3D12Resource>            m_renderTargets[m_bufferCount];
-        DescriptorHeap<DescType::RTV>     m_rtvHeap;
-        ComPtr<ID3D12Resource>            m_depthBuffer;
-        DescriptorHeap<DescType::DSV>     m_dsvHeap;
+        ComPtr<ID3D12DeviceEx>                     m_device;
+        CommandQueue<QueueType::COPY, 1>           m_copyCommandQueue;
+        CommandQueue<QueueType::GRAPHICS, BUF_CNT> m_graphicsCommandQueue;
+        ComPtr<IDXGISwapChain3>                    m_swapChain;
+        DescriptorPool<DescType::RTV>              m_rtvPool;
+        ComPtr<ID3D12Resource>                     m_renderTargets[BUF_CNT];
+        DescriptorPool<DescType::DSV>              m_dsvPool;
+        ComPtr<ID3D12Resource>                     m_depthBuffer;
         /* Pipeline objects */
-        ComPtr<ID3D12RootSignature>       m_rootSignature;
-        ComPtr<ID3D12PipelineState>       m_pipelineState;
-        ComPtr<ID3D12GraphicsCommandList> m_graphicsCommandList;
+        UploadBuffer                               m_uploadBuffer;
+        ComPtr<ID3D12GraphicsCommandList>          m_copyCommandList;
+        ConstantBuffer                             m_constantBuffer;
+        ComPtr<ID3D12RootSignature>                m_graphicsRootSignature;
+        ComPtr<ID3D12PipelineState>                m_graphicsPipelineState;
+        ComPtr<ID3D12GraphicsCommandList>          m_graphicsCommandList;
     };
 } // namespace D3D12

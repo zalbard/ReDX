@@ -1,14 +1,14 @@
 #pragma once
 
-#include <Windows.h>
+#include <minwindef.h>
 #include "..\Common\Definitions.h"
 
 // Singleton GUI Window
 class Window {
 public:
    SINGLETON(Window);
-   // Creates a window; takes horizontal and vertical resolution as input
-   static void open(const long resX, const long resY);
+   // Creates a window; takes window dimensions (in pixels) as input
+   static void open(const long width, const long height);
    // Returns the handle of the window
    static HWND handle();
    // Returns the width (in pixels) of the drawable window area

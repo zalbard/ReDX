@@ -2,69 +2,15 @@
 
 #include <d3d12.h>
 #include <DirectXMath.h>
+#include <utility>
 #include <wrl\client.h>
+#include "..\Common\Constants.h"
 #include "..\Common\Definitions.h"
 
 namespace D3D12 {
     using DirectX::XMFLOAT3;
+    using DirectX::XMMATRIX;
     using Microsoft::WRL::ComPtr;
-
-    // Simple vertex representation
-    struct Vertex {
-        XMFLOAT3 position;                          // Object-space vertex coordinates
-        XMFLOAT3 normal;                            // World-space normal vector
-    };
-
-    // Direct3D vertex buffer
-    struct VertexBuffer {
-        ComPtr<ID3D12Resource>   resource;          // Direct3D buffer interface
-        D3D12_VERTEX_BUFFER_VIEW view;              // Buffer descriptor
-        uint                     count;             // Number of elements 
-    };
-
-    // Direct3D index buffer
-    struct IndexBuffer {
-        ComPtr<ID3D12Resource>  resource;           // Direct3D buffer interface
-        D3D12_INDEX_BUFFER_VIEW view;               // Buffer descriptor
-        uint                    count;              // Number of elements 
-    };
-
-    // Corresponds to Direct3D command list types
-    enum class WorkType {
-        GRAPHICS = D3D12_COMMAND_LIST_TYPE_DIRECT,  // Supports all types of commands
-        COMPUTE  = D3D12_COMMAND_LIST_TYPE_COMPUTE, // Supports compute and copy commands only
-        COPY     = D3D12_COMMAND_LIST_TYPE_COPY     // Supports copy commands only
-    };
-
-    // Direct3D command queue wrapper class
-    template <WorkType T>
-    class WorkQueue {
-    public:
-        WorkQueue() = default;
-        RULE_OF_ZERO(WorkQueue);
-        // Submits N command lists to the command queue for execution
-        template <uint N>
-        void execute(ID3D12CommandList* const (&commandLists)[N]) const;
-        // Waits (using a fence) until the queue execution is finished
-        void waitForCompletion();
-        // Waits for all GPU commands to finish, and stops synchronization
-        void finish();
-        /* Accessors */
-        ID3D12CommandQueue*            commandQueue();
-        const ID3D12CommandQueue*      commandQueue() const;
-        ID3D12CommandAllocator*        listAlloca();
-        const ID3D12CommandAllocator*  listAlloca() const;
-        ID3D12CommandAllocator*        bundleAlloca();
-        const ID3D12CommandAllocator*  bundleAlloca() const;
-    private:
-        friend struct ID3D12DeviceEx;
-        ComPtr<ID3D12CommandQueue>     m_commandQueue;
-        ComPtr<ID3D12CommandAllocator> m_listAlloca, m_bundleAlloca;
-        /* Synchronization objects */
-        ComPtr<ID3D12Fence>            m_fence;
-        uint64                         m_fenceValue;
-        HANDLE                         m_syncEvent;
-    };
 
     // Corresponds to Direct3D descriptor types
     enum class DescType {
@@ -75,15 +21,89 @@ namespace D3D12 {
         DSV         = D3D12_DESCRIPTOR_HEAP_TYPE_DSV          // Depth Stencil Views
     };
 
-    // Direct3D descriptor heap
+    // Corresponds to Direct3D command list types
+    enum class QueueType {
+        GRAPHICS = D3D12_COMMAND_LIST_TYPE_DIRECT,  // Supports all types of commands
+        COMPUTE  = D3D12_COMMAND_LIST_TYPE_COMPUTE, // Supports compute and copy commands only
+        COPY     = D3D12_COMMAND_LIST_TYPE_COPY     // Supports copy commands only
+    };
+
+    struct Vertex {
+        XMFLOAT3 position;                          // Object-space vertex coordinates
+        XMFLOAT3 normal;                            // World-space normal vector
+    };
+
+    struct MemoryBuffer {
+        ComPtr<ID3D12Resource>       resource;      // Buffer interface
+    protected:
+        // Prevent polymorphic deletion
+        ~MemoryBuffer() = default;
+    };
+
+    struct VertexBuffer: public MemoryBuffer {
+        D3D12_VERTEX_BUFFER_VIEW     view;          // Buffer descriptor
+        uint                         count() const; // Returns the number of elements
+    };
+
+    struct IndexBuffer: public MemoryBuffer {
+        D3D12_INDEX_BUFFER_VIEW      view;          // Buffer descriptor
+        uint                         count() const; // Returns the number of elements
+    };
+
+    struct ConstantBuffer: public MemoryBuffer {
+        D3D12_GPU_VIRTUAL_ADDRESS    location;      // GPU virtual address of the buffer
+    };
+
+    struct UploadBuffer: public MemoryBuffer {
+        UploadBuffer();
+        RULE_OF_FIVE_MOVE_ONLY(UploadBuffer);
+        byte*                        begin;         // CPU virtual memory-mapped address
+        uint                         offset;        // Offset from the beginning of the buffer
+        uint                         capacity;      // Buffer size in bytes
+    };
+
+    // Descriptor heap wrapper
     template <DescType T>
-    struct DescriptorHeap {
-        DescriptorHeap() = default;
-        RULE_OF_ZERO(DescriptorHeap);
-        ComPtr<ID3D12DescriptorHeap> nativePtr;     // Ref-counted descriptor heap pointer
-        D3D12_CPU_DESCRIPTOR_HANDLE  cpuBegin;      // CPU handle of the 1st descriptor of the heap
-        D3D12_GPU_DESCRIPTOR_HANDLE  gpuBegin;      // GPU handle of the 1st descriptor of the heap
+    struct DescriptorPool {
+        ComPtr<ID3D12DescriptorHeap> heap;          // Descriptor heap interface
+        D3D12_CPU_DESCRIPTOR_HANDLE  cpuBegin;      // CPU handle of the 1st descriptor of the pool
+        D3D12_GPU_DESCRIPTOR_HANDLE  gpuBegin;      // GPU handle of the 1st descriptor of the pool
         uint                         handleIncrSz;  // Handle increment size
+    };
+
+    // Command queue wrapper with N allocators
+    template <QueueType T, uint N>
+    struct CommandQueue {
+    public:
+        CommandQueue() = default;
+        RULE_OF_ZERO_MOVE_ONLY(CommandQueue);
+        // Submits a single command list for execution
+        void execute(ID3D12CommandList* const commandList) const;
+        // Submits S command lists for execution
+        template <uint S>
+        void execute(ID3D12CommandList* const (&commandLists)[S]) const;
+        // Inserts the fence into the queue
+        // Optionally, a custom value of the fence can be specified
+        void insertFence(const uint64 customFenceValue = 0);
+        // Blocks the execution of the current thread until the fence is reached
+        // Optionally, a custom value of the fence can be specified
+        void blockThread(const uint64 customFenceValue = 0);
+        // Waits for the queue to become drained, and stops synchronization
+        void finish();
+        /* Accessors */
+        ID3D12CommandQueue*            get();
+        const ID3D12CommandQueue*      get() const;
+        ID3D12CommandAllocator*        listAlloca();
+        const ID3D12CommandAllocator*  listAlloca() const;
+    private:
+        ComPtr<ID3D12CommandQueue>     m_interface;     // Command queue interface
+        ComPtr<ID3D12CommandAllocator> m_listAlloca[N]; // Command list allocator interface
+        /* Synchronization objects */
+        ComPtr<ID3D12Fence>            m_fence;
+        uint64                         m_fenceValue;
+        HANDLE                         m_syncEvent;
+        /* Accessors */
+        friend struct ID3D12DeviceEx;
     };
 
     // ID3D12Device extension; uses the same UUID as ID3D12Device
@@ -92,17 +112,16 @@ namespace D3D12 {
     public:
         ID3D12DeviceEx() = delete;
         RULE_OF_ZERO(ID3D12DeviceEx);
-        // Creates a work queue of the specified type
-        // Optionally, the work priority can be set to "high", and the GPU timeout can be disabled
-        template <WorkType T>
-        void CreateWorkQueue(WorkQueue<T>* const workQueue, 
-                             const bool isHighPriority    = false, 
-                             const bool disableGpuTimeout = false);
-        // Creates a descriptor heap of the given type, size and shader visibility
+        template<QueueType T, uint N>
+        void createCommandQueue(CommandQueue<T, N>* const commandQueue, 
+                                const bool isHighPriority    = false, 
+                                const bool disableGpuTimeout = false);
+        // Creates a descriptor pool of the specified type, capacity and shader visibility
         template <DescType T>
-        void CreateDescriptorHeap(DescriptorHeap<T>* const descriptorHeap,
-                                  const uint numDescriptors,
-                                  const bool isShaderVisible = false);
+        void createDescriptorPool(DescriptorPool<T>* const descriptorPool,
+                                  const uint count, const bool isShaderVisible = false);
+        // Creates a command queue of the specified type
+        // Optionally, the queue priority can be set to "high", and the GPU timeout can be disabled
         // Multi-GPU-adapter mask. Rendering is performed on a single GPU
         static constexpr uint nodeMask = 0;
     };

@@ -1,5 +1,7 @@
-#include <cwchar>
+#include <algorithm>
 #include <cassert>
+#include <cwchar>
+#include <Windows.h>
 #include "Window.h"
 
 // Static member initialization
@@ -21,9 +23,9 @@ LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
     }
 }
 
-void Window::open(const long resX, const long resY) {
+void Window::open(const long width, const long height) {
     // Set up the rectangle position and dimensions
-    m_rect = {0, 0, resX, resY};
+    m_rect = {0, 0, width, height};
     AdjustWindowRect(&m_rect, WS_OVERLAPPEDWINDOW, FALSE);
     // Set up the window class
     WNDCLASSEX wndClass    = {};
@@ -39,7 +41,7 @@ void Window::open(const long resX, const long resY) {
                           L"ReDX",
                           WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,  // Disable resizing
                           CW_USEDEFAULT, CW_USEDEFAULT,
-                          width(), height(),
+                          Window::width(), Window::height(),
                           nullptr, nullptr,                         // No parent window, no menus
                           GetModuleHandle(nullptr),
                           nullptr);
@@ -67,6 +69,6 @@ float Window::aspectRatio() {
 void Window::displayFrameTime(const uint dt) {
     // Only print up to 3 digits
     wchar_t title[] = L"ReDX : 000 ms";
-    swprintf(title + 7, 6, L"%u ms", min(dt, 999));
+    swprintf(title + 7, 7, L"%u ms", std::min(dt, 999u));
     SetWindowText(m_hwnd, title);
 }

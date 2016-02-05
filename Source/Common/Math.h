@@ -2,8 +2,21 @@
 
 #include <DirectXMath.h>
 
-// Computes an Infinite Reversed Projection Matrix
-// Parameters: the width and the height of the viewport, the horizontal FoV
+// Computes the square of the value
+template <typename T>
+static inline T sq(const T v) {
+    return v * v;
+}
+
+// Computes the inverse square of the value
+template <typename T>
+static inline float invSq(const T v) {
+    return 1.f / (v * v);
+}
+
+// Computes an infinite reversed projection matrix
+// Parameters: the width and the height of the viewport (in pixels),
+// and the horizontal field of view (in radians)
 static inline DirectX::XMMATRIX InfRevProjMatLH(const float viewWidth, const float viewHeight,
                                                 const float fovY) {
     const float cotHalfFovY    = cosf(0.5f * fovY) / sinf(0.5f * fovY);
