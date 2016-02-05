@@ -9,6 +9,8 @@ namespace D3D12 {
     public:
         Renderer();
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
+        // Creates a constant buffer for the data of the specified size in bytes
+        ConstantBuffer createConstantBuffer(const uint size, const void* const data);
         // Creates a vertex buffer for the vertex array with the specified number of vertices
         VertexBuffer createVertexBuffer(const uint count, const Vertex* const vertices);
         // Creates an index buffer for the index array with the specified number of indices
@@ -36,6 +38,8 @@ namespace D3D12 {
         /* Rendering parameters */
         D3D12_VIEWPORT                             m_viewport;
         D3D12_RECT                                 m_scissorRect;
+        XMMATRIX                                   m_viewMat;
+        XMMATRIX                                   m_viewProjMat;
         uint                                       m_backBufferIndex;
         /* Direct3D resources */
         ComPtr<ID3D12DeviceEx>                     m_device;
@@ -46,9 +50,10 @@ namespace D3D12 {
         ComPtr<ID3D12Resource>                     m_renderTargets[BUF_CNT];
         DescriptorPool<DescType::DSV>              m_dsvPool;
         ComPtr<ID3D12Resource>                     m_depthBuffer;
-        UploadBuffer                               m_uploadBuffer;
         /* Pipeline objects */
+        UploadBuffer                               m_uploadBuffer;
         ComPtr<ID3D12GraphicsCommandList>          m_copyCommandList;
+        ConstantBuffer                             m_constantBuffer;
         ComPtr<ID3D12RootSignature>                m_graphicsRootSignature;
         ComPtr<ID3D12PipelineState>                m_graphicsPipelineState;
         ComPtr<ID3D12GraphicsCommandList>          m_graphicsCommandList;

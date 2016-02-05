@@ -66,14 +66,6 @@ Renderer::Renderer() {
         /* right */  resX,
         /* bottom */ resY
     };
-
-    //const auto view = DirectX::XMMatrixLookAtLH({877.909f, 318.274f, 34.6546f},
-    //                                            {863.187f, 316.600f, 34.2517f},
-    //                                            {0.f, 1.f, 0.f});
-    //const auto proj = InfRevProjMatLH(m_viewport.Width, m_viewport.Height, DirectX::XM_PI / 3.f);
-    //const auto viewProj = view * proj;
-    //viewProj;
-
     // Enable the Direct3D debug layer
     #ifdef _DEBUG
     {
@@ -188,25 +180,6 @@ Renderer::Renderer() {
         };
         m_device->CreateDepthStencilView(m_depthBuffer.Get(), &dsvDesc, m_dsvPool.cpuBegin);
     }
-    // Create a persistently mapped buffer on the upload heap
-    {
-        m_uploadBuffer.capacity = UPLOAD_BUF_SIZE;
-        m_uploadBuffer.offset   = 0;
-        // Allocate the buffer on the upload heap
-        const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
-        const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(m_uploadBuffer.capacity);
-        CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, 
-                                                     &bufferDesc,
-                                                     D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-                                                     IID_PPV_ARGS(&m_uploadBuffer.resource)),
-                   "Failed to allocate an upload buffer.");
-        // Note: we don't intend to read from this resource on the CPU
-        const D3D12_RANGE emptyReadRange{0, 0};
-        // Map the buffer to a range in the CPU virtual address space
-        CHECK_CALL(m_uploadBuffer.resource->Map(0, &emptyReadRange,
-                                                reinterpret_cast<void**>(&m_uploadBuffer.begin)),
-                   "Failed to map the upload buffer.");
-    }
     // Set up the rendering pipeline
     configurePipeline();
 }
@@ -234,6 +207,25 @@ static inline ComPtr<ID3DBlob> loadAndCompileShader(const wchar_t* const pathAnd
 }
 
 void Renderer::configurePipeline() {
+    // Create a persistently mapped buffer on the upload heap
+    {
+        m_uploadBuffer.capacity = UPLOAD_BUF_SIZE;
+        m_uploadBuffer.offset   = 0;
+        // Allocate the buffer on the upload heap
+        const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
+        const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(m_uploadBuffer.capacity);
+        CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, 
+                                                     &bufferDesc,
+                                                     D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+                                                     IID_PPV_ARGS(&m_uploadBuffer.resource)),
+                   "Failed to allocate an upload buffer.");
+        // Note: we don't intend to read from this resource on the CPU
+        const D3D12_RANGE emptyReadRange{0, 0};
+        // Map the buffer to a range in the CPU virtual address space
+        CHECK_CALL(m_uploadBuffer.resource->Map(0, &emptyReadRange,
+                                                reinterpret_cast<void**>(&m_uploadBuffer.begin)),
+                   "Failed to map the upload buffer.");
+    }
     // Create a copy command list in the default state
     CHECK_CALL(m_device->CreateCommandList(m_device->nodeMask, D3D12_COMMAND_LIST_TYPE_COPY,
                                            m_copyCommandQueue.listAlloca(), nullptr,
@@ -241,8 +233,10 @@ void Renderer::configurePipeline() {
                "Failed to create a copy command list.");
     // Create a graphics root signature
     {
+        CD3DX12_ROOT_PARAMETER vertexCBV;
+        vertexCBV.InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
         // Fill out the root signature description
-        const auto rootSigneDesc = D3D12_ROOT_SIGNATURE_DESC{0, nullptr, 0, nullptr,
+        const auto rootSigneDesc = D3D12_ROOT_SIGNATURE_DESC{1, &vertexCBV, 0, nullptr,
                                    D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT};
         // Serialize a root signature from the description
         ComPtr<ID3DBlob> signature, error;
@@ -359,56 +353,82 @@ void Renderer::configurePipeline() {
                                            m_graphicsPipelineState.Get(),
                                            IID_PPV_ARGS(&m_graphicsCommandList)),
                "Failed to create a graphics command list.");
+    // Compute the view and the view-projection matrices
+    m_viewMat = DirectX::XMMatrixLookAtLH({877.909f, 318.274f, 34.6546f},
+                                          {863.187f, 316.600f, 34.2517f},
+                                          {0.f, 1.f, 0.f});
+    constexpr float verticalFoV = 3.141592654f / 3.f;
+    m_viewProjMat = m_viewMat * InfRevProjMatLH(m_viewport.Width, m_viewport.Height, verticalFoV);
+    // Create a constant buffer for the view-projection matrix
+    // The HLSL copy of the matrix has to be transposed
+    const XMMATRIX transposedViewProj = DirectX::XMMatrixTranspose(m_viewProjMat);
+    m_constantBuffer = createConstantBuffer(sizeof(transposedViewProj), &transposedViewProj);
+}
+
+ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* const data) {
+    assert(data && size >= 4);
+    ConstantBuffer buffer;
+    // Allocate the buffer on the default heap
+    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
+    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
+                                                 &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST,
+                                                 nullptr, IID_PPV_ARGS(&buffer.resource)),
+               "Failed to allocate a constant buffer.");
+    // Copy the data to video memory using the upload buffer
+    constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    uploadData<alignment>(buffer, size, data, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    // Initialize the constant buffer location
+    buffer.location = buffer.resource->GetGPUVirtualAddress();
+    return buffer;
 }
 
 VertexBuffer Renderer::createVertexBuffer(const uint count, const Vertex* const vertices) {
     assert(vertices && count >= 3);
-    VertexBuffer vertexBuffer;
-    const uint vertexBufferSize = count * sizeof(Vertex);
+    VertexBuffer buffer;
+    const uint size = count * sizeof(Vertex);
     // Allocate the buffer on the default heap
     const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
-    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
+    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
                                                  &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST,
-                                                 nullptr, IID_PPV_ARGS(&vertexBuffer.resource)),
+                                                 nullptr, IID_PPV_ARGS(&buffer.resource)),
                "Failed to allocate a vertex buffer.");
     // Copy the vertices to video memory using the upload buffer
     // Max. alignment requirement for vertex data is 4 bytes
     constexpr uint64 alignment = 4;
-    uploadData<alignment>(vertexBuffer, vertexBufferSize, vertices,
-                          D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    uploadData<alignment>(buffer, size, vertices, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
     // Initialize the vertex buffer view
-    vertexBuffer.view = D3D12_VERTEX_BUFFER_VIEW{
-        /* BufferLocation */ vertexBuffer.resource->GetGPUVirtualAddress(),
-        /* SizeInBytes */    vertexBufferSize,
+    buffer.view = D3D12_VERTEX_BUFFER_VIEW{
+        /* BufferLocation */ buffer.resource->GetGPUVirtualAddress(),
+        /* SizeInBytes */    size,
         /* StrideInBytes */  sizeof(Vertex)
     };
-    return vertexBuffer;
+    return buffer;
 }
 
 IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indices) {
     assert(indices && count >= 3);
-    IndexBuffer indexBuffer;
-    const uint indexBufferSize = count * sizeof(uint);
+    IndexBuffer buffer;
+    const uint size = count * sizeof(uint);
     // Allocate the buffer on the default heap
     const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
-    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(indexBufferSize);
+    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
                                                  &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST,
-                                                 nullptr, IID_PPV_ARGS(&indexBuffer.resource)),
+                                                 nullptr, IID_PPV_ARGS(&buffer.resource)),
                "Failed to allocate an index buffer.");
     // Copy the indices to video memory using the upload buffer
     // Max. alignment requirement for indices is 4 bytes
     constexpr uint64 alignment = 4;
-    uploadData<alignment>(indexBuffer, indexBufferSize, indices,
-                          D3D12_RESOURCE_STATE_INDEX_BUFFER);
+    uploadData<alignment>(buffer, size, indices, D3D12_RESOURCE_STATE_INDEX_BUFFER);
     // Initialize the index buffer view
-    indexBuffer.view = D3D12_INDEX_BUFFER_VIEW{
-        /* BufferLocation */ indexBuffer.resource->GetGPUVirtualAddress(),
-        /* SizeInBytes */    indexBufferSize,
+    buffer.view = D3D12_INDEX_BUFFER_VIEW{
+        /* BufferLocation */ buffer.resource->GetGPUVirtualAddress(),
+        /* SizeInBytes */    size,
         /* Format */         DXGI_FORMAT_R32_UINT
     };
-    return indexBuffer;
+    return buffer;
 }
 
 template<uint64 alignment>
@@ -483,6 +503,7 @@ void Renderer::startFrame() {
     m_graphicsCommandList->ResourceBarrier(1, &barrier);
     // Set the necessary state
     m_graphicsCommandList->SetGraphicsRootSignature(m_graphicsRootSignature.Get());
+    m_graphicsCommandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer.location);
     m_graphicsCommandList->RSSetViewports(1, &m_viewport);
     m_graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
     // Set the back buffer as the render target

@@ -9,6 +9,7 @@
 
 namespace D3D12 {
     using DirectX::XMFLOAT3;
+    using DirectX::XMMATRIX;
     using Microsoft::WRL::ComPtr;
 
     // Corresponds to Direct3D descriptor types
@@ -47,6 +48,10 @@ namespace D3D12 {
     struct IndexBuffer: public MemoryBuffer {
         D3D12_INDEX_BUFFER_VIEW      view;          // Buffer descriptor
         uint                         count() const; // Returns the number of elements
+    };
+
+    struct ConstantBuffer: public MemoryBuffer {
+        D3D12_GPU_VIRTUAL_ADDRESS    location;      // GPU virtual address of the buffer
     };
 
     struct UploadBuffer: public MemoryBuffer {
