@@ -21,6 +21,8 @@ namespace D3D12 {
         void draw(const VertexBuffer& vbo, const IndexBuffer& ibo);
         // Finalizes the frame rendering process
         void finalizeFrame();
+        // Terminates the rendering process
+        void stop();
     private:
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
@@ -32,24 +34,23 @@ namespace D3D12 {
                         const D3D12_RESOURCE_STATES finalState);
     private:
         /* Rendering parameters */
-        D3D12_VIEWPORT                    m_viewport;
-        D3D12_RECT                        m_scissorRect;
-        uint                              m_backBufferIndex;
-        bool                              pendingGraphicsCommands;
-        /* Pipeline objects */
-        ComPtr<ID3D12GraphicsCommandList> m_copyCommandList;
-        ComPtr<ID3D12RootSignature>       m_graphicsRootSignature;
-        ComPtr<ID3D12PipelineState>       m_graphicsPipelineState;
-        ComPtr<ID3D12GraphicsCommandList> m_graphicsCommandList;
+        D3D12_VIEWPORT                             m_viewport;
+        D3D12_RECT                                 m_scissorRect;
+        uint                                       m_backBufferIndex;
         /* Direct3D resources */
-        ComPtr<ID3D12DeviceEx>            m_device;
-        ComPtr<IDXGISwapChain3>           m_swapChain;
-        DescriptorPool<DescType::RTV>     m_rtvPool;
-        ComPtr<ID3D12Resource>            m_renderTargets[BUFFER_COUNT];
-        DescriptorPool<DescType::DSV>     m_dsvPool;
-        ComPtr<ID3D12Resource>            m_depthBuffer;
-        UploadBuffer                      m_uploadBuffer;
-        CommandQueue<QueueType::COPY>     m_copyCommandQueue;
-        CommandQueue<QueueType::GRAPHICS> m_graphicsCommandQueue;
+        ComPtr<ID3D12DeviceEx>                     m_device;
+        CommandQueue<QueueType::COPY, 1>           m_copyCommandQueue;
+        CommandQueue<QueueType::GRAPHICS, BUF_CNT> m_graphicsCommandQueue;
+        ComPtr<IDXGISwapChain3>                    m_swapChain;
+        DescriptorPool<DescType::RTV>              m_rtvPool;
+        ComPtr<ID3D12Resource>                     m_renderTargets[BUF_CNT];
+        DescriptorPool<DescType::DSV>              m_dsvPool;
+        ComPtr<ID3D12Resource>                     m_depthBuffer;
+        UploadBuffer                               m_uploadBuffer;
+        /* Pipeline objects */
+        ComPtr<ID3D12GraphicsCommandList>          m_copyCommandList;
+        ComPtr<ID3D12RootSignature>                m_graphicsRootSignature;
+        ComPtr<ID3D12PipelineState>                m_graphicsPipelineState;
+        ComPtr<ID3D12GraphicsCommandList>          m_graphicsCommandList;
     };
 } // namespace D3D12

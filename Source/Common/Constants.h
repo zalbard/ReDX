@@ -7,8 +7,8 @@
 constexpr long        WND_WIDTH       = 1280;
 // Vertical window size (in pixels). Not the same as the rendering resolution!
 constexpr long        WND_HEIGHT      = 720;
-// Double buffering: present the front, render to the back
-constexpr uint        BUFFER_COUNT    = 2;
+// Triple buffering
+constexpr uint        BUF_CNT         = 3;
 // Software rendering flag
 constexpr bool        USE_WARP_DEVICE = false;
 // Render target view format

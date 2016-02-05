@@ -4,6 +4,7 @@
 #include <DirectXMath.h>
 #include <utility>
 #include <wrl\client.h>
+#include "..\Common\Constants.h"
 #include "..\Common\Definitions.h"
 
 namespace D3D12 {
@@ -65,30 +66,33 @@ namespace D3D12 {
         uint                         handleIncrSz;  // Handle increment size
     };
 
-    // Command queue wrapper
-    template <QueueType T>
+    // Command queue wrapper with N allocators
+    template <QueueType T, uint N>
     struct CommandQueue {
     public:
         CommandQueue() = default;
-        RULE_OF_FIVE_MOVE_ONLY(CommandQueue);
+        RULE_OF_ZERO_MOVE_ONLY(CommandQueue);
         // Submits a single command list for execution
         void execute(ID3D12CommandList* const commandList) const;
-        // Submits N command lists for execution
-        template <uint N>
-        void execute(ID3D12CommandList* const (&commandLists)[N]) const;
-        // Waits (using a fence) until the queue execution is finished
-        void waitForCompletion();
+        // Submits S command lists for execution
+        template <uint S>
+        void execute(ID3D12CommandList* const (&commandLists)[S]) const;
+        // Inserts the fence into the queue
+        // Optionally, a custom value of the fence can be specified
+        void insertFence(const uint64 customFenceValue = 0);
+        // Blocks the execution of the current thread until the fence is reached
+        // Optionally, a custom value of the fence can be specified
+        void blockThread(const uint64 customFenceValue = 0);
+        // Waits for the queue to become drained, and stops synchronization
+        void finish();
         /* Accessors */
         ID3D12CommandQueue*            get();
         const ID3D12CommandQueue*      get() const;
         ID3D12CommandAllocator*        listAlloca();
         const ID3D12CommandAllocator*  listAlloca() const;
-        ID3D12CommandAllocator*        bundleAlloca();
-        const ID3D12CommandAllocator*  bundleAlloca() const;
     private:
         ComPtr<ID3D12CommandQueue>     m_interface;     // Command queue interface
-        ComPtr<ID3D12CommandAllocator> m_listAlloca,    // Command list allocator interface
-                                       m_bundleAlloca;  // Bundle allocator interface
+        ComPtr<ID3D12CommandAllocator> m_listAlloca[N]; // Command list allocator interface
         /* Synchronization objects */
         ComPtr<ID3D12Fence>            m_fence;
         uint64                         m_fenceValue;
@@ -103,16 +107,16 @@ namespace D3D12 {
     public:
         ID3D12DeviceEx() = delete;
         RULE_OF_ZERO(ID3D12DeviceEx);
+        template<QueueType T, uint N>
+        void createCommandQueue(CommandQueue<T, N>* const commandQueue, 
+                                const bool isHighPriority    = false, 
+                                const bool disableGpuTimeout = false);
         // Creates a descriptor pool of the specified type, capacity and shader visibility
         template <DescType T>
         void createDescriptorPool(DescriptorPool<T>* const descriptorPool,
                                   const uint count, const bool isShaderVisible = false);
         // Creates a command queue of the specified type
         // Optionally, the queue priority can be set to "high", and the GPU timeout can be disabled
-        template <QueueType T>
-        void createCommandQueue(CommandQueue<T>* const commandQueue, 
-                                const bool isHighPriority    = false, 
-                                const bool disableGpuTimeout = false);
         // Multi-GPU-adapter mask. Rendering is performed on a single GPU
         static constexpr uint nodeMask = 0;
     };

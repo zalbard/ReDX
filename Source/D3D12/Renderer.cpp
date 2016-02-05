@@ -47,8 +47,7 @@ static inline ComPtr<ID3D12DeviceEx> createHardwareDevice(IDXGIFactory4* const f
     }
 }
 
-Renderer::Renderer()
-    : pendingGraphicsCommands{false} {
+Renderer::Renderer() {
     const long resX = Window::width();
     const long resY = Window::height();
     // Configure the viewport
@@ -125,7 +124,7 @@ Renderer::Renderer()
             /* BufferDesc */   bufferDesc,
             /* SampleDesc */   sampleDesc,
             /* BufferUsage */  DXGI_USAGE_RENDER_TARGET_OUTPUT,
-            /* BufferCount */  BUFFER_COUNT,
+            /* BufferCount */  BUF_CNT,
             /* OutputWindow */ Window::handle(),
             /* Windowed */     TRUE,
             /* SwapEffect */   DXGI_SWAP_EFFECT_FLIP_DISCARD,
@@ -138,12 +137,12 @@ Renderer::Renderer()
                    "Failed to create a swap chain.");
     }
     // Create a render target view (RTV) descriptor pool
-    m_device->createDescriptorPool(&m_rtvPool, BUFFER_COUNT);
+    m_device->createDescriptorPool(&m_rtvPool, BUF_CNT);
     // Create 2x RTVs
     {
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvPool.cpuBegin};
         // Create an RTV for each frame buffer
-        for (uint bufferIdx = 0; bufferIdx < BUFFER_COUNT; ++bufferIdx) {
+        for (uint bufferIdx = 0; bufferIdx < BUF_CNT; ++bufferIdx) {
             CHECK_CALL(m_swapChain->GetBuffer(bufferIdx, IID_PPV_ARGS(&m_renderTargets[bufferIdx])),
                        "Failed to acquire a swap chain buffer.");
             m_device->CreateRenderTargetView(m_renderTargets[bufferIdx].Get(), nullptr, rtvHandle);
@@ -451,7 +450,6 @@ void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const 
     const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(dst.resource.Get(),
                          D3D12_RESOURCE_STATE_COPY_DEST, finalState);
     m_graphicsCommandList->ResourceBarrier(1, &barrier);
-    pendingGraphicsCommands = true;
     // Set the offset to the end of the data
     m_uploadBuffer.offset += size;
 }
@@ -461,7 +459,8 @@ void D3D12::Renderer::executeCopyCommands() {
     CHECK_CALL(m_copyCommandList->Close(), "Failed to close the copy command list.");
     m_copyCommandQueue.execute(m_copyCommandList.Get());
     // Wait for the copy command list execution to finish
-    m_copyCommandQueue.waitForCompletion();
+    m_copyCommandQueue.insertFence();
+    m_copyCommandQueue.blockThread();
     // Command list allocators can only be reset when the associated 
     // command lists have finished execution on the GPU
     CHECK_CALL(m_copyCommandQueue.listAlloca()->Reset(),
@@ -475,22 +474,6 @@ void D3D12::Renderer::executeCopyCommands() {
 }
 
 void Renderer::startFrame() {
-    // Wait until all the previously issued commands have been executed
-    m_graphicsCommandQueue.waitForCompletion();
-    // Check whether the graphics command list is empty
-    if (!pendingGraphicsCommands) {
-        // Command list allocators can only be reset when the associated 
-        // command lists have finished execution on the GPU
-        CHECK_CALL(m_graphicsCommandQueue.listAlloca()->Reset(),
-                   "Failed to reset the graphics command list allocator.");
-        // After a command list has been executed, 
-        // it can then be reset at any time (and must be before re-recording)
-        CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsCommandQueue.listAlloca(),
-                                                m_graphicsPipelineState.Get()),
-                   "Failed to reset the graphics command list.");
-        // Since we are about to issue commands, set the flag now
-        pendingGraphicsCommands = true;
-    }
     // Transition the back buffer state: Presenting -> Render Target
     const auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
     const auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
@@ -531,9 +514,25 @@ void Renderer::finalizeFrame() {
     // Finalize and execute the command list
     CHECK_CALL(m_graphicsCommandList->Close(), "Failed to close the graphics command list.");
     m_graphicsCommandQueue.execute(m_graphicsCommandList.Get());
-    pendingGraphicsCommands = false;
     // Present the frame
     CHECK_CALL(m_swapChain->Present(1, 0), "Failed to display the frame buffer.");
+    // Wait until all the previously issued commands have been executed
+    m_graphicsCommandQueue.insertFence();
+    m_graphicsCommandQueue.blockThread();
+    // Command list allocators can only be reset when the associated 
+    // command lists have finished execution on the GPU
+    CHECK_CALL(m_graphicsCommandQueue.listAlloca()->Reset(),
+               "Failed to reset the graphics command list allocator.");
+    // After a command list has been executed, 
+    // it can then be reset at any time (and must be before re-recording)
+    CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsCommandQueue.listAlloca(),
+                                            m_graphicsPipelineState.Get()),
+               "Failed to reset the graphics command list.");
     // Update the index of the frame buffer used for drawing
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
+}
+
+void Renderer::stop() {
+    m_copyCommandQueue.finish();
+    m_graphicsCommandQueue.finish();
 }
