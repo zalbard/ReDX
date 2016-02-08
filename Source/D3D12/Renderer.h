@@ -10,11 +10,13 @@ namespace D3D12 {
         Renderer();
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
         // Creates a constant buffer for the data of the specified size in bytes
-        ConstantBuffer createConstantBuffer(const uint size, const void* const data);
+        ConstantBuffer createConstantBuffer(const uint size, const void* const data = nullptr);
         // Creates a vertex buffer for the vertex array with the specified number of vertices
         VertexBuffer createVertexBuffer(const uint count, const Vertex* const vertices);
         // Creates an index buffer for the index array with the specified number of indices
         IndexBuffer createIndexBuffer(const uint count, const uint* const indices);
+        // Sets the view-projection matrix in the shaders
+        void setViewProjMatrix(const XMMATRIX& viewProjMat);
         // Executes all pending copy commands, blocking the thread until they finish
         void executeCopyCommands();
         // Initializes the frame rendering process
@@ -38,8 +40,6 @@ namespace D3D12 {
         /* Rendering parameters */
         D3D12_VIEWPORT                             m_viewport;
         D3D12_RECT                                 m_scissorRect;
-        XMMATRIX                                   m_viewMat;
-        XMMATRIX                                   m_viewProjMat;
         uint                                       m_backBufferIndex;
         /* Direct3D resources */
         ComPtr<ID3D12DeviceEx>                     m_device;

@@ -353,30 +353,27 @@ void Renderer::configurePipeline() {
                                            m_graphicsPipelineState.Get(),
                                            IID_PPV_ARGS(&m_graphicsCommandList)),
                "Failed to create a graphics command list.");
-    // Compute the view and the view-projection matrices
-    m_viewMat = DirectX::XMMatrixLookAtLH({877.909f, 318.274f, 34.6546f},
-                                          {863.187f, 316.600f, 34.2517f},
-                                          {0.f, 1.f, 0.f});
-    m_viewProjMat = m_viewMat * InfRevProjMatLH(m_viewport.Width, m_viewport.Height, VERTICAL_FOV);
-    // Create a constant buffer for the view-projection matrix
-    // The HLSL copy of the matrix has to be transposed
-    const XMMATRIX transposedViewProj = DirectX::XMMatrixTranspose(m_viewProjMat);
-    m_constantBuffer = createConstantBuffer(sizeof(transposedViewProj), &transposedViewProj);
+    // Create a constant buffer
+    m_constantBuffer = createConstantBuffer(sizeof(XMMATRIX));
 }
 
 ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* const data) {
-    assert(data && size >= 4);
+    assert(size >= 4);
     ConstantBuffer buffer;
     // Allocate the buffer on the default heap
     const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
     const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
+    const auto bufferState    = data ? D3D12_RESOURCE_STATE_COPY_DEST
+                                     : D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST,
+                                                 &bufferDesc, bufferState,
                                                  nullptr, IID_PPV_ARGS(&buffer.resource)),
                "Failed to allocate a constant buffer.");
-    // Copy the data to video memory using the upload buffer
-    constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-    uploadData<alignment>(buffer, size, data, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    if (data) {
+        // Copy the data to video memory using the upload buffer
+        constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+        uploadData<alignment>(buffer, size, data, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    }
     // Initialize the constant buffer location
     buffer.location = buffer.resource->GetGPUVirtualAddress();
     return buffer;
@@ -428,6 +425,19 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
         /* Format */         DXGI_FORMAT_R32_UINT
     };
     return buffer;
+}
+
+void Renderer::setViewProjMatrix(const XMMATRIX& viewProjMat) {
+    // Transition the constant buffer state: Constant Buffer -> Copy Destination
+    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_constantBuffer.resource.Get(),
+                                                   D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+                                                   D3D12_RESOURCE_STATE_COPY_DEST);
+    m_graphicsCommandList->ResourceBarrier(1, &barrier);
+    // Copy the data to video memory using the upload buffer
+    constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    const XMMATRIX transposedViewProj = DirectX::XMMatrixTranspose(viewProjMat);
+    uploadData<alignment>(m_constantBuffer, sizeof(transposedViewProj), &transposedViewProj,
+                          D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 }
 
 template<uint64 alignment>

@@ -1,3 +1,4 @@
+#include "Common\Camera.h"
 #include "Common\Scene.h"
 #include "Common\Timer.h"
 #include "Common\Utility.h"
@@ -23,7 +24,13 @@ int main(const int argc, const char* argv[]) {
     D3D12::Renderer engine;
     // Provide the scene description
     const Scene scene{"Assets\\Sponza\\sponza.obj", engine};
-    // Copy the scene description to the device
+    // Set up the camera
+    PerspectiveCamera pCam{Window::width(), Window::height(), VERTICAL_FOV,
+                           /* pos */ {877.909f, 318.274f, 34.6546f},
+                           /* dir */ {-14.722f, -1.674f, -0.403f},
+                           /* up  */ {0.f, 1.f, 0.f}};
+    engine.setViewProjMatrix(pCam.computeViewProjMatrix());
+    // Copy the data to the device
     engine.executeCopyCommands();
     // Start the timer to compute the frame time deltaT
     uint prevFrameT = HighResTimer::time_ms();

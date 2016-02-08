@@ -159,6 +159,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Source\Common\Camera.cpp" />
     <ClCompile Include="Source\Common\Scene.cpp" />
     <ClCompile Include="Source\Common\Timer.cpp" />
     <ClCompile Include="Source\D3D12\Renderer.cpp" />
@@ -167,6 +168,7 @@
     <ClCompile Include="Source\UI\Window.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\Common\Camera.h" />
     <ClInclude Include="Source\Common\Constants.h" />
     <ClInclude Include="Source\Common\Definitions.h" />
     <ClInclude Include="Source\Common\Math.h" />
