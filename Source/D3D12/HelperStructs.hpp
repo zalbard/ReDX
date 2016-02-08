@@ -174,8 +174,7 @@ inline void D3D12::ID3D12DeviceEx::createDescriptorPool(DescriptorPool<T>* const
         /* NodeMask */       nodeMask
     };
     // Create a descriptor heap
-    const auto device = static_cast<ID3D12Device*>(this);
-    CHECK_CALL(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorPool->heap)),
+    CHECK_CALL(CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorPool->heap)),
                "Failed to create a descriptor heap.");
     // Get handles for the first descriptor of the heap
     descriptorPool->cpuBegin = descriptorPool->heap->GetCPUDescriptorHandleForHeapStart();
