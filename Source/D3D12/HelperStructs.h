@@ -84,10 +84,14 @@ namespace D3D12 {
         void execute(ID3D12CommandList* const (&commandLists)[S]) const;
         // Inserts the fence into the queue
         // Optionally, a custom value of the fence can be specified
-        void insertFence(const uint64 customFenceValue = 0);
-        // Blocks the execution of the current thread until the fence is reached
+        // Returns the inserted fence and its value
+        std::pair<ID3D12Fence*, uint64> insertFence(const uint64 customFenceValue = 0);
+        // Blocks the execution of the thread until the fence is reached
         // Optionally, a custom value of the fence can be specified
         void blockThread(const uint64 customFenceValue = 0);
+        // Blocks the execution of the queue until the fence
+        // with the specified value is reached
+        void blockQueue(ID3D12Fence* const fence, const uint64 fenceValue);
         // Waits for the queue to become drained, and stops synchronization
         void finish();
         /* Accessors */

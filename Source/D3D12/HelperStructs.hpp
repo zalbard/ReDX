@@ -60,14 +60,17 @@ inline void D3D12::CommandQueue<T, N>::execute(ID3D12CommandList* const (&comman
 }
 
 template<D3D12::QueueType T, uint N>
-inline void D3D12::CommandQueue<T, N>::insertFence(const uint64 customFenceValue) {
+inline std::pair<ID3D12Fence*, uint64>
+D3D12::CommandQueue<T, N>::insertFence(const uint64 customFenceValue) {
     // Insert a fence into the command queue with a value appropriate for N-buffering
     // Once we reach the fence in the queue, a signal will go off,
     // which will set the internal value of the fence object to 'insertedValue'
     const uint64 insertedValue = customFenceValue ? customFenceValue
                                                   : N + m_fenceValue++;
-    CHECK_CALL(m_interface->Signal(m_fence.Get(), insertedValue),
+    ID3D12Fence* const fence = m_fence.Get();
+    CHECK_CALL(m_interface->Signal(fence, insertedValue),
                "Failed to insert the fence into the command queue.");
+    return {fence, insertedValue};
 }
 
 template <D3D12::QueueType T, uint N>
@@ -81,6 +84,12 @@ inline void D3D12::CommandQueue<T, N>::blockThread(const uint64 customFenceValue
                    "Failed to set a synchronization event.");
         WaitForSingleObject(m_syncEvent, INFINITE);
     }
+}
+
+template<D3D12::QueueType T, uint N>
+inline void D3D12::CommandQueue<T, N>::blockQueue(ID3D12Fence* const fence,
+                                                    const uint64 fenceValue) {
+    CHECK_CALL(Wait(fence, fenceValue), "Failed to start waiting for the fence.");
 }
 
 template <D3D12::QueueType T, uint N>
