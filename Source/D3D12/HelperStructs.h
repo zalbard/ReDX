@@ -121,7 +121,7 @@ namespace D3D12 {
         void createDescriptorPool(DescriptorPool<T>* const descriptorPool,
                                   const uint count, const bool isShaderVisible = false);
         // Creates a command queue of the specified type
-        // Optionally, the queue priority can be set to "high", and the GPU timeout can be disabled
+        // Optionally, the queue priority can be set to 'high', and the GPU timeout can be disabled
         // Multi-GPU-adapter mask. Rendering is performed on a single GPU
         static constexpr uint nodeMask = 0;
     };
