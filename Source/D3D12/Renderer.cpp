@@ -463,7 +463,7 @@ void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const 
     // Check whether the upload buffer has sufficient space left
     const int64 remainingCapacity = m_uploadBuffer.capacity - updatedOffset;
     if (remainingCapacity < size) {
-        executeCopyCommands();
+        executeCopyCommands(true);
         // Recompute 'alignedAddress' and 'updatedOffset'
         alignedAddress = align<alignment>(m_uploadBuffer.begin);
         updatedOffset  = alignedAddress - m_uploadBuffer.begin;
@@ -483,23 +483,28 @@ void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const 
     m_uploadBuffer.offset += size;
 }
 
-void D3D12::Renderer::executeCopyCommands() {
+void D3D12::Renderer::executeCopyCommands(const bool clearUploadBuffer) {
     // Finalize and execute the command list
     CHECK_CALL(m_copyCommandList->Close(), "Failed to close the copy command list.");
     m_copyCommandQueue.execute(m_copyCommandList.Get());
     // Wait for the copy command list execution to finish
-    m_copyCommandQueue.insertFence();
-    m_copyCommandQueue.blockThread();
-    // Command list allocators can only be reset when the associated 
-    // command lists have finished execution on the GPU
-    CHECK_CALL(m_copyCommandQueue.listAlloca()->Reset(),
-               "Failed to reset the copy command list allocator.");
+    auto fenceAndValue = m_copyCommandQueue.insertFence();
+    if (clearUploadBuffer) {
+        m_copyCommandQueue.blockThread();
+        // Command list allocators can only be reset when the associated 
+        // command lists have finished execution on the GPU
+        CHECK_CALL(m_copyCommandQueue.listAlloca()->Reset(),
+                   "Failed to reset the copy command list allocator.");
+        // Reset the current position within the upload buffer back to the beginning
+        m_uploadBuffer.offset = 0;
+    } else {
+        // Ensure synchronization between the graphics and the copy command queues
+        m_graphicsCommandQueue.blockQueue(fenceAndValue.first, fenceAndValue.second);
+    }
     // After a command list has been executed, 
     // it can then be reset at any time (and must be before re-recording)
     CHECK_CALL(m_copyCommandList->Reset(m_copyCommandQueue.listAlloca(), nullptr),
                "Failed to reset the copy command list.");
-    // Reset the current position within the upload buffer back to the beginning
-    m_uploadBuffer.offset = 0;
 }
 
 void Renderer::startFrame() {

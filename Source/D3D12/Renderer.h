@@ -18,7 +18,9 @@ namespace D3D12 {
         // Sets the view-projection matrix in the shaders
         void setViewProjMatrix(const XMMATRIX& viewProjMat);
         // Executes all pending copy commands, blocking the thread until they finish
-        void executeCopyCommands();
+        // If 'clearUploadBuffer' is set to true, the function will reclaim
+        // the used buffer space at the cost of blocking the thread
+        void executeCopyCommands(const bool clearUploadBuffer);
         // Initializes the frame rendering process
         void startFrame();
         // Draws the geometry from the indexed vertex buffer to the frame buffer

@@ -31,7 +31,7 @@ int main(const int argc, const char* argv[]) {
                            /* up  */ {0.f, 1.f, 0.f}};
     engine.setViewProjMatrix(pCam.computeViewProjMatrix());
     // Copy the data to the device
-    engine.executeCopyCommands();
+    engine.executeCopyCommands(false);
     // Start the timer to compute the frame time deltaT
     uint prevFrameT = HighResTimer::time_ms();
     // Main loop
