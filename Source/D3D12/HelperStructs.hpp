@@ -133,14 +133,14 @@ inline void D3D12::ID3D12DeviceEx::createCommandQueue(CommandQueue<T, N>* const 
                                           IID_PPV_ARGS(&commandQueue->m_listAlloca[i])),
                    "Failed to create a command list allocator.");
     }
-    // Create a 0-initialized memory fence object
+    // Create a 0-initialized fence object
     commandQueue->m_fenceValue = 0;
     CHECK_CALL(CreateFence(commandQueue->m_fenceValue, D3D12_FENCE_FLAG_NONE,
                            IID_PPV_ARGS(&commandQueue->m_fence)),
-               "Failed to create a memory fence object.");
+               "Failed to create a fence object.");
     // Signal that we do not need to wait for the first N fences
     CHECK_CALL(commandQueue->m_interface->Signal(commandQueue->m_fence.Get(), N - 1),
-               "Failed to insert the memory fence into the command queue.");
+               "Failed to insert the fence into the command queue.");
     // Create a synchronization event
     commandQueue->m_syncEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (!commandQueue->m_syncEvent) {
