@@ -7,6 +7,8 @@
 constexpr long        WND_WIDTH       = 1280;
 // Vertical window size (in pixels). Not the same as the rendering resolution!
 constexpr long        WND_HEIGHT      = 720;
+// Verical field of view (in radians)
+constexpr float       VERTICAL_FOV    = 3.141592654f / 3.f;
 // Triple buffering
 constexpr uint        BUF_CNT         = 3;
 // Software rendering flag

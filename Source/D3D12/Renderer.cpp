@@ -357,8 +357,7 @@ void Renderer::configurePipeline() {
     m_viewMat = DirectX::XMMatrixLookAtLH({877.909f, 318.274f, 34.6546f},
                                           {863.187f, 316.600f, 34.2517f},
                                           {0.f, 1.f, 0.f});
-    constexpr float verticalFoV = 3.141592654f / 3.f;
-    m_viewProjMat = m_viewMat * InfRevProjMatLH(m_viewport.Width, m_viewport.Height, verticalFoV);
+    m_viewProjMat = m_viewMat * InfRevProjMatLH(m_viewport.Width, m_viewport.Height, VERTICAL_FOV);
     // Create a constant buffer for the view-projection matrix
     // The HLSL copy of the matrix has to be transposed
     const XMMATRIX transposedViewProj = DirectX::XMMatrixTranspose(m_viewProjMat);
