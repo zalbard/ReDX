@@ -12,7 +12,7 @@ public:
     RULE_OF_ZERO(Scene);
     // Ctor; takes the .obj file name with the path as input
     // The renderer performs Direct3D resource initialization
-    Scene(const char* const objFilePath, D3D12::Renderer& engine);
+    explicit Scene(const char* const objFilePath, D3D12::Renderer& engine);
 public:
     uint                                  numObjects;
     D3D12::VertexBuffer                   vbo;
