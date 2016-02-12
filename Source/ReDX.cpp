@@ -36,7 +36,7 @@ int main(const int argc, const char* argv[]) {
         // Update the timers as we start a new frame
         const uint64 currFrameTime = HighResTimer::microseconds();
         const float  deltaMillisec = 1e-3f * (currFrameTime - prevFrameTime);
-        const float  deltaSeconds  = 1e-6f * (currFrameTime - prevFrameTime);
+        const float  deltaSeconds  = static_cast<float>(1e-6 * (currFrameTime - prevFrameTime));
         prevFrameTime = currFrameTime;
         Window::displayFrameTime(deltaMillisec);
         // If the queue is not empty, retrieve a message
