@@ -26,6 +26,5 @@ uint HighResTimer::milliseconds() {
 }
 
 uint64 HighResTimer::microseconds() {
-    const auto time_now = now().time_since_epoch();
-    return static_cast<uint64>(time_now.count());
+    return now().time_since_epoch().count();
 }
