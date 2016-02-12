@@ -18,5 +18,8 @@ public:
     static time_point now();
     // Converts the current value of the TSC to milliseconds
     // Effectively returns the number of milliseconds since the last TSC reset
-    static uint time_ms();
+    static uint milliseconds();
+    // Converts the current value of the TSC to milliseconds
+    // Effectively returns the number of milliseconds since the last TSC reset
+    static uint64 microseconds();
 };

@@ -353,31 +353,27 @@ void Renderer::configurePipeline() {
                                            m_graphicsPipelineState.Get(),
                                            IID_PPV_ARGS(&m_graphicsCommandList)),
                "Failed to create a graphics command list.");
-    // Compute the view and the view-projection matrices
-    m_viewMat = DirectX::XMMatrixLookAtLH({877.909f, 318.274f, 34.6546f},
-                                          {863.187f, 316.600f, 34.2517f},
-                                          {0.f, 1.f, 0.f});
-    constexpr float verticalFoV = 3.141592654f / 3.f;
-    m_viewProjMat = m_viewMat * InfRevProjMatLH(m_viewport.Width, m_viewport.Height, verticalFoV);
-    // Create a constant buffer for the view-projection matrix
-    // The HLSL copy of the matrix has to be transposed
-    const XMMATRIX transposedViewProj = DirectX::XMMatrixTranspose(m_viewProjMat);
-    m_constantBuffer = createConstantBuffer(sizeof(transposedViewProj), &transposedViewProj);
+    // Create a constant buffer
+    m_constantBuffer = createConstantBuffer(sizeof(XMMATRIX));
 }
 
 ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* const data) {
-    assert(data && size >= 4);
+    assert(size >= 4);
     ConstantBuffer buffer;
     // Allocate the buffer on the default heap
     const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
     const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
+    const auto bufferState    = data ? D3D12_RESOURCE_STATE_COPY_DEST
+                                     : D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST,
+                                                 &bufferDesc, bufferState,
                                                  nullptr, IID_PPV_ARGS(&buffer.resource)),
                "Failed to allocate a constant buffer.");
-    // Copy the data to video memory using the upload buffer
-    constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-    uploadData<alignment>(buffer, size, data, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    if (data) {
+        // Copy the data to video memory using the upload buffer
+        constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+        uploadData<alignment>(buffer, size, data, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    }
     // Initialize the constant buffer location
     buffer.location = buffer.resource->GetGPUVirtualAddress();
     return buffer;
@@ -431,6 +427,19 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
     return buffer;
 }
 
+void Renderer::setViewProjMatrix(const XMMATRIX& viewProjMat) {
+    // Transition the constant buffer state: Constant Buffer -> Copy Destination
+    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_constantBuffer.resource.Get(),
+                                                   D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
+                                                   D3D12_RESOURCE_STATE_COPY_DEST);
+    m_graphicsCommandList->ResourceBarrier(1, &barrier);
+    // Copy the data to video memory using the upload buffer
+    constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    const XMMATRIX transposedViewProj = DirectX::XMMatrixTranspose(viewProjMat);
+    uploadData<alignment>(m_constantBuffer, sizeof(transposedViewProj), &transposedViewProj,
+                          D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+}
+
 template<uint64 alignment>
 void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const data,
                           const D3D12_RESOURCE_STATES finalState) {
@@ -454,7 +463,7 @@ void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const 
     // Check whether the upload buffer has sufficient space left
     const int64 remainingCapacity = m_uploadBuffer.capacity - updatedOffset;
     if (remainingCapacity < size) {
-        executeCopyCommands();
+        executeCopyCommands(true);
         // Recompute 'alignedAddress' and 'updatedOffset'
         alignedAddress = align<alignment>(m_uploadBuffer.begin);
         updatedOffset  = alignedAddress - m_uploadBuffer.begin;
@@ -474,23 +483,28 @@ void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const 
     m_uploadBuffer.offset += size;
 }
 
-void D3D12::Renderer::executeCopyCommands() {
+void D3D12::Renderer::executeCopyCommands(const bool clearUploadBuffer) {
     // Finalize and execute the command list
     CHECK_CALL(m_copyCommandList->Close(), "Failed to close the copy command list.");
     m_copyCommandQueue.execute(m_copyCommandList.Get());
     // Wait for the copy command list execution to finish
-    m_copyCommandQueue.insertFence();
-    m_copyCommandQueue.blockThread();
-    // Command list allocators can only be reset when the associated 
-    // command lists have finished execution on the GPU
-    CHECK_CALL(m_copyCommandQueue.listAlloca()->Reset(),
-               "Failed to reset the copy command list allocator.");
+    auto fenceAndValue = m_copyCommandQueue.insertFence();
+    if (clearUploadBuffer) {
+        m_copyCommandQueue.blockThread();
+        // Command list allocators can only be reset when the associated 
+        // command lists have finished execution on the GPU
+        CHECK_CALL(m_copyCommandQueue.listAlloca()->Reset(),
+                   "Failed to reset the copy command list allocator.");
+        // Reset the current position within the upload buffer back to the beginning
+        m_uploadBuffer.offset = 0;
+    } else {
+        // Ensure synchronization between the graphics and the copy command queues
+        m_graphicsCommandQueue.blockQueue(fenceAndValue.first, fenceAndValue.second);
+    }
     // After a command list has been executed, 
     // it can then be reset at any time (and must be before re-recording)
     CHECK_CALL(m_copyCommandList->Reset(m_copyCommandQueue.listAlloca(), nullptr),
                "Failed to reset the copy command list.");
-    // Reset the current position within the upload buffer back to the beginning
-    m_uploadBuffer.offset = 0;
 }
 
 void Renderer::startFrame() {

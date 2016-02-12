@@ -44,6 +44,9 @@
     <ClCompile Include="Source\ThirdParty\load_obj.cpp">
       <Filter>Source Files\ThirdParty</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Common\Camera.cpp">
+      <Filter>Source Files\Common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\D3D12\Renderer.h">
@@ -83,6 +86,9 @@
       <Filter>Source Files\ThirdParty</Filter>
     </ClInclude>
     <ClInclude Include="Source\Common\Constants.h">
+      <Filter>Source Files\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Common\Camera.h">
       <Filter>Source Files\Common</Filter>
     </ClInclude>
   </ItemGroup>
