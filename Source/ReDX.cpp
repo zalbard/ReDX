@@ -77,8 +77,6 @@ int main(const int argc, const char* argv[]) {
                         // Process the Q key
                         pCam.rotateDownwards(angle);
                         break;
-                    default:
-                        break;
                     }
                 }
                 break;
