@@ -32,14 +32,14 @@ int main(const int argc, const char* argv[]) {
     // Copy the data to the device
     engine.executeCopyCommands(false);
     // Start the timer to compute the frame time deltaT
-    uint prevFrameT = HighResTimer::time_ms();
+    uint64 prevFrameTime = HighResTimer::microseconds();
     // Main loop
     while (true) {
         // Update the timers as we start a new frame
-        const uint currFrameT = HighResTimer::time_ms();
-        const uint deltaT     = currFrameT - prevFrameT;
-        prevFrameT = currFrameT;
-        Window::displayFrameTime(deltaT);
+        const uint64 currFrameTime = HighResTimer::microseconds();
+        const uint64 deltaTime     = currFrameTime - prevFrameTime;
+        prevFrameTime = currFrameTime;
+        Window::displayFrameTime(deltaTime);
         // If the queue is not empty, retrieve a message
         MSG msg;
         while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {

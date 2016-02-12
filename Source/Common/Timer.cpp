@@ -19,8 +19,13 @@ HighResTimer::time_point HighResTimer::now() {
     return time_point(duration(tmp / ticks_per_second.QuadPart));
 }
 
-uint HighResTimer::time_ms() {
+uint HighResTimer::milliseconds() {
     const auto time_now = now().time_since_epoch();
     const auto ms_count = std::chrono::duration_cast<std::chrono::milliseconds>(time_now).count();
     return static_cast<uint>(ms_count);
+}
+
+uint64 HighResTimer::microseconds() {
+    const auto time_now = now().time_since_epoch();
+    return static_cast<uint64>(time_now.count());
 }
