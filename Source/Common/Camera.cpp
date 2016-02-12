@@ -4,11 +4,11 @@
 using DirectX::XMVECTOR;
 using DirectX::XMMATRIX;
 
-PerspectiveCamera::PerspectiveCamera(const long width, const long height, const float fovY,
+PerspectiveCamera::PerspectiveCamera(const long width, const long height, const float vFoV,
                                      const XMVECTOR& pos, const XMVECTOR& dir, const XMVECTOR& up)
     : position(pos)
     , orientQuat(DirectX::XMQuaternionRotationMatrix(DirectX::RotationMatrixLH(dir, up)))
-    , projMat{DirectX::InfRevProjMatLH(width, height, fovY)} {}
+    , projMat{DirectX::InfRevProjMatLH(width, height, vFoV)} {}
 
 XMMATRIX PerspectiveCamera::computeViewProjMatrix() const {
     // Inverse the translation and the rotation for the view matrix
