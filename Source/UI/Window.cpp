@@ -66,11 +66,9 @@ float Window::aspectRatio() {
     return static_cast<float>(width())/static_cast<float>(height());
 }
 
-void Window::displayFrameTime(const uint64 deltaTime) {
-    // Only print up to 5 digits (plus the separator)
-    wchar_t title[] = L"ReDX : 000.00 ms";
-    const uint wholePart = std::min(999u, static_cast<uint>(deltaTime / 1000));
-    const uint fracPart  = (deltaTime % 1000) / 10;
-    swprintf(title + 7, 10, L"%u.%u ms", wholePart, fracPart);
+void Window::displayFrameTime(const float deltaTime) {
+    // Only print up to 4 digits (plus the separator)
+    wchar_t title[] = L"ReDX : 00.00 ms";
+    swprintf(title + 7, 9, L"%5.2f ms", std::min(99.99f, deltaTime));
     SetWindowText(m_hwnd, title);
 }

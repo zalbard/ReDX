@@ -29,17 +29,16 @@ int main(const int argc, const char* argv[]) {
                            /* pos */ {900.f, 200.f, -35.f},
                            /* dir */ {-1.f, 0.f, 0.f},
                            /* up  */ {0.f, 1.f, 0.f}};
-    // Copy the data to the device
-    engine.executeCopyCommands(false);
     // Start the timer to compute the frame time deltaT
     uint64 prevFrameTime = HighResTimer::microseconds();
     // Main loop
     while (true) {
         // Update the timers as we start a new frame
         const uint64 currFrameTime = HighResTimer::microseconds();
-        const uint64 deltaTime     = currFrameTime - prevFrameTime;
+        const float  deltaMillisec = 1e-3f * (currFrameTime - prevFrameTime);
+        const float  deltaSeconds  = 1e-6f * (currFrameTime - prevFrameTime);
         prevFrameTime = currFrameTime;
-        Window::displayFrameTime(deltaTime);
+        Window::displayFrameTime(deltaMillisec);
         // If the queue is not empty, retrieve a message
         MSG msg;
         while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
@@ -50,33 +49,37 @@ int main(const int argc, const char* argv[]) {
             switch (msg.message) {
             case WM_KEYDOWN:
                 // Process keyboard input
-                switch (msg.wParam) {
-                case 0x57:
-                    // Process the W key
-                     pCam.moveForward(10.0f);
-                    break;
-                case 0x53:
-                    // Process the S key
-                    pCam.moveBack(10.0f);
-                    break;
-                case 0x41:
-                    // Process the A key
-                    pCam.rotateLeft(0.1f);
-                    break;
-                case 0x44:
-                    // Process the D key
-                    pCam.rotateRight(0.1f);
-                    break;
-                case 0x45:
-                    // Process the E key
-                    pCam.rotateUpwards(0.1f);
-                    break;
-                case 0x51:
-                    // Process the Q key
-                    pCam.rotateDownwards(0.1f);
-                    break;
-                default:
-                    break;
+                {
+                    const float dist  = deltaSeconds * CAM_SPEED;
+                    const float angle = deltaSeconds * CAM_ANG_SPEED;
+                    switch (msg.wParam) {
+                    case 0x57:
+                        // Process the W key
+                         pCam.moveForward(dist);
+                        break;
+                    case 0x53:
+                        // Process the S key
+                        pCam.moveBack(dist);
+                        break;
+                    case 0x41:
+                        // Process the A key
+                        pCam.rotateLeft(angle);
+                        break;
+                    case 0x44:
+                        // Process the D key
+                        pCam.rotateRight(angle);
+                        break;
+                    case 0x45:
+                        // Process the E key
+                        pCam.rotateUpwards(angle);
+                        break;
+                    case 0x51:
+                        // Process the Q key
+                        pCam.rotateDownwards(angle);
+                        break;
+                    default:
+                        break;
+                    }
                 }
                 break;
             case WM_QUIT:

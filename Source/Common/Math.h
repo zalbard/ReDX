@@ -17,10 +17,10 @@ static inline float invSq(const T v) {
 namespace DirectX {
     // Computes an infinite reversed projection matrix
     // Parameters: the width and the height of the viewport (in pixels),
-    // and the vertical field of view (in radians)
+    // and the vertical field of view 'vFoV' (in radians)
     static inline XMMATRIX XM_CALLCONV
-    InfRevProjMatLH(const long viewWidth, const long viewHeight, const float fovY) {
-        const float cotHalfFovY    = cosf(0.5f * fovY) / sinf(0.5f * fovY);
+    InfRevProjMatLH(const long viewWidth, const long viewHeight, const float vFoV) {
+        const float cotHalfFovY    = cosf(0.5f * vFoV) / sinf(0.5f * vFoV);
         const float invAspectRatio = static_cast<float>(viewHeight) / static_cast<float>(viewWidth);
         const float m00 = invAspectRatio * cotHalfFovY;
         const float m11 = cotHalfFovY;

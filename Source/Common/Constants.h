@@ -19,3 +19,7 @@ constexpr DXGI_FORMAT RTV_FORMAT      = DXGI_FORMAT_R8G8B8A8_UNORM;
 constexpr DXGI_FORMAT DSV_FORMAT      = DXGI_FORMAT_D24_UNORM_S8_UINT;
 // Upload buffer size (64 MB)
 constexpr uint        UPLOAD_BUF_SIZE = 64 * 1024 * 1024;
+// Camera's speed (in meters/sec)
+constexpr float       CAM_SPEED       = 600.f;
+// Camera's angular speed (in radians/sec)
+constexpr float       CAM_ANG_SPEED   = 6.f;

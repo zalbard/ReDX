@@ -5,9 +5,9 @@
 class PerspectiveCamera {
 public:
     // Ctor. Parameters: the width and the height of the sensor (in pixels),
-    // the vertical field of view (in radians),
+    // the vertical field of view 'vFoV' (in radians),
     // the position 'pos', the viewing direction 'dir' and the 'up' vector
-    explicit PerspectiveCamera(const long width, const long height, const float fovY,
+    explicit PerspectiveCamera(const long width, const long height, const float vFoV,
                                const DirectX::XMVECTOR& pos, const DirectX::XMVECTOR& dir,
                                const DirectX::XMVECTOR& up);
     // Returns the view-projection matrix
