@@ -25,18 +25,16 @@ inline D3D12::UploadBuffer::UploadBuffer(UploadBuffer&& other) noexcept
 }
 
 inline D3D12::UploadBuffer& D3D12::UploadBuffer::operator=(UploadBuffer&& other) noexcept {
-    if (this != &other) {
-        if (begin) {
-            resource->Unmap(0, nullptr);
-        }
-        // Copy the data
-        resource = std::move(other.resource);
-        begin    = other.begin;
-        offset   = other.offset;
-        capacity = other.capacity;
-        // Mark as moved
-        other.begin = nullptr;
+    if (begin) {
+        resource->Unmap(0, nullptr);
     }
+    // Copy the data
+    resource = std::move(other.resource);
+    begin    = other.begin;
+    offset   = other.offset;
+    capacity = other.capacity;
+    // Mark as moved
+    other.begin = nullptr;
     return *this;
 }
 
