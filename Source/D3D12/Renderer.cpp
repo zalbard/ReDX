@@ -363,16 +363,18 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* const
     // Allocate the buffer on the default heap
     const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
     const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
-    const auto bufferState    = data ? D3D12_RESOURCE_STATE_COPY_DEST
-                                     : D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &bufferDesc, bufferState,
+                                                 &bufferDesc, D3D12_RESOURCE_STATE_COMMON,
                                                  nullptr, IID_PPV_ARGS(&buffer.resource)),
                "Failed to allocate a constant buffer.");
+    // Transition the memory buffer state for graphics/compute command queue type class
+    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
+        D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    m_graphicsCommandList->ResourceBarrier(1, &barrier);
     if (data) {
         // Copy the data to video memory using the upload buffer
         constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-        uploadData<alignment>(buffer, size, data, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+        uploadData<alignment>(buffer, size, data);
     }
     // Initialize the constant buffer location
     buffer.location = buffer.resource->GetGPUVirtualAddress();
@@ -387,13 +389,17 @@ VertexBuffer Renderer::createVertexBuffer(const uint count, const Vertex* const 
     const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
     const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST,
+                                                 &bufferDesc, D3D12_RESOURCE_STATE_COMMON,
                                                  nullptr, IID_PPV_ARGS(&buffer.resource)),
                "Failed to allocate a vertex buffer.");
+    // Transition the memory buffer state for graphics/compute command queue type class
+    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
+        D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    m_graphicsCommandList->ResourceBarrier(1, &barrier);
     // Copy the vertices to video memory using the upload buffer
     // Max. alignment requirement for vertex data is 4 bytes
     constexpr uint64 alignment = 4;
-    uploadData<alignment>(buffer, size, vertices, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    uploadData<alignment>(buffer, size, vertices);
     // Initialize the vertex buffer view
     buffer.view = D3D12_VERTEX_BUFFER_VIEW{
         /* BufferLocation */ buffer.resource->GetGPUVirtualAddress(),
@@ -411,13 +417,16 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
     const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
     const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &bufferDesc, D3D12_RESOURCE_STATE_COPY_DEST,
+                                                 &bufferDesc, D3D12_RESOURCE_STATE_COMMON,
                                                  nullptr, IID_PPV_ARGS(&buffer.resource)),
                "Failed to allocate an index buffer.");
+    // Transition the memory buffer state for graphics/compute command queue type class
+    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
+        D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_INDEX_BUFFER);
     // Copy the indices to video memory using the upload buffer
     // Max. alignment requirement for indices is 4 bytes
     constexpr uint64 alignment = 4;
-    uploadData<alignment>(buffer, size, indices, D3D12_RESOURCE_STATE_INDEX_BUFFER);
+    uploadData<alignment>(buffer, size, indices);
     // Initialize the index buffer view
     buffer.view = D3D12_INDEX_BUFFER_VIEW{
         /* BufferLocation */ buffer.resource->GetGPUVirtualAddress(),
@@ -428,21 +437,14 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
 }
 
 void Renderer::setViewProjMatrix(const XMMATRIX& viewProjMat) {
-    // Transition the constant buffer state: Constant Buffer -> Copy Destination
-    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_constantBuffer.resource.Get(),
-                                                   D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER,
-                                                   D3D12_RESOURCE_STATE_COPY_DEST);
-    m_graphicsCommandList->ResourceBarrier(1, &barrier);
     // Copy the data to video memory using the upload buffer
     constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     const XMMATRIX transposedViewProj = DirectX::XMMatrixTranspose(viewProjMat);
-    uploadData<alignment>(m_constantBuffer, sizeof(transposedViewProj), &transposedViewProj,
-                          D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    uploadData<alignment>(m_constantBuffer, sizeof(transposedViewProj), &transposedViewProj);
 }
 
 template<uint64 alignment>
-void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const data,
-                          const D3D12_RESOURCE_STATES finalState) {
+void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const data) {
     assert(data && size > 0);
     // Make sure the upload buffer is sufficiently large
     #ifdef _DEBUG
@@ -475,10 +477,6 @@ void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const 
     m_copyCommandList->CopyBufferRegion(dst.resource.Get(), 0,
                                         m_uploadBuffer.resource.Get(), m_uploadBuffer.offset,
                                         size);
-    // Transition the memory buffer state: Copy Destination -> 'finalState'
-    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(dst.resource.Get(),
-                         D3D12_RESOURCE_STATE_COPY_DEST, finalState);
-    m_graphicsCommandList->ResourceBarrier(1, &barrier);
     // Set the offset to the end of the data
     m_uploadBuffer.offset += size;
 }

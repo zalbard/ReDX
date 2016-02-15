@@ -34,10 +34,8 @@ namespace D3D12 {
         void configurePipeline();
         // Uploads the data of the specified size in bytes and alignment
         // to the memory buffer via an intermediate upload buffer
-        // Expects 'dst' in D3D12_RESOURCE_STATE_COPY_DEST, and transitions it to the 'finalState'
         template<uint64 alignment>
-        void uploadData(MemoryBuffer& dst, const uint size, const void* const data,
-                        const D3D12_RESOURCE_STATES finalState);
+        void uploadData(MemoryBuffer& dst, const uint size, const void* const data);
     private:
         /* Rendering parameters */
         D3D12_VIEWPORT                             m_viewport;
