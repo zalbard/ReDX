@@ -1,1 +1,2 @@
 http://graphics.cs.williams.edu/data/meshes/crytek-sponza.zip
+http://www.alexandre-pestana.com/downloads/SponzaPBR_Textures.rar
