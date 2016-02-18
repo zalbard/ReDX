@@ -550,7 +550,7 @@ void Renderer::finalizeFrame() {
     CHECK_CALL(m_graphicsCommandList->Close(), "Failed to close the graphics command list.");
     m_graphicsCommandQueue.execute(m_graphicsCommandList.Get());
     // Present the frame
-    CHECK_CALL(m_swapChain->Present(1, 0), "Failed to display the frame buffer.");
+    CHECK_CALL(m_swapChain->Present(VSYNC_INTERVAL, 0), "Failed to display the frame buffer.");
     // Wait until all the previously issued commands have been executed
     m_graphicsCommandQueue.insertFence();
     m_graphicsCommandQueue.blockThread();

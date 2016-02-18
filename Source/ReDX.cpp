@@ -50,8 +50,11 @@ int main(const int argc, const char* argv[]) {
             case WM_KEYDOWN:
                 // Process keyboard input
                 {
-                    const float dist  = deltaSeconds * CAM_SPEED;
-                    const float angle = deltaSeconds * CAM_ANG_SPEED;
+                    // The message queue runs asynchronously from the graphics (app) queue
+                    // Longer frame times result in more key press messages per frame
+                    // Therefore, the frame time is irrelevant for displacement computations
+                    const float dist  = CAM_SPEED;
+                    const float angle = CAM_ANG_SPEED;
                     switch (msg.wParam) {
                     case 0x57:
                         // Process the W key
