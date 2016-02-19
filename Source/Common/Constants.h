@@ -11,6 +11,8 @@ constexpr long        WND_HEIGHT      = 720;
 constexpr float       VERTICAL_FOV    = 3.141592654f / 3.f;
 // Double/triple buffering
 constexpr uint        BUF_CNT         = 3;
+// Number of frames being queued for rendering at a time
+constexpr uint        FRAME_CNT       = 2;
 // Vertical blank count after which the synchronization is performed 
 constexpr uint        VSYNC_INTERVAL  = 0;
 // Software rendering flag
