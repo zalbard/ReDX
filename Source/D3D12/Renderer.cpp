@@ -97,35 +97,29 @@ Renderer::Renderer() {
     m_device->createCommandQueue(&m_graphicsCommandQueue);
     // Create a buffer swap chain
     {
-        // Fill out the buffer description
-        const DXGI_MODE_DESC bufferDesc = {
-            /* Width */            width(m_scissorRect),
-            /* Height */           height(m_scissorRect),
-            /* RefreshRate */      DXGI_RATIONAL{},
-            /* Format */           RTV_FORMAT,
-            /* ScanlineOrdering */ DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
-            /* Scaling */          DXGI_MODE_SCALING_UNSPECIFIED
-        };
         // Fill out the multi-sampling parameters
         const DXGI_SAMPLE_DESC sampleDesc = {
             /* Count */   1,    // No multi-sampling
             /* Quality */ 0     // Default sampler
         };
         // Fill out the swap chain description
-        DXGI_SWAP_CHAIN_DESC swapChainDesc = {
-            /* BufferDesc */   bufferDesc,
-            /* SampleDesc */   sampleDesc,
-            /* BufferUsage */  DXGI_USAGE_RENDER_TARGET_OUTPUT,
-            /* BufferCount */  BUF_CNT,
-            /* OutputWindow */ Window::handle(),
-            /* Windowed */     TRUE,
-            /* SwapEffect */   DXGI_SWAP_EFFECT_FLIP_DISCARD,
-            /* Flags */        0
+        const DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {
+            /* Width */       width(m_scissorRect),
+            /* Height */      height(m_scissorRect),
+            /* Format */      RTV_FORMAT,
+            /* Stereo */      0,
+            /* SampleDesc */  sampleDesc,
+            /* BufferUsage */ DXGI_USAGE_RENDER_TARGET_OUTPUT,
+            /* BufferCount */ BUF_CNT,
+            /* Scaling */     DXGI_SCALING_NONE,
+            /* SwapEffect */  DXGI_SWAP_EFFECT_FLIP_DISCARD,
+            /* AlphaMode */   DXGI_ALPHA_MODE_UNSPECIFIED,
+            /* Flags */       0
         };
         // Create a swap chain; it needs a command queue to flush the latter
-        auto swapChainAddr = reinterpret_cast<IDXGISwapChain**>(m_swapChain.GetAddressOf());
-        CHECK_CALL(factory->CreateSwapChain(m_graphicsCommandQueue.get(),
-                                            &swapChainDesc, swapChainAddr),
+        auto swapChainAddr = reinterpret_cast<IDXGISwapChain1**>(m_swapChain.GetAddressOf());
+        CHECK_CALL(factory->CreateSwapChainForHwnd(m_graphicsCommandQueue.get(), Window::handle(),
+                                                   &swapChainDesc, nullptr, nullptr, swapChainAddr),
                    "Failed to create a swap chain.");
     }
     // Create a render target view (RTV) descriptor pool
