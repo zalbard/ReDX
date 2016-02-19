@@ -13,10 +13,11 @@ HighResTimer::time_point HighResTimer::now() {
     LARGE_INTEGER n_ticks, ticks_per_second;
     QueryPerformanceCounter(&n_ticks);
     QueryPerformanceFrequency(&ticks_per_second);
-    // Avoid precision loss
-    long long tmp = n_ticks.QuadPart * static_cast<rep>(period::den);
+    // Avoid the loss of precision
+    n_ticks.QuadPart *= static_cast<rep>(period::den);
+    n_ticks.QuadPart /= ticks_per_second.QuadPart;
     // Return the number of microseconds
-    return time_point(duration(tmp / ticks_per_second.QuadPart));
+    return time_point(duration(n_ticks.QuadPart));
 }
 
 uint HighResTimer::milliseconds() {

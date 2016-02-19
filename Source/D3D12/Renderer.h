@@ -34,30 +34,28 @@ namespace D3D12 {
         void configurePipeline();
         // Uploads the data of the specified size in bytes and alignment
         // to the memory buffer via an intermediate upload buffer
-        // Expects 'dst' in D3D12_RESOURCE_STATE_COPY_DEST, and transitions it to the 'finalState'
         template<uint64 alignment>
-        void uploadData(MemoryBuffer& dst, const uint size, const void* const data,
-                        const D3D12_RESOURCE_STATES finalState);
+        void uploadData(MemoryBuffer& dst, const uint size, const void* const data);
     private:
         /* Rendering parameters */
-        D3D12_VIEWPORT                             m_viewport;
-        D3D12_RECT                                 m_scissorRect;
-        uint                                       m_backBufferIndex;
+        D3D12_VIEWPORT                               m_viewport;
+        D3D12_RECT                                   m_scissorRect;
+        uint                                         m_backBufferIndex;
         /* Direct3D resources */
-        ComPtr<ID3D12DeviceEx>                     m_device;
-        CommandQueue<QueueType::COPY, 1>           m_copyCommandQueue;
-        CommandQueue<QueueType::GRAPHICS, BUF_CNT> m_graphicsCommandQueue;
-        ComPtr<IDXGISwapChain3>                    m_swapChain;
-        DescriptorPool<DescType::RTV>              m_rtvPool;
-        ComPtr<ID3D12Resource>                     m_renderTargets[BUF_CNT];
-        DescriptorPool<DescType::DSV>              m_dsvPool;
-        ComPtr<ID3D12Resource>                     m_depthBuffer;
+        ComPtr<ID3D12DeviceEx>                       m_device;
+        CommandQueue<QueueType::COPY, 1>             m_copyCommandQueue;
+        CommandQueue<QueueType::GRAPHICS, FRAME_CNT> m_graphicsCommandQueue;
+        ComPtr<IDXGISwapChain3>                      m_swapChain;
+        DescriptorPool<DescType::RTV>                m_rtvPool;
+        ComPtr<ID3D12Resource>                       m_renderTargets[BUF_CNT];
+        DescriptorPool<DescType::DSV>                m_dsvPool;
+        ComPtr<ID3D12Resource>                       m_depthBuffer;
         /* Pipeline objects */
-        UploadBuffer                               m_uploadBuffer;
-        ComPtr<ID3D12GraphicsCommandList>          m_copyCommandList;
-        ConstantBuffer                             m_constantBuffer;
-        ComPtr<ID3D12RootSignature>                m_graphicsRootSignature;
-        ComPtr<ID3D12PipelineState>                m_graphicsPipelineState;
-        ComPtr<ID3D12GraphicsCommandList>          m_graphicsCommandList;
+        UploadBuffer                                 m_uploadBuffer;
+        ComPtr<ID3D12GraphicsCommandList>            m_copyCommandList;
+        ConstantBuffer                               m_constantBuffer;
+        ComPtr<ID3D12RootSignature>                  m_graphicsRootSignature;
+        ComPtr<ID3D12PipelineState>                  m_graphicsPipelineState;
+        ComPtr<ID3D12GraphicsCommandList>            m_graphicsCommandList;
     };
 } // namespace D3D12
