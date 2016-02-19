@@ -103,7 +103,7 @@ int main(const int argc, const char* argv[]) {
         if (keyPressStatus.e) pitch -= unitAngle;
         if (keyPressStatus.d) yaw   += unitAngle;
         if (keyPressStatus.a) yaw   -= unitAngle;
-        pCam.applyForwardPitchYaw(dist, pitch, yaw);
+        pCam.rotateAndMoveForward(pitch, yaw, dist);
         // Execute engine code
         engine.setViewProjMatrix(pCam.computeViewProjMatrix());
         engine.executeCopyCommands(false);

@@ -24,10 +24,9 @@ public:
     void rotateUpwards(const float angle);
     // Changes the pitch of the camera by -'angle' radians
     void rotateDownwards(const float angle);
-    // Applies the translation forward by 'dist' meters, and
-    // rotations by 'pitch' and 'yaw' angles in radians
-    // Effectively, translates forward, then rotates right and downwards
-    void applyForwardPitchYaw(const float dist, const float pitch, const float yaw);
+    // Rotates the camera by 'pitch' and 'yaw' radians, and
+    // moves it along the forward direction by 'dist' meters
+    void rotateAndMoveForward(const float pitch, const float yaw, const float dist);
 private:
     DirectX::XMVECTOR position;     // World-space position
     DirectX::XMVECTOR orientQuat;   // Orientation defined as a quaternion
