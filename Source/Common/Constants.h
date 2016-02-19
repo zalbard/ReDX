@@ -26,4 +26,4 @@ constexpr uint        UPLOAD_BUF_SIZE = 64 * 1024 * 1024;
 // Camera's speed (in meters/sec)
 constexpr float       CAM_SPEED       = 500.f;
 // Camera's angular speed (in radians/sec)
-constexpr float       CAM_ANG_SPEED   = 5.0f;
+constexpr float       CAM_ANG_SPEED   = 2.0f;
