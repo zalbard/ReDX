@@ -5,6 +5,16 @@
 #include "D3D12\Renderer.h"
 #include "UI\Window.h"
 
+// Key press status: 1 if pressed, 0 otherwise 
+struct KeyPressStatus {
+    uint w : 1;
+    uint s : 1;
+    uint a : 1;
+    uint d : 1;
+    uint q : 1;
+    uint e : 1;
+};
+
 int main(const int argc, const char* argv[]) {
     // Parse command line arguments
 	if (argc > 1) {
@@ -29,6 +39,8 @@ int main(const int argc, const char* argv[]) {
                            /* pos */ {900.f, 200.f, -35.f},
                            /* dir */ {-1.f, 0.f, 0.f},
                            /* up  */ {0.f, 1.f, 0.f}};
+    // Initialize the input status (no pressed keys)
+    KeyPressStatus keyPressStatus{};
     // Start the timer to compute the frame time deltaT
     uint64 prevFrameTime = HighResTimer::microseconds();
     // Main loop
@@ -47,49 +59,54 @@ int main(const int argc, const char* argv[]) {
             DispatchMessage(&msg);
             // Process the message locally
             switch (msg.message) {
-            case WM_KEYDOWN:
-                // Process keyboard input
-                {
-                    // The message queue runs asynchronously from the graphics (app) queue
-                    // Longer frame times result in more key press messages per frame
-                    // Therefore, the frame time is irrelevant for displacement computations
-                    const float dist  = CAM_SPEED;
-                    const float angle = CAM_ANG_SPEED;
-                    switch (msg.wParam) {
-                    case 0x57:
-                        // Process the W key
-                         pCam.moveForward(dist);
-                        break;
-                    case 0x53:
-                        // Process the S key
-                        pCam.moveBack(dist);
-                        break;
-                    case 0x41:
-                        // Process the A key
-                        pCam.rotateLeft(angle);
-                        break;
-                    case 0x44:
-                        // Process the D key
-                        pCam.rotateRight(angle);
-                        break;
-                    case 0x45:
-                        // Process the E key
-                        pCam.rotateUpwards(angle);
-                        break;
-                    case 0x51:
-                        // Process the Q key
-                        pCam.rotateDownwards(angle);
-                        break;
+                case WM_KEYUP:
+                case WM_KEYDOWN:
+                    {
+                        const uint status = msg.message ^ 0x1;
+                        switch (msg.wParam) {
+                            case 0x57:
+                                keyPressStatus.w = status;
+                                break;
+                            case 0x53:
+                                keyPressStatus.s = status;
+                                break;
+                            case 0x41:
+                                keyPressStatus.a = status;
+                                break;
+                            case 0x44:
+                                keyPressStatus.d = status;
+                                break;
+                            case 0x45:
+                                keyPressStatus.e = status;
+                                break;
+                            case 0x51:
+                                keyPressStatus.q = status;
+                                break;
+                        }
                     }
-                }
-                break;
-            case WM_QUIT:
-                engine.stop();
-                // Return this part of the WM_QUIT message to Windows
-                return static_cast<int>(msg.wParam);
+                    break;
+                case WM_QUIT:
+                    engine.stop();
+                    // Return this part of the WM_QUIT message to Windows
+                    return static_cast<int>(msg.wParam);
             }
         }
-        // The message queue is now empty; execute engine code
+        // The message queue is now empty; process keyboard input
+        const float unitDist  = deltaSeconds * CAM_SPEED;
+        const float unitAngle = deltaSeconds * CAM_ANG_SPEED;
+        float distance  = 0.f;
+        float horAngle  = 0.f;
+        float vertAngle = 0.f;
+        if (keyPressStatus.w) distance  += unitDist;
+        if (keyPressStatus.s) distance  -= unitDist;
+        if (keyPressStatus.a) horAngle  += unitAngle;
+        if (keyPressStatus.d) horAngle  -= unitAngle;
+        if (keyPressStatus.e) vertAngle += unitAngle;
+        if (keyPressStatus.q) vertAngle -= unitAngle;
+        pCam.moveForward(distance);
+        pCam.rotateLeft(horAngle);
+        pCam.rotateUpwards(vertAngle);
+        // Execute engine code
         engine.setViewProjMatrix(pCam.computeViewProjMatrix());
         engine.executeCopyCommands(false);
         engine.startFrame();
