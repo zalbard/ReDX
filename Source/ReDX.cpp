@@ -94,18 +94,16 @@ int main(const int argc, const char* argv[]) {
         // The message queue is now empty; process keyboard input
         const float unitDist  = deltaSeconds * CAM_SPEED;
         const float unitAngle = deltaSeconds * CAM_ANG_SPEED;
-        float distance  = 0.f;
-        float horAngle  = 0.f;
-        float vertAngle = 0.f;
-        if (keyPressStatus.w) distance  += unitDist;
-        if (keyPressStatus.s) distance  -= unitDist;
-        if (keyPressStatus.a) horAngle  += unitAngle;
-        if (keyPressStatus.d) horAngle  -= unitAngle;
-        if (keyPressStatus.e) vertAngle += unitAngle;
-        if (keyPressStatus.q) vertAngle -= unitAngle;
-        pCam.moveForward(distance);
-        pCam.rotateLeft(horAngle);
-        pCam.rotateUpwards(vertAngle);
+        float dist  = 0.f;
+        float pitch = 0.f;
+        float yaw   = 0.f;
+        if (keyPressStatus.w) dist  += unitDist;
+        if (keyPressStatus.s) dist  -= unitDist;
+        if (keyPressStatus.q) pitch += unitAngle;
+        if (keyPressStatus.e) pitch -= unitAngle;
+        if (keyPressStatus.d) yaw   += unitAngle;
+        if (keyPressStatus.a) yaw   -= unitAngle;
+        pCam.applyForwardPitchYaw(dist, pitch, yaw);
         // Execute engine code
         engine.setViewProjMatrix(pCam.computeViewProjMatrix());
         engine.executeCopyCommands(false);

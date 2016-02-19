@@ -52,3 +52,18 @@ void PerspectiveCamera::rotateDownwards(const float angle) {
     const XMVECTOR rotQuat   = DirectX::XMQuaternionRotationNormal(right, angle);
     orientQuat = DirectX::XMQuaternionMultiply(orientQuat, rotQuat);
 }
+
+void PerspectiveCamera::applyForwardPitchYaw(const float dist, const float pitch, const float yaw) {
+    const XMMATRIX orientMat = DirectX::XMMatrixRotationQuaternion(orientQuat);
+    const XMVECTOR right     = orientMat.r[0];
+    const XMVECTOR up        = orientMat.r[1];
+    const XMVECTOR forward   = orientMat.r[2];
+    // Translate forward
+    position   = DirectX::XMVectorAdd(position, DirectX::XMVectorScale(forward, dist));
+    // Rotate downwards
+    const XMVECTOR pitchQuat = DirectX::XMQuaternionRotationNormal(right, pitch);
+    orientQuat = DirectX::XMQuaternionMultiply(orientQuat, pitchQuat);
+    // Rotate right
+    const XMVECTOR yawQuat   = DirectX::XMQuaternionRotationNormal(up, yaw);
+    orientQuat = DirectX::XMQuaternionMultiply(orientQuat, yawQuat);
+}
