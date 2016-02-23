@@ -46,6 +46,7 @@ namespace D3D12 {
         CommandQueue<QueueType::COPY, 1>             m_copyCommandQueue;
         CommandQueue<QueueType::GRAPHICS, FRAME_CNT> m_graphicsCommandQueue;
         ComPtr<IDXGISwapChain3>                      m_swapChain;
+        HANDLE                                       m_waitableObject;
         DescriptorPool<DescType::RTV>                m_rtvPool;
         ComPtr<ID3D12Resource>                       m_renderTargets[BUF_CNT];
         DescriptorPool<DescType::DSV>                m_dsvPool;

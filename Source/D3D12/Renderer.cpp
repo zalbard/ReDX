@@ -114,7 +114,7 @@ Renderer::Renderer() {
             /* Scaling */     DXGI_SCALING_NONE,
             /* SwapEffect */  DXGI_SWAP_EFFECT_FLIP_DISCARD,
             /* AlphaMode */   DXGI_ALPHA_MODE_UNSPECIFIED,
-            /* Flags */       0
+            /* Flags */       DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
         };
         // Create a swap chain; it needs a command queue to flush the latter
         auto swapChainAddr = reinterpret_cast<IDXGISwapChain1**>(m_swapChain.GetAddressOf());
@@ -122,6 +122,13 @@ Renderer::Renderer() {
                                                    &swapChainDesc, nullptr, nullptr, swapChainAddr),
                    "Failed to create a swap chain.");
     }
+    // Set the maximal rendering queue depth
+    CHECK_CALL(m_swapChain->SetMaximumFrameLatency(FRAME_CNT),
+               "Failed to set the maximal frame latency of the swap chain.");
+    // Retrieve the object used to wait for the swap chain
+    m_waitableObject = m_swapChain->GetFrameLatencyWaitableObject();
+    // Since WaitForSingleObject() has to be called before the first Present(), do it now
+    WaitForSingleObject(m_waitableObject, INFINITE);
     // Create a render target view (RTV) descriptor pool
     m_device->createDescriptorPool(&m_rtvPool, BUF_CNT);
     // Create 2x RTVs
@@ -557,6 +564,8 @@ void Renderer::finalizeFrame() {
     CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsCommandQueue.listAlloca(),
                                             m_graphicsPipelineState.Get()),
                "Failed to reset the graphics command list.");
+    // Block the thread until the swap chain has finished presenting
+    WaitForSingleObject(m_waitableObject, INFINITE);
 }
 
 void Renderer::stop() {
