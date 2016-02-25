@@ -126,9 +126,9 @@ Renderer::Renderer() {
     CHECK_CALL(m_swapChain->SetMaximumFrameLatency(FRAME_CNT),
                "Failed to set the maximal frame latency of the swap chain.");
     // Retrieve the object used to wait for the swap chain
-    m_waitableObject = m_swapChain->GetFrameLatencyWaitableObject();
-    // Since WaitForSingleObject() has to be called before the first Present(), do it now
-    WaitForSingleObject(m_waitableObject, INFINITE);
+    m_swapChainWaitableObject = m_swapChain->GetFrameLatencyWaitableObject();
+    // Block the thread until the swap chain is ready accept a new frame
+    WaitForSingleObject(m_swapChainWaitableObject, INFINITE);
     // Create a render target view (RTV) descriptor pool
     m_device->createDescriptorPool(&m_rtvPool, BUF_CNT);
     // Create 2x RTVs
@@ -564,8 +564,9 @@ void Renderer::finalizeFrame() {
     CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsCommandQueue.listAlloca(),
                                             m_graphicsPipelineState.Get()),
                "Failed to reset the graphics command list.");
-    // Block the thread until the swap chain has finished presenting
-    WaitForSingleObject(m_waitableObject, INFINITE);
+    // Block the thread until the swap chain is ready accept a new frame
+    // Otherwise, Present() may block the thread, increasing the input lag
+    WaitForSingleObject(m_swapChainWaitableObject, INFINITE);
 }
 
 void Renderer::stop() {
