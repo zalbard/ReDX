@@ -28,11 +28,6 @@ namespace D3D12 {
         COPY     = D3D12_COMMAND_LIST_TYPE_COPY     // Supports copy commands only
     };
 
-    struct Vertex {
-        XMFLOAT3 position;                          // Object-space vertex coordinates
-        XMFLOAT3 normal;                            // World-space normal vector
-    };
-
     struct MemoryBuffer {
         ComPtr<ID3D12Resource>       resource;      // Buffer interface
     protected:
@@ -42,7 +37,6 @@ namespace D3D12 {
 
     struct VertexBuffer: public MemoryBuffer {
         D3D12_VERTEX_BUFFER_VIEW     view;          // Buffer descriptor
-        uint                         count() const; // Returns the number of elements
     };
 
     struct IndexBuffer: public MemoryBuffer {

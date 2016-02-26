@@ -287,8 +287,8 @@ void Renderer::configurePipeline() {
             /* SemanticName */         "NORMAL",
             /* SemanticIndex */        0,
             /* Format */               DXGI_FORMAT_R32G32B32_FLOAT,
-            /* InputSlot */            0,
-            /* AlignedByteOffset */    sizeof(Vertex::position),
+            /* InputSlot */            1,
+            /* AlignedByteOffset */    0,
             /* InputSlotClass */       D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
             /* InstanceDataStepRate */ 0
         }
@@ -379,34 +379,6 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* const
     }
     // Initialize the constant buffer location
     buffer.location = buffer.resource->GetGPUVirtualAddress();
-    return buffer;
-}
-
-VertexBuffer Renderer::createVertexBuffer(const uint count, const Vertex* const vertices) {
-    assert(vertices && count >= 3);
-    VertexBuffer buffer;
-    const uint size = count * sizeof(Vertex);
-    // Allocate the buffer on the default heap
-    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
-    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
-    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &bufferDesc, D3D12_RESOURCE_STATE_COMMON,
-                                                 nullptr, IID_PPV_ARGS(&buffer.resource)),
-               "Failed to allocate a vertex buffer.");
-    // Transition the memory buffer state for graphics/compute command queue type class
-    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
-        D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-    m_graphicsCommandList->ResourceBarrier(1, &barrier);
-    // Copy the vertices to video memory using the upload buffer
-    // Max. alignment requirement for vertex data is 4 bytes
-    constexpr uint64 alignment = 4;
-    uploadData<alignment>(buffer, size, vertices);
-    // Initialize the vertex buffer view
-    buffer.view = D3D12_VERTEX_BUFFER_VIEW{
-        /* BufferLocation */ buffer.resource->GetGPUVirtualAddress(),
-        /* SizeInBytes */    size,
-        /* StrideInBytes */  sizeof(Vertex)
-    };
     return buffer;
 }
 
@@ -532,16 +504,6 @@ void Renderer::startFrame() {
     m_graphicsCommandList->ClearDepthStencilView(dsvHandle, clearFlags, 0.f, 0, 0, nullptr);
     // Set the primitive/topology type
     m_graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-}
-
-void Renderer::drawIndexed(const VertexBuffer& vbo, const IndexBuffer* const ibos,
-                           const uint count) {
-    // Record the commands into the command list
-    m_graphicsCommandList->IASetVertexBuffers(0, 1, &vbo.view);
-    for (uint i = 0; i < count; ++i) {
-        m_graphicsCommandList->IASetIndexBuffer(&ibos[i].view);
-        m_graphicsCommandList->DrawIndexedInstanced(ibos[i].count(), 1, 0, 0, 0);
-    }
 }
 
 void Renderer::finalizeFrame() {

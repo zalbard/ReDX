@@ -15,6 +15,6 @@ public:
     explicit Scene(const char* const objFilePath, D3D12::Renderer& engine);
 public:
     uint                                  numObjects;
-    D3D12::VertexBuffer                   vbo;
-    std::unique_ptr<D3D12::IndexBuffer[]> ibos;
+    std::unique_ptr<D3D12::IndexBuffer[]> indexBuffers;
+    D3D12::VertexBuffer                   vertAttribBuffers[2]; // Positions, normals
 };

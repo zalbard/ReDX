@@ -3,10 +3,6 @@
 #include "HelperStructs.h"
 #include "..\Common\Utility.h"
 
-inline uint D3D12::VertexBuffer::count() const {
-    return view.SizeInBytes / sizeof(Vertex);
-}
-
 inline uint D3D12::IndexBuffer::count() const {
     return view.SizeInBytes / sizeof(uint);
 }

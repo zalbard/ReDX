@@ -1,7 +1,7 @@
 #include <cassert>
 #include "Scene.h"
 #include "Utility.h"
-#include "..\D3D12\Renderer.h"
+#include "..\D3D12\Renderer.hpp"
 #include "..\ThirdParty\load_obj.h"
 
 Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine)
@@ -20,12 +20,13 @@ Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine)
             if (!group.faces.empty()) { ++numObjects; }
         }
     }
-    // Populate vertex and index buffers
-    ibos = std::make_unique<D3D12::IndexBuffer[]>(numObjects);
+    // Allocate memory
+    indexBuffers    = std::make_unique<D3D12::IndexBuffer[]>(numObjects);
     std::vector<uint> indices;
     indices.reserve(16384);
     obj::IndexMap indexMap;
     indexMap.reserve(2 * objFile.vertices.size());
+    // Populate vertex and index buffers
     uint objId = 0;
     for (const auto& object : objFile.objects) {
         for (const auto& group : object.groups) {
@@ -51,17 +52,18 @@ Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine)
                     prev = next;
                 }
             }
-            ibos[objId++] = engine.createIndexBuffer(static_cast<uint>(indices.size()),
-                                                     indices.data());
+            indexBuffers[objId++] = engine.createIndexBuffer(static_cast<uint>(indices.size()),
+                                                             indices.data());
         }
     }
-    // Create a vertex buffer
-    std::vector<D3D12::Vertex> vertices{indexMap.size()};
+    // Create vertex attribute buffers
+    const uint numVertices = static_cast<uint>(indexMap.size());
+    std::vector<DirectX::XMFLOAT3> positions{numVertices}, normals{numVertices};
     for (const auto& entry : indexMap) {
-        const auto& pos  = objFile.vertices[entry.first.v];
-        const auto& norm = objFile.normals[entry.first.n];
-        vertices[entry.second] = {pos, norm};
+        positions[entry.second] = objFile.vertices[entry.first.v];
+        normals[entry.second]   = objFile.normals[entry.first.n];
     }
-    vbo = engine.createVertexBuffer(static_cast<uint>(vertices.size()), vertices.data());
+    vertAttribBuffers[0] = engine.createVertexBuffer(numVertices, positions.data());
+    vertAttribBuffers[1] = engine.createVertexBuffer(numVertices, normals.data());
     printInfo("Scene loaded successfully.");
 }

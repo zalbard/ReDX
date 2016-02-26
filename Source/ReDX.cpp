@@ -2,7 +2,7 @@
 #include "Common\Scene.h"
 #include "Common\Timer.h"
 #include "Common\Utility.h"
-#include "D3D12\Renderer.h"
+#include "D3D12\Renderer.hpp"
 #include "UI\Window.h"
 
 // Key press status: 1 if pressed, 0 otherwise 
@@ -108,7 +108,7 @@ int main(const int argc, const char* argv[]) {
         engine.setViewProjMatrix(pCam.computeViewProjMatrix());
         engine.executeCopyCommands(false);
         engine.startFrame();
-        engine.drawIndexed(scene.vbo, scene.ibos.get(), scene.numObjects);
+        engine.drawIndexed(scene.vertAttribBuffers, scene.indexBuffers.get(), scene.numObjects);
         engine.finalizeFrame();
     }
 }

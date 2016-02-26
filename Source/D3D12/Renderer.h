@@ -11,8 +11,9 @@ namespace D3D12 {
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
         // Creates a constant buffer for the data of the specified size in bytes
         ConstantBuffer createConstantBuffer(const uint size, const void* const data = nullptr);
-        // Creates a vertex buffer for the vertex array with the specified number of vertices
-        VertexBuffer createVertexBuffer(const uint count, const Vertex* const vertices);
+        // Creates a vertex attribute buffer for the vertex array of 'count' elements
+        template <typename T>
+        VertexBuffer createVertexBuffer(const uint count, const T* const elements);
         // Creates an index buffer for the index array with the specified number of indices
         IndexBuffer createIndexBuffer(const uint count, const uint* const indices);
         // Sets the view-projection matrix in the shaders
@@ -23,8 +24,10 @@ namespace D3D12 {
         void executeCopyCommands(const bool clearUploadBuffer);
         // Initializes the frame rendering process
         void startFrame();
-        // Draws the geometry using the vertex and 'count' index buffers to the frame buffer
-        void drawIndexed(const VertexBuffer& vbo, const IndexBuffer* const ibos, const uint count);
+        template <uint N>
+        // Draws geometry using 'N' vertex attribute buffers and 'iboCount' index buffers
+        void drawIndexed(const VertexBuffer (&vbos)[N],
+                         const IndexBuffer* const ibos, const uint iboCount);
         // Finalizes the frame rendering process
         void finalizeFrame();
         // Terminates the rendering process
