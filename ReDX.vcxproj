@@ -116,11 +116,13 @@
     <ClInclude Include="Source\D3D12\Renderer.h" />
     <ClInclude Include="Source\ThirdParty\d3dx12.h" />
     <ClInclude Include="Source\ThirdParty\load_obj.h" />
+    <ClInclude Include="Source\ThirdParty\miniball.hpp" />
     <ClInclude Include="Source\ThirdParty\stb_image.h" />
     <ClInclude Include="Source\UI\Window.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore" />
+    <None Include="LICENSE" />
     <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
