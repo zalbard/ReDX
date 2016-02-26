@@ -534,11 +534,14 @@ void Renderer::startFrame() {
     m_graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
-void Renderer::draw(const VertexBuffer& vbo, const IndexBuffer& ibo) {
+void Renderer::drawIndexed(const VertexBuffer& vbo, const IndexBuffer* const ibos,
+                           const uint count) {
     // Record the commands into the command list
     m_graphicsCommandList->IASetVertexBuffers(0, 1, &vbo.view);
-    m_graphicsCommandList->IASetIndexBuffer(&ibo.view);
-    m_graphicsCommandList->DrawIndexedInstanced(ibo.count(), 1, 0, 0, 0);
+    for (uint i = 0; i < count; ++i) {
+        m_graphicsCommandList->IASetIndexBuffer(&ibos[i].view);
+        m_graphicsCommandList->DrawIndexedInstanced(ibos[i].count(), 1, 0, 0, 0);
+    }
 }
 
 void Renderer::finalizeFrame() {

@@ -23,8 +23,8 @@ namespace D3D12 {
         void executeCopyCommands(const bool clearUploadBuffer);
         // Initializes the frame rendering process
         void startFrame();
-        // Draws the geometry from the indexed vertex buffer to the frame buffer
-        void draw(const VertexBuffer& vbo, const IndexBuffer& ibo);
+        // Draws the geometry using the vertex and 'count' index buffers to the frame buffer
+        void drawIndexed(const VertexBuffer& vbo, const IndexBuffer* const ibos, const uint count);
         // Finalizes the frame rendering process
         void finalizeFrame();
         // Terminates the rendering process

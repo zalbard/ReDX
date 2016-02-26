@@ -108,9 +108,7 @@ int main(const int argc, const char* argv[]) {
         engine.setViewProjMatrix(pCam.computeViewProjMatrix());
         engine.executeCopyCommands(false);
         engine.startFrame();
-        for (uint i = 0, n = scene.numObjects; i < n; ++i) {
-            engine.draw(scene.vbo, scene.ibos[i]);
-        }
+        engine.drawIndexed(scene.vbo, scene.ibos.get(), scene.numObjects);
         engine.finalizeFrame();
     }
 }
