@@ -33,7 +33,7 @@ int main(const int argc, const char* argv[]) {
     // Initialize the renderer (internally uses the Window)
     D3D12::Renderer engine;
     // Provide the scene description
-    const Scene scene{"Assets\\Sponza\\sponza.obj", engine};
+    Scene scene{"..\\..\\Assets\\Sponza\\sponza.obj", engine};
     // Set up the camera
     PerspectiveCamera pCam{Window::width(), Window::height(), VERTICAL_FOV,
                            /* pos */ {900.f, 200.f, -35.f},

@@ -1,4 +1,5 @@
 #include <d3dcompiler.h>
+#include <memory>
 #include "HelperStructs.hpp"
 #include "Renderer.h"
 #include "..\Common\Math.h"
@@ -207,6 +208,30 @@ static inline ComPtr<ID3DBlob> loadAndCompileShader(const wchar_t* const pathAnd
     return shader;
 }
 
+struct Shader {
+    size_t                  size;
+    std::unique_ptr<byte[]> bytecode;
+};
+
+static inline Shader loadShaderBytecode(const char* const pathAndFileName) {
+    FILE* file;
+    if (fopen_s(&file, pathAndFileName, "rb")) {
+        printError("Shader file %s not found.", pathAndFileName);
+        TERMINATE();
+    }
+    Shader shader;
+    // Get the file size in bytes
+    fseek(file, 0, SEEK_END);
+    shader.size = ftell(file);
+    rewind(file);
+    // Read the file
+    shader.bytecode = std::make_unique<byte[]>(shader.size);
+    fread(shader.bytecode.get(), 1, shader.size, file);
+    // Close the file and return the bytecode
+    fclose(file);
+    return shader;
+}
+
 void Renderer::configurePipeline() {
     // Create a persistently mapped buffer on the upload heap
     {
@@ -252,8 +277,8 @@ void Renderer::configurePipeline() {
                    "Failed to create a graphics root signature.");
     }
     // Import the vertex and the pixel shaders
-    const auto vs = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "VSMain", "vs_5_0");
-    const auto ps = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "PSMain", "ps_5_0");
+    const Shader vs = loadShaderBytecode("Shaders\\VSDraw.cso");
+    const Shader ps = loadShaderBytecode("Shaders\\PSDraw.cso");
     // Configure the way depth and stencil tests affect stencil values
     const D3D12_DEPTH_STENCILOP_DESC depthStencilOpDesc = {
         /* StencilFailOp */      D3D12_STENCIL_OP_KEEP,
@@ -320,12 +345,12 @@ void Renderer::configurePipeline() {
     const D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {
         /* pRootSignature */        m_graphicsRootSignature.Get(),
         /* VS */                    D3D12_SHADER_BYTECODE{
-            /* pShaderBytecode */       vs->GetBufferPointer(),
-            /* BytecodeLength  */       vs->GetBufferSize()
+            /* pShaderBytecode */       vs.bytecode.get(),
+            /* BytecodeLength  */       vs.size
                                     },
         /* PS */                    D3D12_SHADER_BYTECODE{
-            /* pShaderBytecode */       ps->GetBufferPointer(),
-            /* BytecodeLength  */       ps->GetBufferSize()
+            /* pShaderBytecode */       ps.bytecode.get(),
+            /* BytecodeLength  */       ps.size
                                     },
         /* DS, HS, GS */            {}, {}, {},
         /* StreamOutput */          D3D12_STREAM_OUTPUT_DESC{},

@@ -105,11 +105,16 @@
     <None Include="README.md">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="Source\Shaders\Shaders.hlsl">
-      <Filter>Source Files\Shaders</Filter>
-    </None>
     <None Include="LICENSE">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="Source\Shaders\PSDraw.ps">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Source\Shaders\VSDraw.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
