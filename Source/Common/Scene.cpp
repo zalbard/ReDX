@@ -150,14 +150,14 @@ uint Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
             cullMask[i / 32] |= 1 << (i % 32);
         }
     }
-    // Partition the array of index buffers s.t. visible objects are at the front
+    // Partition object data s.t. visible objects are at the front
     uint i = 0;
-    while (i < n) {
+    uint j = n - 1;
+    for (; i < j; ++i) {
         // Check if the object was culled
         if (cullMask[i / 32] & 1 << (i % 32)) {
-            // Find a buffer of a visible object to swap with
-            uint j = i + 1;
-            for (; j < n; ++j) {
+            // Find a visible object to swap with
+            for (; i < j; --j) {
                 if (!(cullMask[j / 32] & 1 << (j % 32))) {
                     // Swap the objects
                     std::swap(boundingSpheres[i], boundingSpheres[j]);
@@ -165,19 +165,14 @@ uint Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
                     // Swap (flip) both bits
                     cullMask[i / 32] ^= 1 << (i % 32);
                     cullMask[j / 32] ^= 1 << (j % 32);
+                    // Return to the outer loop
+                    --j;
                     break;
                 }
             }
-            if (j < n) {
-                // Swap was successful; continue from the position 'j'
-                i = j;
-            } else {
-                // Couldn't find a buffer to swap with
-                break;
-            }
-        } else {
-            ++i;
         }
     }
+    // Skip up to the end of visible objects
+    for (; i < n && !(cullMask[i / 32] & 1 << (i % 32)); ++i) {}
     return i;
 }
