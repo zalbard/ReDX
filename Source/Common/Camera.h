@@ -8,8 +8,14 @@ public:
     // the vertical field of view 'vFoV' (in radians),
     // the position 'pos', the viewing direction 'dir' and the 'up' vector
     explicit PerspectiveCamera(const long width, const long height, const float vFoV,
-                               const DirectX::XMVECTOR& pos, const DirectX::XMVECTOR& dir,
-                               const DirectX::XMVECTOR& up);
+                               DirectX::FXMVECTOR pos, DirectX::FXMVECTOR dir,
+                               DirectX::FXMVECTOR up);
+    // Returns the wold-space position of the camera
+    DirectX::XMVECTOR position() const;
+    // Returns the normalized direction along the optical axis
+    DirectX::XMVECTOR computeForwardDir() const;
+    // Returns the view matrix
+    DirectX::XMMATRIX computeViewMatrix() const;
     // Returns the view-projection matrix
     DirectX::XMMATRIX computeViewProjMatrix() const;
     // Moves the camera forward by 'dist' meters
@@ -28,7 +34,7 @@ public:
     // moves it along the forward direction by 'dist' meters
     void rotateAndMoveForward(const float pitch, const float yaw, const float dist);
 private:
-    DirectX::XMVECTOR position;     // World-space position
-    DirectX::XMVECTOR orientQuat;   // Orientation defined as a quaternion
-    DirectX::XMMATRIX projMat;      // Projection matrix
+    DirectX::XMVECTOR m_position;       // World-space position
+    DirectX::XMVECTOR m_orientQuat;     // Orientation defined as a quaternion
+    DirectX::XMMATRIX m_projMat;        // Projection matrix
 };

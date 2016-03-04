@@ -105,10 +105,11 @@ int main(const int argc, const char* argv[]) {
         if (keyPressStatus.a) yaw   -= unitAngle;
         pCam.rotateAndMoveForward(pitch, yaw, dist);
         // Execute engine code
+        const uint visObjCnt = scene.performFrustumCulling(pCam);
         engine.setViewProjMatrix(pCam.computeViewProjMatrix());
         engine.executeCopyCommands(false);
         engine.startFrame();
-        engine.drawIndexed(scene.vertAttribBuffers, scene.indexBuffers.get(), scene.numObjects);
+        engine.drawIndexed(scene.vertAttribBuffers, scene.indexBuffers.get(), visObjCnt);
         engine.finalizeFrame();
     }
 }
