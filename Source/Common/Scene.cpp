@@ -145,7 +145,7 @@ uint Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         // Compute the signed distance from the sphere's center to the near plane
         const XMVECTOR signDist       = XMVector3Dot(camToSphere, camDir);
         // if (signDist < -boundingSphere.radius()) ...
-        if (XMVectorGetIntX(XMVectorLess(signDist, XMVectorNegate(boundingSphere.radius())))) {
+        if (XMVectorGetIntW(XMVectorLess(signDist, XMVectorNegate(boundingSphere.radius())))) {
             // Set the 'object culled' flag
             cullMask[i / 32] |= 1 << (i % 32);
         }
