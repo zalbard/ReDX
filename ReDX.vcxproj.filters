@@ -119,6 +119,8 @@
     <FxCompile Include="Source\Shaders\VSDraw.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Source\Shaders\PSDraw.hlsl" />
+    <FxCompile Include="Source\Shaders\PSDraw.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
