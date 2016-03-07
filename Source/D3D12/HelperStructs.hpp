@@ -75,7 +75,7 @@ D3D12::CommandQueue<T, N>::insertFence(const uint64 customFenceValue) {
 }
 
 template <D3D12::QueueType T, uint N>
-inline void D3D12::CommandQueue<T, N>::blockThread(const uint64 customFenceValue) {
+inline void D3D12::CommandQueue<T, N>::syncThread(const uint64 customFenceValue) {
     // fence->GetCompletedValue() returns the value of the fence reached so far
     // If we haven't reached the fence yet...
     const uint64 awaitedValue = customFenceValue ? customFenceValue : m_fenceValue;
@@ -88,7 +88,7 @@ inline void D3D12::CommandQueue<T, N>::blockThread(const uint64 customFenceValue
 }
 
 template<D3D12::QueueType T, uint N>
-inline void D3D12::CommandQueue<T, N>::blockQueue(ID3D12Fence* const fence,
+inline void D3D12::CommandQueue<T, N>::syncQueue(ID3D12Fence* const fence,
                                                   const uint64 fenceValue) {
     CHECK_CALL(m_interface->Wait(fence, fenceValue), "Failed to start waiting for the fence.");
 }
@@ -96,7 +96,7 @@ inline void D3D12::CommandQueue<T, N>::blockQueue(ID3D12Fence* const fence,
 template <D3D12::QueueType T, uint N>
 inline void D3D12::CommandQueue<T, N>::finish() {
     insertFence(UINT64_MAX);
-    blockThread(UINT64_MAX);
+    syncThread(UINT64_MAX);
     CloseHandle(m_syncEvent);
 }
 
