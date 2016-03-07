@@ -12,7 +12,7 @@ using DirectX::XMFLOAT3;
 using DirectX::XMVECTOR;
 
 using DirectX::XMVector3Dot;
-using DirectX::XMVectorGetIntX;
+using DirectX::XMVectorGetIntW;
 using DirectX::XMVectorLess;
 using DirectX::XMVectorNegate;
 using DirectX::XMVectorSubtract;
