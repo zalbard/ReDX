@@ -49,7 +49,7 @@ namespace D3D12 {
         uint                                         m_backBufferIndex;
         /* Direct3D resources */
         ComPtr<ID3D12DeviceEx>                       m_device;
-        CommandQueue<QueueType::COPY, 1>             m_copyCommandQueue;
+        CommandQueue<QueueType::COPY, FRAME_CNT>     m_copyCommandQueue;
         CommandQueue<QueueType::GRAPHICS, FRAME_CNT> m_graphicsCommandQueue;
         ComPtr<IDXGISwapChain3>                      m_swapChain;
         HANDLE                                       m_swapChainWaitableObject;

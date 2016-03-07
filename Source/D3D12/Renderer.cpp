@@ -485,22 +485,23 @@ void D3D12::Renderer::executeCopyCommands(const bool clearUploadBuffer) {
     m_copyCommandQueue.execute(m_copyCommandList.Get());
     // Wait for the copy command list execution to finish
     auto fenceAndValue = m_copyCommandQueue.insertFence();
-    if (clearUploadBuffer) {
-        m_copyCommandQueue.blockThread();
-        // Command list allocators can only be reset when the associated 
-        // command lists have finished execution on the GPU
-        CHECK_CALL(m_copyCommandQueue.listAlloca()->Reset(),
-                   "Failed to reset the copy command list allocator.");
-        // Reset the current position within the upload buffer back to the beginning
-        m_uploadBuffer.offset = 0;
-    } else {
-        // Ensure synchronization between the graphics and the copy command queues
-        m_graphicsCommandQueue.blockQueue(fenceAndValue.first, fenceAndValue.second);
-    }
+    m_copyCommandQueue.blockThread();
+    // Ensure synchronization between the graphics and the copy command queues
+    m_graphicsCommandQueue.blockQueue(fenceAndValue.first, fenceAndValue.second);
+    // Command list allocators can only be reset when the associated 
+    // command lists have finished execution on the GPU
+    CHECK_CALL(m_copyCommandQueue.listAlloca()->Reset(),
+               "Failed to reset the copy command list allocator.");
     // After a command list has been executed, 
     // it can then be reset at any time (and must be before re-recording)
     CHECK_CALL(m_copyCommandList->Reset(m_copyCommandQueue.listAlloca(), nullptr),
                "Failed to reset the copy command list.");
+    if (clearUploadBuffer) {
+        // TODO: avoid stalling the thread
+        m_copyCommandQueue.blockThread(fenceAndValue.second);
+        // Reset the current position within the upload buffer back to the beginning
+        m_uploadBuffer.offset = 0;
+    }
 }
 
 void Renderer::startFrame() {
