@@ -444,19 +444,6 @@ void Renderer::setViewProjMatrix(const XMMATRIX& viewProjMat) {
 template<uint64 alignment>
 void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const data) {
     assert(data && size > 0);
-    // Make sure the upload buffer is sufficiently large
-    #ifdef _DEBUG
-    {
-        const byte* const alignedBegin    = align<alignment>(m_uploadBuffer.begin);
-        const int64       alignedCapacity = m_uploadBuffer.capacity -
-                                            (alignedBegin - m_uploadBuffer.begin);
-        if (alignedCapacity < size) {
-            printError("Insufficient upload buffer capacity: current (aligned): %i, required: %u.",
-                       alignedCapacity, size);
-            TERMINATE();
-        }
-    }
-    #endif
     // Compute the address within the upload buffer which we will copy the data to
     byte* alignedAddress = align<alignment>(m_uploadBuffer.begin + m_uploadBuffer.offset);
     int64 updatedOffset  = alignedAddress - m_uploadBuffer.begin;
@@ -467,6 +454,18 @@ void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const 
         // Recompute 'alignedAddress' and 'updatedOffset'
         alignedAddress = align<alignment>(m_uploadBuffer.begin);
         updatedOffset  = alignedAddress - m_uploadBuffer.begin;
+        // Make sure the upload buffer is sufficiently large
+        #ifdef _DEBUG
+        {
+            const int64 alignedCapacity = m_uploadBuffer.capacity - updatedOffset;
+            if (alignedCapacity < size) {
+                printError("Insufficient upload buffer capacity: "
+                           "current (aligned): %i, required: %u.",
+                           alignedCapacity, size);
+                TERMINATE();
+            }
+        }
+        #endif
     }
     // Load the data into the upload buffer, and update the offset
     memcpy(alignedAddress, data, size);
