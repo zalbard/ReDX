@@ -69,10 +69,10 @@ Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine) {
     }
     numObjects = nObj;
     // Allocate memory
-    boundingSpheres = std::make_unique<Sphere[]>(nObj);
-    objectCullMask  = std::make_unique<uint[]>((nObj + 31) / 32);
-    indexBuffers    = std::make_unique<D3D12::IndexBuffer[]>(nObj);
-    auto indices    = std::make_unique<std::vector<uint>[]>(nObj);
+    boundingSpheres      = std::make_unique<Sphere[]>(nObj);
+    objectVisibilityMask = DynBitSet{nObj};
+    indexBuffers         = std::make_unique<D3D12::IndexBuffer[]>(nObj);
+    auto indices         = std::make_unique<std::vector<uint>[]>(nObj);
     for (uint i = 0; i < nObj; ++i) {
         indices[i].reserve(16384);
     }
@@ -130,15 +130,13 @@ Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine) {
     printInfo("Scene loaded successfully.");
 }
 
-uint Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
+void Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
     // Set all objects as visible
-    const uint  n        = numObjects;
-    uint* const cullMask = objectCullMask.get();
-    memset(cullMask, 0, ((n + 31) / 32) * sizeof(uint));
+    objectVisibilityMask.reset(1);
     // Compute camera parameters
     const XMVECTOR camPos = pCam.position();
     const XMVECTOR camDir = pCam.computeForwardDir();
-    for (uint i = 0; i < n; ++i) {
+    for (uint i = 0, n = numObjects; i < n; ++i) {
         const Sphere   boundingSphere = boundingSpheres[i];
         const XMVECTOR sphereCenter   = boundingSphere.center();
         const XMVECTOR camToSphere    = XMVectorSubtract(sphereCenter, camPos);
@@ -146,33 +144,8 @@ uint Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         const XMVECTOR signDist       = XMVector3Dot(camToSphere, camDir);
         // if (signDist < -boundingSphere.radius()) ...
         if (XMVectorGetIntW(XMVectorLess(signDist, XMVectorNegate(boundingSphere.radius())))) {
-            // Set the 'object culled' flag
-            cullMask[i / 32] |= 1 << (i % 32);
+            // Clear the 'object visible' flag
+            objectVisibilityMask.clearBit(i);
         }
     }
-    // Partition object data s.t. visible objects are at the front
-    uint i = 0;
-    uint j = n - 1;
-    for (; i < j; ++i) {
-        // Check if the object was culled
-        if (cullMask[i / 32] & 1 << (i % 32)) {
-            // Find a visible object to swap with
-            for (; i < j; --j) {
-                if (!(cullMask[j / 32] & 1 << (j % 32))) {
-                    // Swap the objects
-                    std::swap(boundingSpheres[i], boundingSpheres[j]);
-                    swap(indexBuffers[i], indexBuffers[j]);
-                    // Swap (flip) both bits
-                    cullMask[i / 32] ^= 1 << (i % 32);
-                    cullMask[j / 32] ^= 1 << (j % 32);
-                    // Return to the outer loop
-                    --j;
-                    break;
-                }
-            }
-        }
-    }
-    // Skip up to the end of visible objects
-    for (; i < n && !(cullMask[i / 32] & 1 << (i % 32)); ++i) {}
-    return i;
 }

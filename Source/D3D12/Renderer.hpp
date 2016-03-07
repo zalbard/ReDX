@@ -35,7 +35,8 @@ D3D12::VertexBuffer D3D12::Renderer::createVertexBuffer(const uint count, const 
 
 template <uint N>
 void D3D12::Renderer::drawIndexed(const VertexBuffer (&vbos)[N],
-                                  const IndexBuffer* const ibos, const uint iboCount) {
+                                  const IndexBuffer* const ibos, const uint iboCount,
+                                  const DynBitSet& drawMask) {
     D3D12_VERTEX_BUFFER_VIEW vboViews[N];
     for (uint i = 0; i < N; ++i) {
         vboViews[i] = vbos[i].view;
@@ -43,7 +44,9 @@ void D3D12::Renderer::drawIndexed(const VertexBuffer (&vbos)[N],
     // Record the commands into the command list
     m_graphicsCommandList->IASetVertexBuffers(0, N, vboViews);
     for (uint i = 0; i < iboCount; ++i) {
-        m_graphicsCommandList->IASetIndexBuffer(&ibos[i].view);
-        m_graphicsCommandList->DrawIndexedInstanced(ibos[i].count(), 1, 0, 0, 0);
+        if (drawMask.testBit(i)) {
+            m_graphicsCommandList->IASetIndexBuffer(&ibos[i].view);
+            m_graphicsCommandList->DrawIndexedInstanced(ibos[i].count(), 1, 0, 0, 0);
+        }
     }
 }

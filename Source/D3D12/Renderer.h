@@ -3,6 +3,7 @@
 #include <dxgi1_4.h>
 #include "HelperStructs.h"
 #include "..\Common\Constants.h"
+#include "..\Common\DynBitSet.h"
 
 namespace D3D12 {
     class Renderer {
@@ -26,8 +27,10 @@ namespace D3D12 {
         void startFrame();
         template <uint N>
         // Draws geometry using 'N' vertex attribute buffers and 'iboCount' index buffers
+        // 'drawMask' indicates whether geometry (within 'ibos') should be drawn
         void drawIndexed(const VertexBuffer (&vbos)[N],
-                         const IndexBuffer* const ibos, const uint iboCount);
+                         const IndexBuffer* const ibos, const uint iboCount,
+                         const DynBitSet& drawMask);
         // Finalizes the frame rendering process
         void finalizeFrame();
         // Terminates the rendering process

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include "DynBitSet.h"
 #include "..\D3D12\HelperStructs.h"
 
 class PerspectiveCamera;
@@ -28,12 +29,11 @@ public:
     // The renderer performs Direct3D resource initialization
     explicit Scene(const char* const objFilePath, D3D12::Renderer& engine);
     // Performs culling of scene objects against the camera's frustum
-    // Returns the number of visible objects
-    uint performFrustumCulling(const PerspectiveCamera& pCam);
+    void performFrustumCulling(const PerspectiveCamera& pCam);
 public:
     uint                                  numObjects;
     std::unique_ptr<Sphere[]>             boundingSpheres;
-    std::unique_ptr<uint[]>               objectCullMask;  
+    DynBitSet                             objectVisibilityMask;  
     std::unique_ptr<D3D12::IndexBuffer[]> indexBuffers;
     D3D12::VertexBuffer                   vertAttribBuffers[2]; // Positions, normals
 };
