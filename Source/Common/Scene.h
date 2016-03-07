@@ -9,7 +9,8 @@ namespace D3D12 { class Renderer; }
 class Sphere {
 public:
     Sphere() = default;
-    Sphere(DirectX::FXMVECTOR center, const float radiusSq);
+    // Ctor; takes the center and the radius as input
+    Sphere(DirectX::FXMVECTOR center, const float radius);
     // Returns the center of the sphere in the XYZ part; W = 0
     DirectX::XMVECTOR center() const;
     // Returns the radius of the sphere in every component

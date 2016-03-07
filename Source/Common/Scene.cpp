@@ -40,8 +40,8 @@ using CoordIterator  = const float*;
 using BoundingSphere = Miniball::Miniball<Miniball::CoordAccessor<IndexedPointIterator,
                                                                   CoordIterator>>;
 
-Sphere::Sphere(DirectX::FXMVECTOR center, const float radiusSq)
-    : m_data{DirectX::XMVectorSetW(center, radiusSq)} {}
+Sphere::Sphere(DirectX::FXMVECTOR center, const float radius)
+    : m_data{DirectX::XMVectorSetW(center, radius)} {}
 
 XMVECTOR Sphere::center() const {
     return DirectX::XMVectorSetW(m_data, 0.f);
