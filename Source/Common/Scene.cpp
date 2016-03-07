@@ -29,7 +29,7 @@ struct IndexedPointIterator {
         return index == other.index;
     }
     bool operator!=(const IndexedPointIterator& other) const {
-        return !operator==(other);
+        return index != other.index;
     }
 public:
     const uint*     index;
