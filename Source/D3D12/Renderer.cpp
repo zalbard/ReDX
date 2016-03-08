@@ -76,11 +76,11 @@ Renderer::Renderer() {
         debugController->EnableDebugLayer();
     }
     #endif
-    // Create a DirectX Graphics Infrastructure (DXGI) 1.1 factory
+    // Create a DirectX Graphics Infrastructure (DXGI) 1.4 factory
     // IDXGIFactory4 inherits from IDXGIFactory1 (4 -> 3 -> 2 -> 1)
     ComPtr<IDXGIFactory4> factory;
     CHECK_CALL(CreateDXGIFactory1(IID_PPV_ARGS(&factory)),
-               "Failed to create a DXGI 1.1 factory.");
+               "Failed to create a DXGI 1.4 factory.");
     // Disable transitions from the windowed to the fullscreen mode
     CHECK_CALL(factory->MakeWindowAssociation(Window::handle(), DXGI_MWA_NO_ALT_ENTER),
                "Failed to disable fullscreen transitions.");
