@@ -15,7 +15,7 @@ struct KeyPressStatus {
     uint e : 1;
 };
 
-int main(const int argc, const char* argv[]) {
+int __cdecl main(const int argc, const char* argv[]) {
     // Parse command line arguments
 	if (argc > 1) {
 		printError("The following command line arguments have been ignored:");
