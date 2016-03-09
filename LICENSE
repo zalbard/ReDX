@@ -1,6 +1,6 @@
 The MIT License (MIT)
 
-Copyright (c) 2015 zalbard
+Copyright (c) 2016 Evgenii Golubev
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,11 @@ Authors:    Sean T. Barrett
 License:    Public Domain
 
 Files:      tiny_obj_loader.h
-Content:    Tiny but poweful single file wavefront obj loader
+Content:    Tiny but powerful single file wavefront obj loader
 Authors:    Syoyo Fujita
 License:    BSD 2-Clause
+
+Files:      miniball.hpp
+Content:    Miniball software (V3.0) for computing smallest enclosing balls of points
+Authors:    Bernd Gaertner
+License:    GPL v3.0

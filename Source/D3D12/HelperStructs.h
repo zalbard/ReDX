@@ -28,11 +28,6 @@ namespace D3D12 {
         COPY     = D3D12_COMMAND_LIST_TYPE_COPY     // Supports copy commands only
     };
 
-    struct Vertex {
-        XMFLOAT3 position;                          // Object-space vertex coordinates
-        XMFLOAT3 normal;                            // World-space normal vector
-    };
-
     struct MemoryBuffer {
         ComPtr<ID3D12Resource>       resource;      // Buffer interface
     protected:
@@ -42,7 +37,6 @@ namespace D3D12 {
 
     struct VertexBuffer: public MemoryBuffer {
         D3D12_VERTEX_BUFFER_VIEW     view;          // Buffer descriptor
-        uint                         count() const; // Returns the number of elements
     };
 
     struct IndexBuffer: public MemoryBuffer {
@@ -54,12 +48,14 @@ namespace D3D12 {
         D3D12_GPU_VIRTUAL_ADDRESS    location;      // GPU virtual address of the buffer
     };
 
-    struct UploadBuffer: public MemoryBuffer {
-        UploadBuffer();
-        RULE_OF_FIVE_MOVE_ONLY(UploadBuffer);
+    struct UploadRingBuffer: public MemoryBuffer {
+        UploadRingBuffer();
+        RULE_OF_FIVE_MOVE_ONLY(UploadRingBuffer);
         byte*                        begin;         // CPU virtual memory-mapped address
-        uint                         offset;        // Offset from the beginning of the buffer
         uint                         capacity;      // Buffer size in bytes
+        uint                         offset;        // Offset from the beginning of the buffer
+        uint                         prevSegStart;  // Offset to the beginning of the prev. segment
+        uint                         currSegStart;  // Offset to the beginning of the curr. segment
     };
 
     // Descriptor heap wrapper
@@ -88,10 +84,10 @@ namespace D3D12 {
         std::pair<ID3D12Fence*, uint64> insertFence(const uint64 customFenceValue = 0);
         // Blocks the execution of the thread until the fence is reached
         // Optionally, a custom value of the fence can be specified
-        void blockThread(const uint64 customFenceValue = 0);
+        void syncThread(const uint64 customFenceValue = 0);
         // Blocks the execution of the queue until the fence
         // with the specified value is reached
-        void blockQueue(ID3D12Fence* const fence, const uint64 fenceValue);
+        void syncQueue(ID3D12Fence* const fence, const uint64 fenceValue);
         // Waits for the queue to become drained, and stops synchronization
         void finish();
         /* Accessors */

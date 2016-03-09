@@ -3,42 +3,54 @@
 #include "HelperStructs.h"
 #include "..\Common\Utility.h"
 
-inline uint D3D12::VertexBuffer::count() const {
-    return view.SizeInBytes / sizeof(Vertex);
-}
-
 inline uint D3D12::IndexBuffer::count() const {
     return view.SizeInBytes / sizeof(uint);
 }
 
-inline D3D12::UploadBuffer::UploadBuffer()
-    : MemoryBuffer{nullptr}
-    , begin{nullptr} {}
+inline void swap(D3D12::IndexBuffer& a, D3D12::IndexBuffer& b) {
+    a.resource.Swap(b.resource);
+    const auto tmp = a.view;
+    a.view         = b.view;
+    b.view         = tmp;
+}
 
-inline D3D12::UploadBuffer::UploadBuffer(UploadBuffer&& other) noexcept
+inline D3D12::UploadRingBuffer::UploadRingBuffer()
+    : MemoryBuffer{nullptr}
+    , begin{nullptr}
+    , capacity{0}
+    , offset{0}
+    , prevSegStart{0}
+    , currSegStart{0} {}
+
+inline D3D12::UploadRingBuffer::UploadRingBuffer(UploadRingBuffer&& other) noexcept
     : MemoryBuffer{std::move(other.resource)}
     , begin{other.begin}
+    , capacity{other.capacity}
     , offset{other.offset}
-    , capacity{other.capacity} {
+    , prevSegStart{other.prevSegStart}
+    , currSegStart{other.currSegStart} {
     // Mark as moved
     other.begin = nullptr;
 }
 
-inline D3D12::UploadBuffer& D3D12::UploadBuffer::operator=(UploadBuffer&& other) noexcept {
+inline D3D12::UploadRingBuffer&
+D3D12::UploadRingBuffer::operator=(UploadRingBuffer&& other) noexcept {
     if (begin) {
         resource->Unmap(0, nullptr);
     }
     // Copy the data
-    resource = std::move(other.resource);
-    begin    = other.begin;
-    offset   = other.offset;
-    capacity = other.capacity;
+    resource     = std::move(other.resource);
+    begin        = other.begin;
+    capacity     = other.capacity;
+    offset       = other.offset;
+    prevSegStart = other.prevSegStart;
+    currSegStart = other.currSegStart;
     // Mark as moved
     other.begin = nullptr;
     return *this;
 }
 
-inline D3D12::UploadBuffer::~UploadBuffer() noexcept {
+inline D3D12::UploadRingBuffer::~UploadRingBuffer() noexcept {
     // Check if it was moved
     if (begin) {
         resource->Unmap(0, nullptr);
@@ -72,7 +84,7 @@ D3D12::CommandQueue<T, N>::insertFence(const uint64 customFenceValue) {
 }
 
 template <D3D12::QueueType T, uint N>
-inline void D3D12::CommandQueue<T, N>::blockThread(const uint64 customFenceValue) {
+inline void D3D12::CommandQueue<T, N>::syncThread(const uint64 customFenceValue) {
     // fence->GetCompletedValue() returns the value of the fence reached so far
     // If we haven't reached the fence yet...
     const uint64 awaitedValue = customFenceValue ? customFenceValue : m_fenceValue;
@@ -85,7 +97,7 @@ inline void D3D12::CommandQueue<T, N>::blockThread(const uint64 customFenceValue
 }
 
 template<D3D12::QueueType T, uint N>
-inline void D3D12::CommandQueue<T, N>::blockQueue(ID3D12Fence* const fence,
+inline void D3D12::CommandQueue<T, N>::syncQueue(ID3D12Fence* const fence,
                                                   const uint64 fenceValue) {
     CHECK_CALL(m_interface->Wait(fence, fenceValue), "Failed to start waiting for the fence.");
 }
@@ -93,7 +105,7 @@ inline void D3D12::CommandQueue<T, N>::blockQueue(ID3D12Fence* const fence,
 template <D3D12::QueueType T, uint N>
 inline void D3D12::CommandQueue<T, N>::finish() {
     insertFence(UINT64_MAX);
-    blockThread(UINT64_MAX);
+    syncThread(UINT64_MAX);
     CloseHandle(m_syncEvent);
 }
 

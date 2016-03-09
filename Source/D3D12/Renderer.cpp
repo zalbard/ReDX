@@ -1,4 +1,5 @@
 #include <d3dcompiler.h>
+#include <memory>
 #include "HelperStructs.hpp"
 #include "Renderer.h"
 #include "..\Common\Math.h"
@@ -75,11 +76,11 @@ Renderer::Renderer() {
         debugController->EnableDebugLayer();
     }
     #endif
-    // Create a DirectX Graphics Infrastructure (DXGI) 1.1 factory
+    // Create a DirectX Graphics Infrastructure (DXGI) 1.4 factory
     // IDXGIFactory4 inherits from IDXGIFactory1 (4 -> 3 -> 2 -> 1)
     ComPtr<IDXGIFactory4> factory;
     CHECK_CALL(CreateDXGIFactory1(IID_PPV_ARGS(&factory)),
-               "Failed to create a DXGI 1.1 factory.");
+               "Failed to create a DXGI 1.4 factory.");
     // Disable transitions from the windowed to the fullscreen mode
     CHECK_CALL(factory->MakeWindowAssociation(Window::handle(), DXGI_MWA_NO_ALT_ENTER),
                "Failed to disable fullscreen transitions.");
@@ -114,13 +115,20 @@ Renderer::Renderer() {
             /* Scaling */     DXGI_SCALING_NONE,
             /* SwapEffect */  DXGI_SWAP_EFFECT_FLIP_DISCARD,
             /* AlphaMode */   DXGI_ALPHA_MODE_UNSPECIFIED,
-            /* Flags */       0
+            /* Flags */       DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
         };
         // Create a swap chain; it needs a command queue to flush the latter
         auto swapChainAddr = reinterpret_cast<IDXGISwapChain1**>(m_swapChain.GetAddressOf());
         CHECK_CALL(factory->CreateSwapChainForHwnd(m_graphicsCommandQueue.get(), Window::handle(),
                                                    &swapChainDesc, nullptr, nullptr, swapChainAddr),
                    "Failed to create a swap chain.");
+        // Set the maximal rendering queue depth
+        CHECK_CALL(m_swapChain->SetMaximumFrameLatency(FRAME_CNT),
+                   "Failed to set the maximal frame latency of the swap chain.");
+        // Retrieve the object used to wait for the swap chain
+        m_swapChainWaitableObject = m_swapChain->GetFrameLatencyWaitableObject();
+        // Block the thread until the swap chain is ready accept a new frame
+        WaitForSingleObject(m_swapChainWaitableObject, INFINITE);
     }
     // Create a render target view (RTV) descriptor pool
     m_device->createDescriptorPool(&m_rtvPool, BUF_CNT);
@@ -200,11 +208,34 @@ static inline ComPtr<ID3DBlob> loadAndCompileShader(const wchar_t* const pathAnd
     return shader;
 }
 
+struct Shader {
+    size_t                  size;
+    std::unique_ptr<byte[]> bytecode;
+};
+
+static inline Shader loadShaderBytecode(const char* const pathAndFileName) {
+    FILE* file;
+    if (fopen_s(&file, pathAndFileName, "rb")) {
+        printError("Shader file %s not found.", pathAndFileName);
+        TERMINATE();
+    }
+    Shader shader;
+    // Get the file size in bytes
+    fseek(file, 0, SEEK_END);
+    shader.size = ftell(file);
+    rewind(file);
+    // Read the file
+    shader.bytecode = std::make_unique<byte[]>(shader.size);
+    fread(shader.bytecode.get(), 1, shader.size, file);
+    // Close the file and return the bytecode
+    fclose(file);
+    return shader;
+}
+
 void Renderer::configurePipeline() {
     // Create a persistently mapped buffer on the upload heap
     {
         m_uploadBuffer.capacity = UPLOAD_BUF_SIZE;
-        m_uploadBuffer.offset   = 0;
         // Allocate the buffer on the upload heap
         const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
         const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(m_uploadBuffer.capacity);
@@ -245,8 +276,8 @@ void Renderer::configurePipeline() {
                    "Failed to create a graphics root signature.");
     }
     // Import the vertex and the pixel shaders
-    const auto vs = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "VSMain", "vs_5_0");
-    const auto ps = loadAndCompileShader(L"Source\\Shaders\\shaders.hlsl", "PSMain", "ps_5_0");
+    const Shader vs = loadShaderBytecode("Shaders\\VSDraw.cso");
+    const Shader ps = loadShaderBytecode("Shaders\\PSDraw.cso");
     // Configure the way depth and stencil tests affect stencil values
     const D3D12_DEPTH_STENCILOP_DESC depthStencilOpDesc = {
         /* StencilFailOp */      D3D12_STENCIL_OP_KEEP,
@@ -280,8 +311,8 @@ void Renderer::configurePipeline() {
             /* SemanticName */         "NORMAL",
             /* SemanticIndex */        0,
             /* Format */               DXGI_FORMAT_R32G32B32_FLOAT,
-            /* InputSlot */            0,
-            /* AlignedByteOffset */    sizeof(Vertex::position),
+            /* InputSlot */            1,
+            /* AlignedByteOffset */    0,
             /* InputSlotClass */       D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
             /* InstanceDataStepRate */ 0
         }
@@ -313,12 +344,12 @@ void Renderer::configurePipeline() {
     const D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {
         /* pRootSignature */        m_graphicsRootSignature.Get(),
         /* VS */                    D3D12_SHADER_BYTECODE{
-            /* pShaderBytecode */       vs->GetBufferPointer(),
-            /* BytecodeLength  */       vs->GetBufferSize()
+            /* pShaderBytecode */       vs.bytecode.get(),
+            /* BytecodeLength  */       vs.size
                                     },
         /* PS */                    D3D12_SHADER_BYTECODE{
-            /* pShaderBytecode */       ps->GetBufferPointer(),
-            /* BytecodeLength  */       ps->GetBufferSize()
+            /* pShaderBytecode */       ps.bytecode.get(),
+            /* BytecodeLength  */       ps.size
                                     },
         /* DS, HS, GS */            {}, {}, {},
         /* StreamOutput */          D3D12_STREAM_OUTPUT_DESC{},
@@ -375,34 +406,6 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* const
     return buffer;
 }
 
-VertexBuffer Renderer::createVertexBuffer(const uint count, const Vertex* const vertices) {
-    assert(vertices && count >= 3);
-    VertexBuffer buffer;
-    const uint size = count * sizeof(Vertex);
-    // Allocate the buffer on the default heap
-    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
-    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
-    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &bufferDesc, D3D12_RESOURCE_STATE_COMMON,
-                                                 nullptr, IID_PPV_ARGS(&buffer.resource)),
-               "Failed to allocate a vertex buffer.");
-    // Transition the memory buffer state for graphics/compute command queue type class
-    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
-        D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-    m_graphicsCommandList->ResourceBarrier(1, &barrier);
-    // Copy the vertices to video memory using the upload buffer
-    // Max. alignment requirement for vertex data is 4 bytes
-    constexpr uint64 alignment = 4;
-    uploadData<alignment>(buffer, size, vertices);
-    // Initialize the vertex buffer view
-    buffer.view = D3D12_VERTEX_BUFFER_VIEW{
-        /* BufferLocation */ buffer.resource->GetGPUVirtualAddress(),
-        /* SizeInBytes */    size,
-        /* StrideInBytes */  sizeof(Vertex)
-    };
-    return buffer;
-}
-
 IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indices) {
     assert(indices && count >= 3);
     IndexBuffer buffer;
@@ -440,63 +443,73 @@ void Renderer::setViewProjMatrix(const XMMATRIX& viewProjMat) {
 template<uint64 alignment>
 void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const data) {
     assert(data && size > 0);
-    // Make sure the upload buffer is sufficiently large
-    #ifdef _DEBUG
-    {
-        const byte* const alignedBegin    = align<alignment>(m_uploadBuffer.begin);
-        const int64       alignedCapacity = m_uploadBuffer.capacity -
-                                            (alignedBegin - m_uploadBuffer.begin);
-        if (alignedCapacity < size) {
-            printError("Insufficient upload buffer capacity: current (aligned): %i, required: %u.",
-                       alignedCapacity, size);
-            TERMINATE();
-        }
-    }
-    #endif
     // Compute the address within the upload buffer which we will copy the data to
-    byte* alignedAddress = align<alignment>(m_uploadBuffer.begin + m_uploadBuffer.offset);
-    int64 updatedOffset  = alignedAddress - m_uploadBuffer.begin;
+    byte*  alignedAddress = align<alignment>(m_uploadBuffer.begin + m_uploadBuffer.offset);
+    uint64 alignedOffset  = alignedAddress - m_uploadBuffer.begin;
     // Check whether the upload buffer has sufficient space left
-    const int64 remainingCapacity = m_uploadBuffer.capacity - updatedOffset;
-    if (remainingCapacity < size) {
-        executeCopyCommands(true);
-        // Recompute 'alignedAddress' and 'updatedOffset'
+    const int64 remainingCapacity = m_uploadBuffer.capacity - alignedOffset;
+    const bool  wrapAround = remainingCapacity < size;
+    if (wrapAround) {
+        m_uploadBuffer.offset = 0;
+        // Recompute 'alignedAddress' and 'alignedOffset'
         alignedAddress = align<alignment>(m_uploadBuffer.begin);
-        updatedOffset  = alignedAddress - m_uploadBuffer.begin;
+        alignedOffset  = alignedAddress - m_uploadBuffer.begin;
+        // Make sure the upload buffer is sufficiently large
+        #ifdef _DEBUG
+        {
+            const int64 alignedCapacity = m_uploadBuffer.capacity - alignedOffset;
+            if (alignedCapacity < size) {
+                printError("Insufficient upload buffer capacity: "
+                           "current (aligned): %i, required: %u.",
+                           alignedCapacity, size);
+                TERMINATE();
+            }
+        }
+        #endif
     }
-    // Load the data into the upload buffer, and update the offset
+    const uint alignedEnd = static_cast<uint>(alignedOffset + size);
+    // Case 1: |---CURR===PREV===ALIGNED_END---|
+    const bool case1 = m_uploadBuffer.currSegStart < m_uploadBuffer.prevSegStart &&
+                       m_uploadBuffer.prevSegStart < alignedEnd;
+    // Case 2: |===PREV===ALIGNED_END---CURR===|
+    const bool case2 = m_uploadBuffer.prevSegStart < alignedEnd &&
+                       alignedEnd <= m_uploadBuffer.currSegStart;
+    // Case 3: |===CURR===ALIGNED_END==========|
+    const bool case3 = wrapAround && m_uploadBuffer.currSegStart < alignedEnd;
+    // Make sure we do not overwrite any data which is still being copied to GPU
+    if (case1 || case2 || case3) {
+        // In case 3, the buffer is full, so we have to block the thread
+        executeCopyCommands(case3);
+    }
+    // Load the data into the upload buffer
     memcpy(alignedAddress, data, size);
-    m_uploadBuffer.offset = static_cast<uint>(updatedOffset);
     // Copy the data from the upload buffer into the memory buffer
     m_copyCommandList->CopyBufferRegion(dst.resource.Get(), 0,
-                                        m_uploadBuffer.resource.Get(), m_uploadBuffer.offset,
-                                        size);
-    // Set the offset to the end of the data
-    m_uploadBuffer.offset += size;
+                                        m_uploadBuffer.resource.Get(), alignedOffset, size);
+    // Set the offset at the end of the data
+    m_uploadBuffer.offset = alignedEnd;
 }
 
-void D3D12::Renderer::executeCopyCommands(const bool clearUploadBuffer) {
+void D3D12::Renderer::executeCopyCommands(const bool fullSync) {
     // Finalize and execute the command list
     CHECK_CALL(m_copyCommandList->Close(), "Failed to close the copy command list.");
     m_copyCommandQueue.execute(m_copyCommandList.Get());
     // Wait for the copy command list execution to finish
     auto fenceAndValue = m_copyCommandQueue.insertFence();
-    if (clearUploadBuffer) {
-        m_copyCommandQueue.blockThread();
-        // Command list allocators can only be reset when the associated 
-        // command lists have finished execution on the GPU
-        CHECK_CALL(m_copyCommandQueue.listAlloca()->Reset(),
-                   "Failed to reset the copy command list allocator.");
-        // Reset the current position within the upload buffer back to the beginning
-        m_uploadBuffer.offset = 0;
-    } else {
-        // Ensure synchronization between the graphics and the copy command queues
-        m_graphicsCommandQueue.blockQueue(fenceAndValue.first, fenceAndValue.second);
-    }
+    m_copyCommandQueue.syncThread(fullSync ? fenceAndValue.second : 0);
+    // Ensure synchronization between the graphics and the copy command queues
+    m_graphicsCommandQueue.syncQueue(fenceAndValue.first, fenceAndValue.second);
+    // Command list allocators can only be reset when the associated 
+    // command lists have finished execution on the GPU
+    CHECK_CALL(m_copyCommandQueue.listAlloca()->Reset(),
+               "Failed to reset the copy command list allocator.");
     // After a command list has been executed, 
     // it can then be reset at any time (and must be before re-recording)
     CHECK_CALL(m_copyCommandList->Reset(m_copyCommandQueue.listAlloca(), nullptr),
                "Failed to reset the copy command list.");
+    // Begin a new segment of the upload buffer
+    m_uploadBuffer.prevSegStart = m_uploadBuffer.currSegStart;
+    m_uploadBuffer.currSegStart = m_uploadBuffer.offset;
 }
 
 void Renderer::startFrame() {
@@ -527,13 +540,6 @@ void Renderer::startFrame() {
     m_graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
-void Renderer::draw(const VertexBuffer& vbo, const IndexBuffer& ibo) {
-    // Record the commands into the command list
-    m_graphicsCommandList->IASetVertexBuffers(0, 1, &vbo.view);
-    m_graphicsCommandList->IASetIndexBuffer(&ibo.view);
-    m_graphicsCommandList->DrawIndexedInstanced(ibo.count(), 1, 0, 0, 0);
-}
-
 void Renderer::finalizeFrame() {
     // Transition the back buffer state: Render Target -> Presenting
     const auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
@@ -547,7 +553,7 @@ void Renderer::finalizeFrame() {
     CHECK_CALL(m_swapChain->Present(VSYNC_INTERVAL, 0), "Failed to display the frame buffer.");
     // Wait until all the previously issued commands have been executed
     m_graphicsCommandQueue.insertFence();
-    m_graphicsCommandQueue.blockThread();
+    m_graphicsCommandQueue.syncThread();
     // Command list allocators can only be reset when the associated 
     // command lists have finished execution on the GPU
     CHECK_CALL(m_graphicsCommandQueue.listAlloca()->Reset(),
@@ -557,6 +563,9 @@ void Renderer::finalizeFrame() {
     CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsCommandQueue.listAlloca(),
                                             m_graphicsPipelineState.Get()),
                "Failed to reset the graphics command list.");
+    // Block the thread until the swap chain is ready accept a new frame
+    // Otherwise, Present() may block the thread, increasing the input lag
+    WaitForSingleObject(m_swapChainWaitableObject, INFINITE);
 }
 
 void Renderer::stop() {

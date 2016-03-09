@@ -2,7 +2,7 @@
 #include "Common\Scene.h"
 #include "Common\Timer.h"
 #include "Common\Utility.h"
-#include "D3D12\Renderer.h"
+#include "D3D12\Renderer.hpp"
 #include "UI\Window.h"
 
 // Key press status: 1 if pressed, 0 otherwise 
@@ -15,7 +15,7 @@ struct KeyPressStatus {
     uint e : 1;
 };
 
-int main(const int argc, const char* argv[]) {
+int __cdecl main(const int argc, const char* argv[]) {
     // Parse command line arguments
 	if (argc > 1) {
 		printError("The following command line arguments have been ignored:");
@@ -33,7 +33,7 @@ int main(const int argc, const char* argv[]) {
     // Initialize the renderer (internally uses the Window)
     D3D12::Renderer engine;
     // Provide the scene description
-    const Scene scene{"Assets\\Sponza\\sponza.obj", engine};
+    Scene scene{"..\\..\\Assets\\Sponza\\sponza.obj", engine};
     // Set up the camera
     PerspectiveCamera pCam{Window::width(), Window::height(), VERTICAL_FOV,
                            /* pos */ {900.f, 200.f, -35.f},
@@ -105,12 +105,12 @@ int main(const int argc, const char* argv[]) {
         if (keyPressStatus.a) yaw   -= unitAngle;
         pCam.rotateAndMoveForward(pitch, yaw, dist);
         // Execute engine code
+        scene.performFrustumCulling(pCam);
         engine.setViewProjMatrix(pCam.computeViewProjMatrix());
-        engine.executeCopyCommands(false);
+        engine.executeCopyCommands();
         engine.startFrame();
-        for (uint i = 0, n = scene.numObjects; i < n; ++i) {
-            engine.draw(scene.vbo, scene.ibos[i]);
-        }
+        engine.drawIndexed(scene.vertAttribBuffers, scene.indexBuffers.get(),
+                           scene.numObjects, scene.objectVisibilityMask);
         engine.finalizeFrame();
     }
 }
