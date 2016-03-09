@@ -48,12 +48,14 @@ namespace D3D12 {
         D3D12_GPU_VIRTUAL_ADDRESS    location;      // GPU virtual address of the buffer
     };
 
-    struct UploadBuffer: public MemoryBuffer {
-        UploadBuffer();
-        RULE_OF_FIVE_MOVE_ONLY(UploadBuffer);
+    struct UploadRingBuffer: public MemoryBuffer {
+        UploadRingBuffer();
+        RULE_OF_FIVE_MOVE_ONLY(UploadRingBuffer);
         byte*                        begin;         // CPU virtual memory-mapped address
-        uint                         offset;        // Offset from the beginning of the buffer
         uint                         capacity;      // Buffer size in bytes
+        uint                         offset;        // Offset from the beginning of the buffer
+        uint                         prevSegStart;  // Offset to the beginning of the prev. segment
+        uint                         currSegStart;  // Offset to the beginning of the curr. segment
     };
 
     // Descriptor heap wrapper

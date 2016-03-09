@@ -236,7 +236,6 @@ void Renderer::configurePipeline() {
     // Create a persistently mapped buffer on the upload heap
     {
         m_uploadBuffer.capacity = UPLOAD_BUF_SIZE;
-        m_uploadBuffer.offset   = 0;
         // Allocate the buffer on the upload heap
         const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
         const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(m_uploadBuffer.capacity);
@@ -445,19 +444,20 @@ template<uint64 alignment>
 void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const data) {
     assert(data && size > 0);
     // Compute the address within the upload buffer which we will copy the data to
-    byte* alignedAddress = align<alignment>(m_uploadBuffer.begin + m_uploadBuffer.offset);
-    int64 updatedOffset  = alignedAddress - m_uploadBuffer.begin;
+    byte*  alignedAddress = align<alignment>(m_uploadBuffer.begin + m_uploadBuffer.offset);
+    uint64 alignedOffset  = alignedAddress - m_uploadBuffer.begin;
     // Check whether the upload buffer has sufficient space left
-    const int64 remainingCapacity = m_uploadBuffer.capacity - updatedOffset;
-    if (remainingCapacity < size) {
-        executeCopyCommands(true);
-        // Recompute 'alignedAddress' and 'updatedOffset'
+    const int64 remainingCapacity = m_uploadBuffer.capacity - alignedOffset;
+    const bool  wrapAround = remainingCapacity < size;
+    if (wrapAround) {
+        m_uploadBuffer.offset = 0;
+        // Recompute 'alignedAddress' and 'alignedOffset'
         alignedAddress = align<alignment>(m_uploadBuffer.begin);
-        updatedOffset  = alignedAddress - m_uploadBuffer.begin;
+        alignedOffset  = alignedAddress - m_uploadBuffer.begin;
         // Make sure the upload buffer is sufficiently large
         #ifdef _DEBUG
         {
-            const int64 alignedCapacity = m_uploadBuffer.capacity - updatedOffset;
+            const int64 alignedCapacity = m_uploadBuffer.capacity - alignedOffset;
             if (alignedCapacity < size) {
                 printError("Insufficient upload buffer capacity: "
                            "current (aligned): %i, required: %u.",
@@ -467,24 +467,36 @@ void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const 
         }
         #endif
     }
-    // Load the data into the upload buffer, and update the offset
+    const uint alignedEnd = static_cast<uint>(alignedOffset + size);
+    // Case 1: |---CURR===PREV===ALIGNED_END---|
+    const bool case1 = m_uploadBuffer.currSegStart < m_uploadBuffer.prevSegStart &&
+                       m_uploadBuffer.prevSegStart < alignedEnd;
+    // Case 2: |===PREV===ALIGNED_END---CURR===|
+    const bool case2 = m_uploadBuffer.prevSegStart < alignedEnd &&
+                       alignedEnd <= m_uploadBuffer.currSegStart;
+    // Case 3: |===CURR===ALIGNED_END==========|
+    const bool case3 = wrapAround && m_uploadBuffer.currSegStart < alignedEnd;
+    // Make sure we do not overwrite any data which is still being copied to GPU
+    if (case1 || case2 || case3) {
+        // In case 3, the buffer is full, so we have to block the thread
+        executeCopyCommands(case3);
+    }
+    // Load the data into the upload buffer
     memcpy(alignedAddress, data, size);
-    m_uploadBuffer.offset = static_cast<uint>(updatedOffset);
     // Copy the data from the upload buffer into the memory buffer
     m_copyCommandList->CopyBufferRegion(dst.resource.Get(), 0,
-                                        m_uploadBuffer.resource.Get(), m_uploadBuffer.offset,
-                                        size);
-    // Set the offset to the end of the data
-    m_uploadBuffer.offset += size;
+                                        m_uploadBuffer.resource.Get(), alignedOffset, size);
+    // Set the offset at the end of the data
+    m_uploadBuffer.offset = alignedEnd;
 }
 
-void D3D12::Renderer::executeCopyCommands(const bool clearUploadBuffer) {
+void D3D12::Renderer::executeCopyCommands(const bool fullSync) {
     // Finalize and execute the command list
     CHECK_CALL(m_copyCommandList->Close(), "Failed to close the copy command list.");
     m_copyCommandQueue.execute(m_copyCommandList.Get());
     // Wait for the copy command list execution to finish
     auto fenceAndValue = m_copyCommandQueue.insertFence();
-    m_copyCommandQueue.syncThread();
+    m_copyCommandQueue.syncThread(fullSync ? fenceAndValue.second : 0);
     // Ensure synchronization between the graphics and the copy command queues
     m_graphicsCommandQueue.syncQueue(fenceAndValue.first, fenceAndValue.second);
     // Command list allocators can only be reset when the associated 
@@ -495,12 +507,9 @@ void D3D12::Renderer::executeCopyCommands(const bool clearUploadBuffer) {
     // it can then be reset at any time (and must be before re-recording)
     CHECK_CALL(m_copyCommandList->Reset(m_copyCommandQueue.listAlloca(), nullptr),
                "Failed to reset the copy command list.");
-    if (clearUploadBuffer) {
-        // TODO: avoid stalling the thread
-        m_copyCommandQueue.syncThread(fenceAndValue.second);
-        // Reset the current position within the upload buffer back to the beginning
-        m_uploadBuffer.offset = 0;
-    }
+    // Begin a new segment of the upload buffer
+    m_uploadBuffer.prevSegStart = m_uploadBuffer.currSegStart;
+    m_uploadBuffer.currSegStart = m_uploadBuffer.offset;
 }
 
 void Renderer::startFrame() {

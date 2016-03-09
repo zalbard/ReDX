@@ -19,10 +19,10 @@ namespace D3D12 {
         IndexBuffer createIndexBuffer(const uint count, const uint* const indices);
         // Sets the view-projection matrix in the shaders
         void setViewProjMatrix(const XMMATRIX& viewProjMat);
-        // Executes all pending copy commands, blocking the thread until they finish
-        // If 'clearUploadBuffer' is set to true, the function will reclaim
-        // the used buffer space at the cost of blocking the thread
-        void executeCopyCommands(const bool clearUploadBuffer);
+        // Executes all pending copy commands, and begins a new segment of the upload buffer
+        // 'fullSync' enforces full CPU-GPU synchronization by blocking the thread,
+        // ignoring the fact that the copy queue is double buffered
+        void executeCopyCommands(const bool fullSync = false);
         // Initializes the frame rendering process
         void startFrame();
         template <uint N>
@@ -39,7 +39,7 @@ namespace D3D12 {
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
         // Uploads the data of the specified size in bytes and alignment
-        // to the memory buffer via an intermediate upload buffer
+        // to the memory buffer via the intermediate upload buffer
         template<uint64 alignment>
         void uploadData(MemoryBuffer& dst, const uint size, const void* const data);
     private:
@@ -49,7 +49,7 @@ namespace D3D12 {
         uint                                         m_backBufferIndex;
         /* Direct3D resources */
         ComPtr<ID3D12DeviceEx>                       m_device;
-        CommandQueue<QueueType::COPY, FRAME_CNT>     m_copyCommandQueue;
+        CommandQueue<QueueType::COPY, 2>             m_copyCommandQueue;
         CommandQueue<QueueType::GRAPHICS, FRAME_CNT> m_graphicsCommandQueue;
         ComPtr<IDXGISwapChain3>                      m_swapChain;
         HANDLE                                       m_swapChainWaitableObject;
@@ -58,7 +58,7 @@ namespace D3D12 {
         DescriptorPool<DescType::DSV>                m_dsvPool;
         ComPtr<ID3D12Resource>                       m_depthBuffer;
         /* Pipeline objects */
-        UploadBuffer                                 m_uploadBuffer;
+        UploadRingBuffer                             m_uploadBuffer;
         ComPtr<ID3D12GraphicsCommandList>            m_copyCommandList;
         ConstantBuffer                               m_constantBuffer;
         ComPtr<ID3D12RootSignature>                  m_graphicsRootSignature;

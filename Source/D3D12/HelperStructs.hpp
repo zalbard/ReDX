@@ -14,34 +14,43 @@ inline void swap(D3D12::IndexBuffer& a, D3D12::IndexBuffer& b) {
     b.view         = tmp;
 }
 
-inline D3D12::UploadBuffer::UploadBuffer()
+inline D3D12::UploadRingBuffer::UploadRingBuffer()
     : MemoryBuffer{nullptr}
-    , begin{nullptr} {}
+    , begin{nullptr}
+    , capacity{0}
+    , offset{0}
+    , prevSegStart{0}
+    , currSegStart{0} {}
 
-inline D3D12::UploadBuffer::UploadBuffer(UploadBuffer&& other) noexcept
+inline D3D12::UploadRingBuffer::UploadRingBuffer(UploadRingBuffer&& other) noexcept
     : MemoryBuffer{std::move(other.resource)}
     , begin{other.begin}
+    , capacity{other.capacity}
     , offset{other.offset}
-    , capacity{other.capacity} {
+    , prevSegStart{other.prevSegStart}
+    , currSegStart{other.currSegStart} {
     // Mark as moved
     other.begin = nullptr;
 }
 
-inline D3D12::UploadBuffer& D3D12::UploadBuffer::operator=(UploadBuffer&& other) noexcept {
+inline D3D12::UploadRingBuffer&
+D3D12::UploadRingBuffer::operator=(UploadRingBuffer&& other) noexcept {
     if (begin) {
         resource->Unmap(0, nullptr);
     }
     // Copy the data
-    resource = std::move(other.resource);
-    begin    = other.begin;
-    offset   = other.offset;
-    capacity = other.capacity;
+    resource     = std::move(other.resource);
+    begin        = other.begin;
+    capacity     = other.capacity;
+    offset       = other.offset;
+    prevSegStart = other.prevSegStart;
+    currSegStart = other.currSegStart;
     // Mark as moved
     other.begin = nullptr;
     return *this;
 }
 
-inline D3D12::UploadBuffer::~UploadBuffer() noexcept {
+inline D3D12::UploadRingBuffer::~UploadRingBuffer() noexcept {
     // Check if it was moved
     if (begin) {
         resource->Unmap(0, nullptr);

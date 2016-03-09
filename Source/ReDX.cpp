@@ -107,7 +107,7 @@ int __cdecl main(const int argc, const char* argv[]) {
         // Execute engine code
         scene.performFrustumCulling(pCam);
         engine.setViewProjMatrix(pCam.computeViewProjMatrix());
-        engine.executeCopyCommands(false);
+        engine.executeCopyCommands();
         engine.startFrame();
         engine.drawIndexed(scene.vertAttribBuffers, scene.indexBuffers.get(),
                            scene.numObjects, scene.objectVisibilityMask);
