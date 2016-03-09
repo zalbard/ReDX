@@ -468,18 +468,22 @@ void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const 
         #endif
     }
     const uint alignedEnd = static_cast<uint>(alignedOffset + size);
-    // Case 1: |---CURR===PREV===ALIGNED_END---|
-    const bool case1 = m_uploadBuffer.currSegStart < m_uploadBuffer.prevSegStart &&
-                       m_uploadBuffer.prevSegStart < alignedEnd;
-    // Case 2: |===PREV===ALIGNED_END---CURR===|
-    const bool case2 = m_uploadBuffer.prevSegStart < alignedEnd &&
-                       alignedEnd <= m_uploadBuffer.currSegStart;
-    // Case 3: |===CURR===ALIGNED_END==========|
-    const bool case3 = wrapAround && m_uploadBuffer.currSegStart < alignedEnd;
-    // Make sure we do not overwrite any data which is still being copied to GPU
-    if (case1 || case2 || case3) {
-        // In case 3, the buffer is full, so we have to block the thread
-        executeCopyCommands(case3);
+    // Make sure we do not overwrite any data which is still being copied to the GPU
+    // Case 1: |====OFFS====CURR====AEND====|
+    const bool case1 = (wrapAround | (m_uploadBuffer.offset < m_uploadBuffer.currSegStart)) &
+                       (m_uploadBuffer.currSegStart <= alignedEnd);
+    // Case 2: |----CURR====PREV====AEND----|
+    const bool case2 = (m_uploadBuffer.currSegStart < m_uploadBuffer.prevSegStart) &
+                       (m_uploadBuffer.prevSegStart < alignedEnd);
+    // Case 3: |====AEND----CURR====PREV====|
+    const bool case3 = (alignedEnd < m_uploadBuffer.currSegStart) &
+                       (m_uploadBuffer.currSegStart < m_uploadBuffer.prevSegStart);
+    // Case 4: |====PREV====AEND----CURR====|
+    const bool case4 = (m_uploadBuffer.prevSegStart < alignedEnd) &
+                       (alignedEnd < m_uploadBuffer.currSegStart);
+    if (case1 | case2 | case3 | case4) {
+        // In case 1, the buffer is full, so we have to block the thread
+        executeCopyCommands(case1);
     }
     // Load the data into the upload buffer
     memcpy(alignedAddress, data, size);
