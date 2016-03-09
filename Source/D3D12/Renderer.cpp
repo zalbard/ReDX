@@ -468,7 +468,7 @@ void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const 
         #endif
     }
     const uint alignedEnd = static_cast<uint>(alignedOffset + size);
-    // Make sure we do not overwrite any data which is still being copied to the GPU
+    // Make sure we do not overwrite any data which is yet to be copied to the GPU
     // Case 1: |====OFFS====CURR====AEND====|
     const bool case1 = (wrapAround | (m_uploadBuffer.offset < m_uploadBuffer.currSegStart)) &
                        (m_uploadBuffer.currSegStart <= alignedEnd);
