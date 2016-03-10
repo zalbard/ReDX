@@ -18,7 +18,7 @@ namespace D3D12 {
         // Creates an index buffer for the index array with the specified number of indices
         IndexBuffer createIndexBuffer(const uint count, const uint* const indices);
         // Sets the view-projection matrix in the shaders
-        void setViewProjMatrix(const XMMATRIX& viewProjMat);
+        void setViewProjMatrix(DirectX::FXMMATRIX viewProjMat);
         // Executes all pending copy commands, and begins a new segment of the upload buffer
         // 'fullSync' enforces full CPU-GPU synchronization by blocking the thread,
         // ignoring the fact that the copy queue is double buffered

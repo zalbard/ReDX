@@ -8,8 +8,6 @@
 #include "..\Common\Definitions.h"
 
 namespace D3D12 {
-    using DirectX::XMFLOAT3;
-    using DirectX::XMMATRIX;
     using Microsoft::WRL::ComPtr;
 
     // Corresponds to Direct3D descriptor types

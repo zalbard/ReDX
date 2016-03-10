@@ -8,14 +8,7 @@
     #include "..\ThirdParty\miniball.hpp"
 #pragma warning(error : 4458)
 
-using DirectX::XMFLOAT3;
-using DirectX::XMVECTOR;
-
-using DirectX::XMVector3Dot;
-using DirectX::XMVectorGetIntW;
-using DirectX::XMVectorLess;
-using DirectX::XMVectorNegate;
-using DirectX::XMVectorSubtract;
+using namespace DirectX;
 
 struct IndexedPointIterator {
     const float* operator*() const {
@@ -40,15 +33,15 @@ using CoordIterator  = const float*;
 using BoundingSphere = Miniball::Miniball<Miniball::CoordAccessor<IndexedPointIterator,
                                                                   CoordIterator>>;
 
-Sphere::Sphere(DirectX::FXMVECTOR center, const float radius)
-    : m_data{DirectX::XMVectorSetW(center, radius)} {}
+Sphere::Sphere(FXMVECTOR center, const float radius)
+    : m_data{XMVectorSetW(center, radius)} {}
 
 XMVECTOR Sphere::center() const {
-    return DirectX::XMVectorSetW(m_data, 0.f);
+    return XMVectorSetW(m_data, 0.f);
 }
 
 XMVECTOR Sphere::radius() const {
-    return DirectX::XMVectorSplatW(m_data);
+    return XMVectorSplatW(m_data);
 }
 
 Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine) {
@@ -134,8 +127,9 @@ void Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
     // Set all objects as visible
     objectVisibilityMask.reset(1);
     // Compute camera parameters
-    const XMVECTOR camPos = pCam.position();
-    const XMVECTOR camDir = pCam.computeForwardDir();
+    const XMVECTOR camPos  = pCam.position();
+    const XMVECTOR camDir  = pCam.computeForwardDir();
+    const XMMATRIX viewMat = pCam.computeViewMatrix();
     for (uint i = 0, n = numObjects; i < n; ++i) {
         const Sphere   boundingSphere = boundingSpheres[i];
         const XMVECTOR sphereCenter   = boundingSphere.center();

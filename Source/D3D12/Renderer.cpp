@@ -7,6 +7,7 @@
 #include "..\UI\Window.h"
 
 using namespace D3D12;
+using namespace DirectX;
 
 static inline uint width(const D3D12_RECT& rect) {
     return static_cast<uint>(rect.right - rect.left);
@@ -433,10 +434,10 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
     return buffer;
 }
 
-void Renderer::setViewProjMatrix(const XMMATRIX& viewProjMat) {
+void Renderer::setViewProjMatrix(FXMMATRIX viewProjMat) {
     // Copy the data to video memory using the upload buffer
     constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-    const XMMATRIX transposedViewProj = DirectX::XMMatrixTranspose(viewProjMat);
+    const XMMATRIX transposedViewProj = XMMatrixTranspose(viewProjMat);
     uploadData<alignment>(m_constantBuffer, sizeof(transposedViewProj), &transposedViewProj);
 }
 
