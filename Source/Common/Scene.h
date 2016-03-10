@@ -9,9 +9,10 @@ namespace D3D12 { class Renderer; }
 
 class Sphere {
 public:
+    RULE_OF_ZERO(Sphere);
     Sphere() = default;
     // Ctor; takes the center and the radius as input
-    Sphere(const DirectX::XMFLOAT3& center, const float radius);
+    explicit Sphere(const DirectX::XMFLOAT3& center, const float radius);
     // Returns the center of the sphere in the XYZ part; W = 0
     DirectX::XMVECTOR center() const;
     // Returns the radius of the sphere in every component
@@ -23,7 +24,6 @@ private:
 // 3D scene representation
 class Scene {
 public:
-    Scene() = delete;
     RULE_OF_ZERO(Scene);
     // Ctor; takes the .obj file name with the path as input
     // The renderer performs Direct3D resource initialization

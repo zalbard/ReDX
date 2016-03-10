@@ -8,8 +8,8 @@
 namespace D3D12 {
     class Renderer {
     public:
-        Renderer();
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
+        Renderer();
         // Creates a constant buffer for the data of the specified size in bytes
         ConstantBuffer createConstantBuffer(const uint size, const void* const data = nullptr);
         // Creates a vertex attribute buffer for the vertex array of 'count' elements

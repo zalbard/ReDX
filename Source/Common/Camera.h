@@ -1,9 +1,11 @@
 #pragma once
 
 #include <DirectXMath.h>
+#include "Definitions.h"
 
 class PerspectiveCamera {
 public:
+    RULE_OF_ZERO(PerspectiveCamera);
     // Ctor. Parameters: the width and the height of the sensor (in pixels),
     // the vertical field of view 'vFoV' (in radians),
     // the position 'pos', the viewing direction 'dir' and the 'up' vector
