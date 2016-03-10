@@ -18,16 +18,16 @@ XMVECTOR PerspectiveCamera::computeForwardDir() const {
     return orientMat.r[2];
 }
 
+XMMATRIX PerspectiveCamera::computeViewProjMatrix() const {
+    return computeViewMatrix() * m_projMat;
+}
+
 XMMATRIX PerspectiveCamera::computeViewMatrix() const {
     // Inverse the translation and the rotation for the view matrix
     const XMVECTOR translation = -m_position;
     const XMVECTOR invOrient   = XMQuaternionInverse(m_orientQuat);
     const XMVECTOR scale       = {1.f, 1.f, 1.f};
     return XMMatrixAffineTransformation(scale, m_position, invOrient, translation);
-}
-
-XMMATRIX PerspectiveCamera::computeViewProjMatrix() const {
-    return computeViewMatrix() * m_projMat;
 }
 
 void PerspectiveCamera::moveBack(const float dist) {
