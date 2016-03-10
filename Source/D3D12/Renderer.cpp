@@ -472,6 +472,8 @@ void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const 
     // Case 1: |====OFFS====CURR====AEND====|
     const bool case1 = (wrapAround | (m_uploadBuffer.offset < m_uploadBuffer.currSegStart)) &
                        (m_uploadBuffer.currSegStart <= alignedEnd);
+    // Cases 2-4 are possible only if there is a valid previous segment of the buffer
+    const bool validPrevSeg = m_uploadBuffer.prevSegStart < UINT_MAX;
     // Case 2: |----CURR====PREV====AEND----|
     const bool case2 = (m_uploadBuffer.currSegStart < m_uploadBuffer.prevSegStart) &
                        (m_uploadBuffer.prevSegStart < alignedEnd);
@@ -481,7 +483,7 @@ void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const 
     // Case 4: |====PREV====AEND----CURR====|
     const bool case4 = (m_uploadBuffer.prevSegStart < alignedEnd) &
                        (alignedEnd < m_uploadBuffer.currSegStart);
-    if (case1 | case2 | case3 | case4) {
+    if (case1 || (validPrevSeg && (case2 | case3 | case4))) {
         // In case 1, the buffer is full, so we have to block the thread
         executeCopyCommands(case1);
     }
@@ -512,7 +514,7 @@ void D3D12::Renderer::executeCopyCommands(const bool fullSync) {
     CHECK_CALL(m_copyCommandList->Reset(m_copyCommandQueue.listAlloca(), nullptr),
                "Failed to reset the copy command list.");
     // Begin a new segment of the upload buffer
-    m_uploadBuffer.prevSegStart = m_uploadBuffer.currSegStart;
+    m_uploadBuffer.prevSegStart = fullSync ? UINT_MAX : m_uploadBuffer.currSegStart;
     m_uploadBuffer.currSegStart = m_uploadBuffer.offset;
 }
 

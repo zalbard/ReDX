@@ -19,7 +19,7 @@ inline D3D12::UploadRingBuffer::UploadRingBuffer()
     , begin{nullptr}
     , capacity{0}
     , offset{0}
-    , prevSegStart{0}
+    , prevSegStart{UINT_MAX}
     , currSegStart{0} {}
 
 inline D3D12::UploadRingBuffer::UploadRingBuffer(UploadRingBuffer&& other) noexcept
