@@ -20,9 +20,9 @@ XMVECTOR PerspectiveCamera::computeForwardDir() const {
 
 XMMATRIX PerspectiveCamera::computeViewMatrix() const {
     // Inverse the translation and the rotation for the view matrix
-    const     XMVECTOR translation = XMVectorNegate(m_position);
-    const     XMVECTOR invOrient   = XMQuaternionInverse(m_orientQuat);
-    constexpr XMVECTOR scale       = {1.f, 1.f, 1.f};
+    const XMVECTOR translation = XMVectorNegate(m_position);
+    const XMVECTOR invOrient   = XMQuaternionInverse(m_orientQuat);
+    const XMVECTOR scale       = {1.f, 1.f, 1.f};
     return XMMatrixAffineTransformation(scale, m_position, invOrient, translation);
 }
 
@@ -37,7 +37,7 @@ void PerspectiveCamera::moveBack(const float dist) {
 void PerspectiveCamera::moveForward(const float dist) {
     const XMMATRIX orientMat = XMMatrixRotationQuaternion(m_orientQuat);
     const XMVECTOR forward   = orientMat.r[2];
-    m_position = XMVectorAdd(m_position, XMVectorScale(forward, dist));
+    m_position += forward * dist;
 }
 
 void PerspectiveCamera::rotateLeft(const float angle) {
@@ -76,5 +76,5 @@ void PerspectiveCamera::rotateAndMoveForward(const float pitch, const float yaw,
     const XMVECTOR yawQuat   = XMQuaternionRotationNormal(up, yaw);
     m_orientQuat = XMQuaternionMultiply(m_orientQuat, yawQuat);
     // Translate along the forward direction
-    m_position   = XMVectorAdd(m_position, XMVectorScale(forward, dist));
+    m_position  += forward * dist;
 }

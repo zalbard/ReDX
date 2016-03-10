@@ -33,8 +33,8 @@ using CoordIterator  = const float*;
 using BoundingSphere = Miniball::Miniball<Miniball::CoordAccessor<IndexedPointIterator,
                                                                   CoordIterator>>;
 
-Sphere::Sphere(FXMVECTOR center, const float radius)
-    : m_data{XMVectorSetW(center, radius)} {}
+Sphere::Sphere(const XMFLOAT3& center, const float radius)
+    : m_data{center.x, center.y, center.z, radius} {}
 
 XMVECTOR Sphere::center() const {
     return XMVectorSetW(m_data, 0.f);
@@ -116,9 +116,7 @@ Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine) {
         const IndexedPointIterator begin = {indices[i].data(), positionArray};
         const IndexedPointIterator end   = {indices[i].data() + indices[i].size(), positionArray};
         const BoundingSphere sphere{3, begin, end};
-        const float* const c = sphere.center();
-        boundingSpheres[i] = Sphere{XMVECTOR{*c, *(c + 1), *(c + 2)},
-                                    sqrt(sphere.squared_radius())};
+        boundingSpheres[i] = Sphere{XMFLOAT3{sphere.center()}, sqrt(sphere.squared_radius())};
     }
     printInfo("Scene loaded successfully.");
 }
@@ -133,11 +131,11 @@ void Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
     for (uint i = 0, n = numObjects; i < n; ++i) {
         const Sphere   boundingSphere = boundingSpheres[i];
         const XMVECTOR sphereCenter   = boundingSphere.center();
-        const XMVECTOR camToSphere    = XMVectorSubtract(sphereCenter, camPos);
+        const XMVECTOR camToSphere    = sphereCenter - camPos;
         // Compute the signed distance from the sphere's center to the near plane
         const XMVECTOR signDist       = XMVector3Dot(camToSphere, camDir);
         // if (signDist < -boundingSphere.radius()) ...
-        if (XMVectorGetIntW(XMVectorLess(signDist, XMVectorNegate(boundingSphere.radius())))) {
+        if (XMVectorGetIntW(XMVectorLess(signDist, -boundingSphere.radius()))) {
             // Clear the 'object visible' flag
             objectVisibilityMask.clearBit(i);
         }
