@@ -1,9 +1,9 @@
 #include <d3dcompiler.h>
+#include <d3dx12.h>
 #include <memory>
 #include "HelperStructs.hpp"
 #include "Renderer.h"
 #include "..\Common\Math.h"
-#include "..\ThirdParty\d3dx12.h"
 #include "..\UI\Window.h"
 
 using namespace D3D12;

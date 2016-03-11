@@ -27,6 +27,11 @@ Content:    D3DX12 utility library
 Authors:    Microsoft Corporation
 License:    MIT
 
+Files:      DirectXMathSSE4.h
+Content:    SSE4.1 extensions for DirectXMath library
+Authors:    Microsoft Corporation
+License:    MIT
+
 Files:      stb_image.h
 Content:    Image loading/decoding from file/memory
 Authors:    Sean T. Barrett

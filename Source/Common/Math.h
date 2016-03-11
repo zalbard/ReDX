@@ -1,6 +1,6 @@
 #pragma once
 
-#include <DirectXMath.h>
+#include <DirectXMathSSE4.h>
 
 // Computes the square of the value
 template <typename T>

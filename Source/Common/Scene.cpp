@@ -1,12 +1,12 @@
 #include <cassert>
+#include <load_obj.h>
+#pragma warning(disable : 4458)
+    #include <miniball.hpp>
+#pragma warning(error : 4458)
 #include "Scene.h"
 #include "Utility.h"
 #include "..\Common\Camera.h"
 #include "..\D3D12\Renderer.hpp"
-#include "..\ThirdParty\load_obj.h"
-#pragma warning(disable : 4458)
-    #include "..\ThirdParty\miniball.hpp"
-#pragma warning(error : 4458)
 
 using namespace DirectX;
 

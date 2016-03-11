@@ -1,6 +1,6 @@
 #pragma once
 
-#include <DirectXMath.h>
+#include <DirectXMathSSE4.h>
 #include "Definitions.h"
 
 class PerspectiveCamera {
