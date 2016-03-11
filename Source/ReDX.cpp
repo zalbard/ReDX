@@ -107,7 +107,7 @@ int __cdecl main(const int argc, const char* argv[]) {
         pCam.rotateAndMoveForward(pitch, yaw, dist);
         // Execute engine code
         const auto viewProjMat = pCam.computeViewProjMatrix();
-        const auto asyncTask   = std::async(std::launch::async, [&engine, &viewProjMat]()
+        const auto asyncTask   = std::async(std::launch::async, [&engine, viewProjMat]()
         {
             engine.setViewProjMatrix(viewProjMat);
             engine.executeCopyCommands();
