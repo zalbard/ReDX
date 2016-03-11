@@ -37,7 +37,7 @@ Sphere::Sphere(const XMFLOAT3& center, const float radius)
     : m_data{center.x, center.y, center.z, radius} {}
 
 XMVECTOR Sphere::center() const {
-    return XMVectorSetW(m_data, 0.f);
+    return SSE4::XMVectorSetW(m_data, 0.f);
 }
 
 XMVECTOR Sphere::radius() const {
@@ -142,19 +142,18 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         frustumPlanes[3] = tvp.r[3] + tvp.r[1];
         // Normalize plane equations
         for (uint i = 0; i < 4; ++i) {
-            const XMVECTOR mag = XMVectorSqrt(XMVector3Dot(frustumPlanes[i], frustumPlanes[i]));
-            frustumPlanes[i] /= mag;
+            frustumPlanes[i] = SSE4::XMPlaneNormalizeEst(frustumPlanes[i]);
         }
     }
     for (uint i = 0, n = numObjects; i < n; ++i) {
         const Sphere   boundingSphere = boundingSpheres[i];
         // Set 'sphereCenter.w' to 1, useful for the distance-to-plane computation
-        const XMVECTOR sphereCenter   = XMVectorSetW(boundingSphere.center(), 1.f);
+        const XMVECTOR sphereCenter   = SSE4::XMVectorSetW(boundingSphere.center(), 1.f);
         // Left-handed CS: X = right, Y = up, Z = forward
         const XMVECTOR viewSpaceSphereCenter = XMVector3Transform(sphereCenter, viewMat);
         const XMVECTOR negSphereRadius       = -boundingSphere.radius();
         // Test the Z coordinate against the (negated) radius of the bounding sphere
-        if (XMVectorGetIntZ(XMVectorLess(viewSpaceSphereCenter, negSphereRadius))) {
+        if (SSE4::XMVectorGetIntZ(XMVectorLess(viewSpaceSphereCenter, negSphereRadius))) {
             // Clear the 'object visible' flag
             objectVisibilityMask.clearBit(i);
             --visObjCnt;
@@ -162,14 +161,14 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
             // Compute the distances to frustum planes
             XMVECTOR distancesToPlanes{};
             for (uint j = 0; j < 4; ++j) {
-                const XMVECTOR distToPlane = XMVector4Dot(frustumPlanes[j], sphereCenter);
+                const XMVECTOR distToPlane = SSE4::XMVector4Dot(frustumPlanes[j], sphereCenter);
                 const XMVECTOR selectCtrl  = XMVectorSelectControl(0 == j, 1 == j, 2 == j, 3 == j);
                 distancesToPlanes = XMVectorSelect(distancesToPlanes, distToPlane, selectCtrl);
             }
             // Test the distances against the (negated) radius of the bounding sphere
             const XMVECTOR outsideTests = XMVectorLess(distancesToPlanes, negSphereRadius);
             // Check if at least one of the 'outside' tests passed
-            if (XMVector4NotEqualInt(outsideTests, XMVECTOR{0, 0, 0, 0})) {
+            if (XMVector4NotEqualInt(outsideTests, XMVectorZero())) {
                 // Clear the 'object visible' flag
                 objectVisibilityMask.clearBit(i);
                 --visObjCnt;

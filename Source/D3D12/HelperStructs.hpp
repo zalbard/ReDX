@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include "HelperStructs.h"
 #include "..\Common\Utility.h"
 

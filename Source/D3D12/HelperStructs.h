@@ -1,7 +1,6 @@
 #pragma once
 
 #include <d3d12.h>
-#include <DirectXMathSSE4.h>
 #include <utility>
 #include <wrl\client.h>
 #include "..\Common\Constants.h"
