@@ -29,7 +29,8 @@ public:
     // The renderer performs Direct3D resource initialization
     explicit Scene(const char* const objFilePath, D3D12::Renderer& engine);
     // Performs culling of scene objects against the camera's frustum
-    void performFrustumCulling(const PerspectiveCamera& pCam);
+    // Returns the percentage of the visible objects
+    float performFrustumCulling(const PerspectiveCamera& pCam);
 public:
     uint                                  numObjects;
     std::unique_ptr<Sphere[]>             boundingSpheres;

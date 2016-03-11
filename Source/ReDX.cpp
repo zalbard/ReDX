@@ -36,7 +36,7 @@ int __cdecl main(const int argc, const char* argv[]) {
     Scene scene{"..\\..\\Assets\\Sponza\\sponza.obj", engine};
     // Set up the camera
     PerspectiveCamera pCam{Window::width(), Window::height(), VERTICAL_FOV,
-                           /* pos */ {900.f, 200.f, -35.f},
+                           /* pos */ {300.f, 200.f, -35.f},
                            /* dir */ {-1.f, 0.f, 0.f},
                            /* up  */ {0.f, 1.f, 0.f}};
     // Initialize the input status (no pressed keys)

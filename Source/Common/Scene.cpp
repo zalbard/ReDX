@@ -121,23 +121,60 @@ Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine) {
     printInfo("Scene loaded successfully.");
 }
 
-void Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
+float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
     // Set all objects as visible
     objectVisibilityMask.reset(1);
+    uint visObjCnt = numObjects;
     // Compute camera parameters
-    const XMVECTOR camPos  = pCam.position();
-    const XMVECTOR camDir  = pCam.computeForwardDir();
-    const XMMATRIX viewMat = pCam.computeViewMatrix();
-    for (uint i = 0, n = numObjects; i < n; ++i) {
-        const Sphere   boundingSphere = boundingSpheres[i];
-        const XMVECTOR sphereCenter   = boundingSphere.center();
-        const XMVECTOR camToSphere    = sphereCenter - camPos;
-        // Compute the signed distance from the sphere's center to the near plane
-        const XMVECTOR signDist       = XMVector3Dot(camToSphere, camDir);
-        // if (signDist < -boundingSphere.radius()) ...
-        if (XMVectorGetIntW(XMVectorLess(signDist, -boundingSphere.radius()))) {
-            // Clear the 'object visible' flag
-            objectVisibilityMask.clearBit(i);
+    const XMMATRIX viewMat     = pCam.computeViewMatrix();
+    const XMMATRIX viewProjMat = viewMat * pCam.projectionMatrix();
+    // Compute the left/right/top/bottom bounding planes of the frustum
+    XMVECTOR frustumPlanes[4];
+    {
+        const XMMATRIX tvp = XMMatrixTranspose(viewProjMat);
+        // Left clipping plane
+        frustumPlanes[0] = tvp.r[3] + tvp.r[0];
+        // Right clipping plane
+        frustumPlanes[1] = tvp.r[3] - tvp.r[0];
+        // Top clipping plane
+        frustumPlanes[2] = tvp.r[3] - tvp.r[1];
+        // Bottom clipping plane
+        frustumPlanes[3] = tvp.r[3] + tvp.r[1];
+        // Normalize plane equations
+        for (uint i = 0; i < 4; ++i) {
+            const XMVECTOR mag = XMVectorSqrt(XMVector3Dot(frustumPlanes[i], frustumPlanes[i]));
+            frustumPlanes[i] /= mag;
         }
     }
+    for (uint i = 0, n = numObjects; i < n; ++i) {
+        const Sphere   boundingSphere = boundingSpheres[i];
+        // Set 'sphereCenter.w' to 1, useful for the distance-to-plane computation
+        const XMVECTOR sphereCenter   = XMVectorSetW(boundingSphere.center(), 1.f);
+        // Left-handed CS: X = right, Y = up, Z = forward
+        const XMVECTOR viewSpaceSphereCenter = XMVector3Transform(sphereCenter, viewMat);
+        const XMVECTOR negSphereRadius       = -boundingSphere.radius();
+        // Test the Z coordinate against the (negated) radius of the bounding sphere
+        if (XMVectorGetIntZ(XMVectorLess(viewSpaceSphereCenter, negSphereRadius))) {
+            // Clear the 'object visible' flag
+            objectVisibilityMask.clearBit(i);
+            --visObjCnt;
+        } else {
+            // Compute the distances to frustum planes
+            XMVECTOR distancesToPlanes{};
+            for (uint j = 0; j < 4; ++j) {
+                const XMVECTOR distToPlane = XMVector4Dot(frustumPlanes[j], sphereCenter);
+                const XMVECTOR selectCtrl  = XMVectorSelectControl(0 == j, 1 == j, 2 == j, 3 == j);
+                distancesToPlanes = XMVectorSelect(distancesToPlanes, distToPlane, selectCtrl);
+            }
+            // Test the distances against the (negated) radius of the bounding sphere
+            const XMVECTOR outsideTests = XMVectorLess(distancesToPlanes, negSphereRadius);
+            // Check if at least one of the 'outside' tests passed
+            if (XMVector4NotEqualInt(outsideTests, XMVECTOR{0, 0, 0, 0})) {
+                // Clear the 'object visible' flag
+                objectVisibilityMask.clearBit(i);
+                --visObjCnt;
+            }
+        }
+    }
+    return static_cast<float>(visObjCnt * 100) / static_cast<float>(numObjects);
 }
