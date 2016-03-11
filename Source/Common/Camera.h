@@ -14,6 +14,8 @@ public:
                                DirectX::FXMVECTOR up);
     // Returns the wold-space position of the camera
     DirectX::XMVECTOR position() const;
+    // Returns the projection matrix of the camera
+    DirectX::XMMATRIX projectionMatrix() const;
     // Returns the normalized direction along the optical axis
     DirectX::XMVECTOR computeForwardDir() const;
     // Returns the view matrix

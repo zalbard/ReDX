@@ -13,6 +13,10 @@ XMVECTOR PerspectiveCamera::position() const {
     return m_position;
 }
 
+XMMATRIX PerspectiveCamera::projectionMatrix() const {
+    return m_projMat;
+}
+
 XMVECTOR PerspectiveCamera::computeForwardDir() const {
     const XMMATRIX orientMat = XMMatrixRotationQuaternion(m_orientQuat);
     return orientMat.r[2];
