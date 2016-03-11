@@ -19,10 +19,12 @@ namespace D3D12 {
         IndexBuffer createIndexBuffer(const uint count, const uint* const indices);
         // Sets the view-projection matrix in the shaders
         void setViewProjMatrix(DirectX::FXMMATRIX viewProjMat);
-        // Executes all pending copy commands, and begins a new segment of the upload buffer
-        // 'fullSync' enforces full CPU-GPU synchronization by blocking the thread,
-        // ignoring the fact that the copy queue is double buffered
-        void executeCopyCommands(const bool fullSync = false);
+        // Submits all pending copy commands for execution, and begins a new segment
+        // of the upload buffer. As a result, the previous segment of the buffer becomes
+        // available for writing. 'immediateCopy' flag ensures that all copies from the
+        // current segment are also completed during this call (at the cost of blocking
+        // the thread), therefore making the entire buffer free and available for writing.
+        void executeCopyCommands(const bool immediateCopy = false);
         // Initializes the frame rendering process
         void startFrame();
         template <uint N>

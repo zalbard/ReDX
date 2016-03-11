@@ -449,9 +449,8 @@ void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const 
     uint64 alignedOffset  = alignedAddress - m_uploadBuffer.begin;
     // Check whether the upload buffer has sufficient space left
     const int64 remainingCapacity = m_uploadBuffer.capacity - alignedOffset;
-    const bool  wrapAround = remainingCapacity < size;
+    const bool wrapAround = remainingCapacity < size;
     if (wrapAround) {
-        m_uploadBuffer.offset = 0;
         // Recompute 'alignedAddress' and 'alignedOffset'
         alignedAddress = align<alignment>(m_uploadBuffer.begin);
         alignedOffset  = alignedAddress - m_uploadBuffer.begin;
@@ -469,41 +468,56 @@ void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const 
         #endif
     }
     const uint alignedEnd = static_cast<uint>(alignedOffset + size);
-    // Make sure we do not overwrite any data which is yet to be copied to the GPU
-    // Case 1: |====OFFS====CURR====AEND====|
-    const bool case1 = (wrapAround | (m_uploadBuffer.offset < m_uploadBuffer.currSegStart)) &
+    // 1. Make sure we do not overwrite the current segment of the upload buffer.
+    // (currSegStart == offset) is a perfectly valid configuration;
+    // in order to maintain this invariant, we should execute all copies
+    // (clear the buffer) in cases where (currSegStart == alignedEnd)
+    // Case A: |====OFFS~~~~CURR~~~~AEND====|
+    const bool caseA = (m_uploadBuffer.offset < m_uploadBuffer.currSegStart) &
                        (m_uploadBuffer.currSegStart <= alignedEnd);
-    // Cases 2-4 are possible only if there is a valid previous segment of the buffer
-    const bool validPrevSeg = m_uploadBuffer.prevSegStart < UINT_MAX;
-    // Case 2: |----CURR====PREV====AEND----|
-    const bool case2 = (m_uploadBuffer.currSegStart < m_uploadBuffer.prevSegStart) &
+    // Case B: |~~~~CURR~~~~OFFS~~~~AEND----| + wrap-around
+    //     or: |~~~~CURR~~~~AEND====OFFS----| + wrap-around
+    const bool caseB = (m_uploadBuffer.currSegStart <= alignedEnd) & wrapAround;
+    // Case C: |~~~~OFFS~~~~AEND----CURR====| + wrap-around
+    //     or: |~~~~OFFS~~~~CURR~~~~AEND====| + wrap-around
+    //     or: |~~~~AEND====OFFS----CURR====| + wrap-around
+    const bool caseC = (m_uploadBuffer.offset < m_uploadBuffer.currSegStart) & wrapAround;
+    // If there is not enough space for the new data, we have to execute
+    // all copies first, which will allow us to safely overwrite the old data
+    const bool executeAllCopies = caseA | caseB | caseC;
+    // 2. Make sure we do not overwrite the previous segment of the upload buffer.
+    // (prevSegStart == offset) means we are about to overwrite the previous segment
+    // Case D: |====OFFS~~~~PREV~~~~AEND====|
+    const bool caseD = (m_uploadBuffer.offset <= m_uploadBuffer.prevSegStart) &
                        (m_uploadBuffer.prevSegStart < alignedEnd);
-    // Case 3: |====AEND----CURR====PREV====|
-    const bool case3 = (alignedEnd < m_uploadBuffer.currSegStart) &
-                       (m_uploadBuffer.currSegStart < m_uploadBuffer.prevSegStart);
-    // Case 4: |====PREV====AEND----CURR====|
-    const bool case4 = (m_uploadBuffer.prevSegStart < alignedEnd) &
-                       (alignedEnd < m_uploadBuffer.currSegStart);
-    if (case1 || (validPrevSeg && (case2 | case3 | case4))) {
-        // In case 1, the buffer is full, so we have to block the thread
-        executeCopyCommands(case1);
+    // Case E: |~~~~PREV~~~~AEND====OFFS----| + wrap-around
+    //     or: |~~~~PREV~~~~OFFS~~~~AEND----| + wrap-around
+    //     or: |~~~~OFFS~~~~PREV~~~~AEND----| + wrap-around
+    const bool caseE = (m_uploadBuffer.prevSegStart < alignedEnd) & wrapAround;
+    // We may have to wait until the data within the previous segment can be safely overwritten
+    const bool waitForPrevCopies = caseD | caseE;
+    // Move the offset to the beginning of the data
+    m_uploadBuffer.offset = static_cast<uint>(alignedOffset);
+    // Check whether any copies to the GPU have to be performed
+    if (executeAllCopies || waitForPrevCopies) {
+        executeCopyCommands(executeAllCopies);
     }
     // Load the data into the upload buffer
     memcpy(alignedAddress, data, size);
     // Copy the data from the upload buffer into the memory buffer
     m_copyCommandList->CopyBufferRegion(dst.resource.Get(), 0,
                                         m_uploadBuffer.resource.Get(), alignedOffset, size);
-    // Set the offset at the end of the data
+    // Move the offset to the end of the data
     m_uploadBuffer.offset = alignedEnd;
 }
 
-void D3D12::Renderer::executeCopyCommands(const bool fullSync) {
+void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
     // Finalize and execute the command list
     CHECK_CALL(m_copyCommandList->Close(), "Failed to close the copy command list.");
     m_copyCommandQueue.execute(m_copyCommandList.Get());
     // Wait for the copy command list execution to finish
     auto fenceAndValue = m_copyCommandQueue.insertFence();
-    m_copyCommandQueue.syncThread(fullSync ? fenceAndValue.second : 0);
+    m_copyCommandQueue.syncThread(immediateCopy ? fenceAndValue.second : 0);
     // Ensure synchronization between the graphics and the copy command queues
     m_graphicsCommandQueue.syncQueue(fenceAndValue.first, fenceAndValue.second);
     // Command list allocators can only be reset when the associated 
@@ -515,7 +529,7 @@ void D3D12::Renderer::executeCopyCommands(const bool fullSync) {
     CHECK_CALL(m_copyCommandList->Reset(m_copyCommandQueue.listAlloca(), nullptr),
                "Failed to reset the copy command list.");
     // Begin a new segment of the upload buffer
-    m_uploadBuffer.prevSegStart = fullSync ? UINT_MAX : m_uploadBuffer.currSegStart;
+    m_uploadBuffer.prevSegStart = immediateCopy ? UINT_MAX : m_uploadBuffer.currSegStart;
     m_uploadBuffer.currSegStart = m_uploadBuffer.offset;
 }
 
