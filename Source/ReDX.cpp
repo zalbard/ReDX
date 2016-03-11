@@ -26,7 +26,7 @@ int __cdecl main(const int argc, const char* argv[]) {
 	}
     // Verify SSE4.1 support for the DirectXMath library
     if (!DirectX::SSE4::XMVerifySSE4Support()) {
-        printError("The CPU doesn't support SSE2. Aborting.");
+        printError("The CPU doesn't support SSE4.1. Aborting.");
         return -1;
     }
     // Create a window for rendering output
