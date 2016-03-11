@@ -1,3 +1,4 @@
+#include <future>
 #include "Common\Camera.h"
 #include "Common\Scene.h"
 #include "Common\Timer.h"
@@ -105,12 +106,17 @@ int __cdecl main(const int argc, const char* argv[]) {
         if (keyPressStatus.a) yaw   -= unitAngle;
         pCam.rotateAndMoveForward(pitch, yaw, dist);
         // Execute engine code
+        const auto viewProjMat = pCam.computeViewProjMatrix();
+        const auto asyncTask   = std::async(std::launch::async, [&engine, &viewProjMat]()
+        {
+            engine.setViewProjMatrix(viewProjMat);
+            engine.executeCopyCommands();
+        });
         scene.performFrustumCulling(pCam);
-        engine.setViewProjMatrix(pCam.computeViewProjMatrix());
-        engine.executeCopyCommands();
         engine.startFrame();
         engine.drawIndexed(scene.vertAttribBuffers, scene.indexBuffers.get(),
                            scene.numObjects, scene.objectVisibilityMask);
+        asyncTask.wait();
         engine.finalizeFrame();
     }
 }
