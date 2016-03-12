@@ -37,7 +37,7 @@ Sphere::Sphere(const XMFLOAT3& center, const float radius)
     : m_data{center.x, center.y, center.z, radius} {}
 
 XMVECTOR Sphere::center() const {
-    return SSE4::XMVectorSetW(m_data, 0.f);
+    return m_data;
 }
 
 XMVECTOR Sphere::radius() const {

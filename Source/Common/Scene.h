@@ -13,7 +13,7 @@ public:
     Sphere() = default;
     // Ctor; takes the center and the radius as input
     explicit Sphere(const DirectX::XMFLOAT3& center, const float radius);
-    // Returns the center of the sphere in the XYZ part; W = 0
+    // Returns the center of the sphere in the XYZ part; W = radius
     DirectX::XMVECTOR center() const;
     // Returns the radius of the sphere in every component
     DirectX::XMVECTOR radius() const;
