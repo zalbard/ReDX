@@ -106,10 +106,9 @@ int __cdecl main(const int argc, const char* argv[]) {
         if (keyPressStatus.a) yaw   -= unitAngle;
         pCam.rotateAndMoveForward(pitch, yaw, dist);
         // Execute engine code
-        const auto viewProjMat = pCam.computeViewProjMatrix();
-        const auto asyncTask   = std::async(std::launch::async, [&engine, viewProjMat]()
+        const auto asyncTask = std::async(std::launch::async, [&engine, &pCam]()
         {
-            engine.setViewProjMatrix(viewProjMat);
+            engine.setViewProjMatrix(pCam.computeViewProjMatrix());
             engine.executeCopyCommands();
         });
         scene.performFrustumCulling(pCam);
