@@ -134,16 +134,16 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         const XMMATRIX tvp = XMMatrixTranspose(viewProjMat);
         // Left clipping plane
         frustumPlanes[0] = tvp.r[3] + tvp.r[0];
+        frustumPlanes[0] = SSE4::XMPlaneNormalizeEst(frustumPlanes[0]);
         // Right clipping plane
         frustumPlanes[1] = tvp.r[3] - tvp.r[0];
+        frustumPlanes[1] = SSE4::XMPlaneNormalizeEst(frustumPlanes[1]);
         // Top clipping plane
         frustumPlanes[2] = tvp.r[3] - tvp.r[1];
+        frustumPlanes[2] = SSE4::XMPlaneNormalizeEst(frustumPlanes[2]);
         // Bottom clipping plane
         frustumPlanes[3] = tvp.r[3] + tvp.r[1];
-        // Normalize plane equations
-        for (uint i = 0; i < 4; ++i) {
-            frustumPlanes[i] = SSE4::XMPlaneNormalizeEst(frustumPlanes[i]);
-        }
+        frustumPlanes[3] = SSE4::XMPlaneNormalizeEst(frustumPlanes[3]);
     }
     for (uint i = 0, n = numObjects; i < n; ++i) {
         const Sphere   boundingSphere = boundingSpheres[i];
