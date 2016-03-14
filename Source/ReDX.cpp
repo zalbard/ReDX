@@ -106,8 +106,7 @@ int __cdecl main(const int argc, const char* argv[]) {
         if (keyPressStatus.a) yaw   -= unitAngle;
         pCam.rotateAndMoveForward(pitch, yaw, dist);
         // Execute engine code
-        const auto asyncTask = std::async(std::launch::async, [&engine, &pCam]()
-        {
+        const auto asyncTask = std::async(std::launch::async, [&engine, &pCam]() {
             engine.setViewProjMatrix(pCam.computeViewProjMatrix());
             engine.executeCopyCommands();
         });
