@@ -129,21 +129,27 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
     const XMMATRIX viewMat     = pCam.computeViewMatrix();
     const XMMATRIX viewProjMat = viewMat * pCam.projectionMatrix();
     // Compute the left/right/top/bottom bounding planes of the frustum
-    XMVECTOR frustumPlanes[4];
+    XMMATRIX frustumPlanes;
     {
         const XMMATRIX tvp = XMMatrixTranspose(viewProjMat);
         // Left clipping plane
-        frustumPlanes[0] = tvp.r[3] + tvp.r[0];
-        frustumPlanes[0] = SSE4::XMPlaneNormalizeEst(frustumPlanes[0]);
+        frustumPlanes.r[0] = tvp.r[3] + tvp.r[0];
         // Right clipping plane
-        frustumPlanes[1] = tvp.r[3] - tvp.r[0];
-        frustumPlanes[1] = SSE4::XMPlaneNormalizeEst(frustumPlanes[1]);
+        frustumPlanes.r[1] = tvp.r[3] - tvp.r[0];
         // Top clipping plane
-        frustumPlanes[2] = tvp.r[3] - tvp.r[1];
-        frustumPlanes[2] = SSE4::XMPlaneNormalizeEst(frustumPlanes[2]);
+        frustumPlanes.r[2] = tvp.r[3] - tvp.r[1];
         // Bottom clipping plane
-        frustumPlanes[3] = tvp.r[3] + tvp.r[1];
-        frustumPlanes[3] = SSE4::XMPlaneNormalizeEst(frustumPlanes[3]);
+        frustumPlanes.r[3] = tvp.r[3] + tvp.r[1];
+        // Compute inverse magnitudes
+        const XMMATRIX t       = XMMatrixTranspose(frustumPlanes);
+        const XMVECTOR invMags = XMVectorReciprocalSqrtEst(t.r[0] * t.r[0] +
+                                                           t.r[1] * t.r[1] +
+                                                           t.r[2] * t.r[2]);
+        // Normalize plane equations
+        frustumPlanes.r[0] *= XMVectorSplatX(invMags);
+        frustumPlanes.r[1] *= XMVectorSplatY(invMags);
+        frustumPlanes.r[2] *= XMVectorSplatZ(invMags);
+        frustumPlanes.r[3] *= XMVectorSplatW(invMags);
     }
     for (uint i = 0, n = numObjects; i < n; ++i) {
         const Sphere   boundingSphere = boundingSpheres[i];
@@ -161,7 +167,7 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
             // Compute the distances to frustum planes
             XMVECTOR distancesToPlanes{};
             for (uint j = 0; j < 4; ++j) {
-                const XMVECTOR distToPlane = SSE4::XMVector4Dot(frustumPlanes[j], sphereCenter);
+                const XMVECTOR distToPlane = SSE4::XMVector4Dot(frustumPlanes.r[j], sphereCenter);
                 const XMVECTOR selectCtrl  = XMVectorSelectControl(0 == j, 1 == j, 2 == j, 3 == j);
                 distancesToPlanes = XMVectorSelect(distancesToPlanes, distToPlane, selectCtrl);
             }
