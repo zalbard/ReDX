@@ -141,10 +141,12 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         // Bottom clipping plane
         frustumPlanes.r[3] = tvp.r[3] + tvp.r[1];
         // Compute inverse magnitudes
-        const XMMATRIX t       = XMMatrixTranspose(frustumPlanes);
-        const XMVECTOR invMags = XMVectorReciprocalSqrtEst(t.r[0] * t.r[0] +
-                                                           t.r[1] * t.r[1] +
-                                                           t.r[2] * t.r[2]);
+        const XMMATRIX tfp = XMMatrixTranspose(frustumPlanes);
+        // magsSq = tfp.r[0] * tfp.r[0] + tfp.r[1] * tfp.r[1] + tfp.r[2] * tfp.r[2]
+        const XMVECTOR magsSq  = XMVectorMultiplyAdd(tfp.r[0],  tfp.r[0],
+                                 XMVectorMultiplyAdd(tfp.r[1],  tfp.r[1],
+                                                     tfp.r[2] * tfp.r[2]));
+        const XMVECTOR invMags = XMVectorReciprocalSqrtEst(magsSq);
         // Normalize plane equations
         frustumPlanes.r[0] *= XMVectorSplatX(invMags);
         frustumPlanes.r[1] *= XMVectorSplatY(invMags);
@@ -166,11 +168,13 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
             --visObjCnt;
         } else {
             // Compute the distances to frustum planes
-            const XMVECTOR distancesToPlanes = tfp.r[0] * XMVectorSplatX(sphereCenter) +
-                                               tfp.r[1] * XMVectorSplatY(sphereCenter) +
-                                               tfp.r[2] * XMVectorSplatZ(sphereCenter) + tfp.r[3];
+            // distancesToPlanes = tfp.r[0] * sC.x + tfp.r[1] * sC.y + tfp.r[2] * sC.z + tfp.r[3]
+            const XMVECTOR distances = XMVectorMultiplyAdd(tfp.r[0], XMVectorSplatX(sphereCenter),
+                                       XMVectorMultiplyAdd(tfp.r[1], XMVectorSplatY(sphereCenter),
+                                       XMVectorMultiplyAdd(tfp.r[2], XMVectorSplatZ(sphereCenter),
+                                                           tfp.r[3])));
             // Test the distances against the (negated) radius of the bounding sphere
-            const XMVECTOR outsideTests = XMVectorLess(distancesToPlanes, negSphereRadius);
+            const XMVECTOR outsideTests = XMVectorLess(distances, negSphereRadius);
             // Check if at least one of the 'outside' tests passed
             if (XMVector4NotEqualInt(outsideTests, XMVectorZero())) {
                 // Clear the 'object visible' flag
