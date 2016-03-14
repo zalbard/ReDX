@@ -69,6 +69,7 @@
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <CallingConvention>VectorCall</CallingConvention>
+      <EnableParallelCodeGeneration>false</EnableParallelCodeGeneration>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -90,6 +91,7 @@
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <MinimalRebuild>true</MinimalRebuild>
       <CallingConvention>VectorCall</CallingConvention>
+      <EnableParallelCodeGeneration>false</EnableParallelCodeGeneration>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
