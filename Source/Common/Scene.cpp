@@ -151,10 +151,11 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         frustumPlanes.r[2] *= XMVectorSplatZ(invMags);
         frustumPlanes.r[3] *= XMVectorSplatW(invMags);
     }
+    const XMMATRIX tfp = XMMatrixTranspose(frustumPlanes);
+    // Test each object
     for (uint i = 0, n = numObjects; i < n; ++i) {
         const Sphere   boundingSphere = boundingSpheres[i];
-        // Set 'sphereCenter.w' to 1, useful for the distance-to-plane computation
-        const XMVECTOR sphereCenter   = SSE4::XMVectorSetW(boundingSphere.center(), 1.f);
+        const XMVECTOR sphereCenter   = boundingSphere.center();
         // Left-handed CS: X = right, Y = up, Z = forward
         const XMVECTOR viewSpaceSphereCenter = XMVector3Transform(sphereCenter, viewMat);
         const XMVECTOR negSphereRadius       = -boundingSphere.radius();
@@ -165,17 +166,11 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
             --visObjCnt;
         } else {
             // Compute the distances to frustum planes
-            XMVECTOR distToPlanes{};
-            distToPlanes = XMVectorSelect(SSE4::XMVector4Dot(frustumPlanes.r[0], sphereCenter),
-                                          distToPlanes, XMVectorSelectControl(0, 1, 1, 1));
-            distToPlanes = XMVectorSelect(SSE4::XMVector4Dot(frustumPlanes.r[1], sphereCenter),
-                                          distToPlanes, XMVectorSelectControl(1, 0, 1, 1));
-            distToPlanes = XMVectorSelect(SSE4::XMVector4Dot(frustumPlanes.r[2], sphereCenter),
-                                          distToPlanes, XMVectorSelectControl(1, 1, 0, 1));
-            distToPlanes = XMVectorSelect(SSE4::XMVector4Dot(frustumPlanes.r[3], sphereCenter),
-                                          distToPlanes, XMVectorSelectControl(1, 1, 1, 0));
+            const XMVECTOR distancesToPlanes = tfp.r[0] * XMVectorSplatX(sphereCenter) +
+                                               tfp.r[1] * XMVectorSplatY(sphereCenter) +
+                                               tfp.r[2] * XMVectorSplatZ(sphereCenter) + tfp.r[3];
             // Test the distances against the (negated) radius of the bounding sphere
-            const XMVECTOR outsideTests = XMVectorLess(distToPlanes, negSphereRadius);
+            const XMVECTOR outsideTests = XMVectorLess(distancesToPlanes, negSphereRadius);
             // Check if at least one of the 'outside' tests passed
             if (XMVector4NotEqualInt(outsideTests, XMVectorZero())) {
                 // Clear the 'object visible' flag
