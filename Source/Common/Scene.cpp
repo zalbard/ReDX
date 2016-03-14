@@ -156,11 +156,11 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
     const XMMATRIX tfp = XMMatrixTranspose(frustumPlanes);
     // Test each object
     for (uint i = 0, n = numObjects; i < n; ++i) {
-        const Sphere   boundingSphere = boundingSpheres[i];
-        const XMVECTOR sphereCenter   = boundingSphere.center();
+        const Sphere   boundingSphere  =  boundingSpheres[i];
+        const XMVECTOR sphereCenter    =  boundingSphere.center();
+        const XMVECTOR negSphereRadius = -boundingSphere.radius();
         // Left-handed CS: X = right, Y = up, Z = forward
         const XMVECTOR viewSpaceSphereCenter = XMVector3Transform(sphereCenter, viewMat);
-        const XMVECTOR negSphereRadius       = -boundingSphere.radius();
         // Test the Z coordinate against the (negated) radius of the bounding sphere
         if (SSE4::XMVectorGetIntZ(XMVectorLess(viewSpaceSphereCenter, negSphereRadius))) {
             // Clear the 'object visible' flag
