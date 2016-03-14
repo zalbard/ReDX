@@ -165,14 +165,17 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
             --visObjCnt;
         } else {
             // Compute the distances to frustum planes
-            XMVECTOR distancesToPlanes{};
-            for (uint j = 0; j < 4; ++j) {
-                const XMVECTOR distToPlane = SSE4::XMVector4Dot(frustumPlanes.r[j], sphereCenter);
-                const XMVECTOR selectCtrl  = XMVectorSelectControl(0 == j, 1 == j, 2 == j, 3 == j);
-                distancesToPlanes = XMVectorSelect(distancesToPlanes, distToPlane, selectCtrl);
-            }
+            XMVECTOR distToPlanes{};
+            distToPlanes = XMVectorSelect(SSE4::XMVector4Dot(frustumPlanes.r[0], sphereCenter),
+                                          distToPlanes, XMVectorSelectControl(0, 1, 1, 1));
+            distToPlanes = XMVectorSelect(SSE4::XMVector4Dot(frustumPlanes.r[1], sphereCenter),
+                                          distToPlanes, XMVectorSelectControl(1, 0, 1, 1));
+            distToPlanes = XMVectorSelect(SSE4::XMVector4Dot(frustumPlanes.r[2], sphereCenter),
+                                          distToPlanes, XMVectorSelectControl(1, 1, 0, 1));
+            distToPlanes = XMVectorSelect(SSE4::XMVector4Dot(frustumPlanes.r[3], sphereCenter),
+                                          distToPlanes, XMVectorSelectControl(1, 1, 1, 0));
             // Test the distances against the (negated) radius of the bounding sphere
-            const XMVECTOR outsideTests = XMVectorLess(distancesToPlanes, negSphereRadius);
+            const XMVECTOR outsideTests = XMVectorLess(distToPlanes, negSphereRadius);
             // Check if at least one of the 'outside' tests passed
             if (XMVector4NotEqualInt(outsideTests, XMVectorZero())) {
                 // Clear the 'object visible' flag
