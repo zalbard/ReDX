@@ -124,14 +124,14 @@ Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine) {
 float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
     // Set all objects as visible
     objectVisibilityMask.reset(1);
-    uint visObjCnt = numObjects;
-    // Compute camera parameters
-    const XMMATRIX viewMat     = pCam.computeViewMatrix();
-    const XMMATRIX viewProjMat = viewMat * pCam.projectionMatrix();
-    // Compute the left/right/top/bottom bounding planes of the frustum
-    XMMATRIX frustumPlanes;
+    uint           visObjCnt = numObjects;
+    const XMMATRIX viewMat   = pCam.computeViewMatrix();
+    // Compute the transposed left/right/top/bottom bounding planes of the frustum
+    XMMATRIX tfp;
     {
-        const XMMATRIX tvp = XMMatrixTranspose(viewProjMat);
+        const XMMATRIX viewProjMat = viewMat * pCam.projectionMatrix();
+        const XMMATRIX tvp         = XMMatrixTranspose(viewProjMat);
+        XMMATRIX frustumPlanes;
         // Left clipping plane
         frustumPlanes.r[0] = tvp.r[3] + tvp.r[0];
         // Right clipping plane
@@ -140,43 +140,44 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         frustumPlanes.r[2] = tvp.r[3] - tvp.r[1];
         // Bottom clipping plane
         frustumPlanes.r[3] = tvp.r[3] + tvp.r[1];
-        // Compute inverse magnitudes
-        const XMMATRIX tfp = XMMatrixTranspose(frustumPlanes);
+        // Compute the inverse magnitudes
+        tfp = XMMatrixTranspose(frustumPlanes);
         // magsSq = tfp.r[0] * tfp.r[0] + tfp.r[1] * tfp.r[1] + tfp.r[2] * tfp.r[2]
         const XMVECTOR magsSq  = XMVectorMultiplyAdd(tfp.r[0],  tfp.r[0],
                                  XMVectorMultiplyAdd(tfp.r[1],  tfp.r[1],
                                                      tfp.r[2] * tfp.r[2]));
         const XMVECTOR invMags = XMVectorReciprocalSqrtEst(magsSq);
-        // Normalize plane equations
+        // Normalize the plane equations
         frustumPlanes.r[0] *= XMVectorSplatX(invMags);
         frustumPlanes.r[1] *= XMVectorSplatY(invMags);
         frustumPlanes.r[2] *= XMVectorSplatZ(invMags);
         frustumPlanes.r[3] *= XMVectorSplatW(invMags);
+        // Transpose the normalized plane equations
+        tfp = XMMatrixTranspose(frustumPlanes);
     }
-    const XMMATRIX tfp = XMMatrixTranspose(frustumPlanes);
     // Test each object
     for (uint i = 0, n = numObjects; i < n; ++i) {
         const Sphere   boundingSphere  =  boundingSpheres[i];
         const XMVECTOR sphereCenter    =  boundingSphere.center();
         const XMVECTOR negSphereRadius = -boundingSphere.radius();
-        // Left-handed CS: X = right, Y = up, Z = forward
-        const XMVECTOR viewSpaceSphereCenter = XMVector3Transform(sphereCenter, viewMat);
-        // Test the Z coordinate against the (negated) radius of the bounding sphere
-        if (SSE4::XMVectorGetIntZ(XMVectorLess(viewSpaceSphereCenter, negSphereRadius))) {
+        // Compute the distances to 4 frustum planes
+        // distances = tfp.r[0] * sC.x + tfp.r[1] * sC.y + tfp.r[2] * sC.z + tfp.r[3]
+        const XMVECTOR distances = XMVectorMultiplyAdd(tfp.r[0], XMVectorSplatX(sphereCenter),
+                                   XMVectorMultiplyAdd(tfp.r[1], XMVectorSplatY(sphereCenter),
+                                   XMVectorMultiplyAdd(tfp.r[2], XMVectorSplatZ(sphereCenter),
+                                                       tfp.r[3])));
+        // Test the distances against the (negated) radius of the bounding sphere
+        const XMVECTOR outsideTests = XMVectorLess(distances, negSphereRadius);
+        // Check if at least one of the 'outside' tests passed
+        if (XMVector4NotEqualInt(outsideTests, XMVectorZero())) {
             // Clear the 'object visible' flag
             objectVisibilityMask.clearBit(i);
             --visObjCnt;
         } else {
-            // Compute the distances to frustum planes
-            // distancesToPlanes = tfp.r[0] * sC.x + tfp.r[1] * sC.y + tfp.r[2] * sC.z + tfp.r[3]
-            const XMVECTOR distances = XMVectorMultiplyAdd(tfp.r[0], XMVectorSplatX(sphereCenter),
-                                       XMVectorMultiplyAdd(tfp.r[1], XMVectorSplatY(sphereCenter),
-                                       XMVectorMultiplyAdd(tfp.r[2], XMVectorSplatZ(sphereCenter),
-                                                           tfp.r[3])));
-            // Test the distances against the (negated) radius of the bounding sphere
-            const XMVECTOR outsideTests = XMVectorLess(distances, negSphereRadius);
-            // Check if at least one of the 'outside' tests passed
-            if (XMVector4NotEqualInt(outsideTests, XMVectorZero())) {
+            // Test whether the object is in front of the camera
+            const XMVECTOR viewSpaceSphereCenter = XMVector3Transform(sphereCenter, viewMat);
+            // Test the Z coordinate against the (negated) radius of the bounding sphere
+            if (SSE4::XMVectorGetIntZ(XMVectorLess(viewSpaceSphereCenter, negSphereRadius))) {
                 // Clear the 'object visible' flag
                 objectVisibilityMask.clearBit(i);
                 --visObjCnt;
