@@ -119,10 +119,10 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Source\Shaders\VSDraw.hlsl">
+    <FxCompile Include="Source\Shaders\DrawPS.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Source\Shaders\PSDraw.hlsl">
+    <FxCompile Include="Source\Shaders\DrawVS.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

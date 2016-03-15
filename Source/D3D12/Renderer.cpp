@@ -277,8 +277,8 @@ void Renderer::configurePipeline() {
                    "Failed to create a graphics root signature.");
     }
     // Import the vertex and the pixel shaders
-    const Shader vs = loadShaderBytecode("Shaders\\VSDraw.cso");
-    const Shader ps = loadShaderBytecode("Shaders\\PSDraw.cso");
+    const Shader vs = loadShaderBytecode("Shaders\\DrawVS.cso");
+    const Shader ps = loadShaderBytecode("Shaders\\DrawPS.cso");
     // Configure the way depth and stencil tests affect stencil values
     const D3D12_DEPTH_STENCILOP_DESC depthStencilOpDesc = {
         /* StencilFailOp */      D3D12_STENCIL_OP_KEEP,
