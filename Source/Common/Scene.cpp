@@ -143,10 +143,7 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         frustumPlanes.r[3] = tvp.r[3] + tvp.r[1];
         // Compute the inverse magnitudes
         tfp = XMMatrixTranspose(frustumPlanes);
-        // magsSq = tfp.r[0] * tfp.r[0] + tfp.r[1] * tfp.r[1] + tfp.r[2] * tfp.r[2]
-        const XMVECTOR magsSq  = XMVectorMultiplyAdd(tfp.r[0],  tfp.r[0],
-                                 XMVectorMultiplyAdd(tfp.r[1],  tfp.r[1],
-                                                     tfp.r[2] * tfp.r[2]));
+        const XMVECTOR magsSq  = tfp.r[0] * tfp.r[0] + tfp.r[1] * tfp.r[1] + tfp.r[2] * tfp.r[2];
         const XMVECTOR invMags = XMVectorReciprocalSqrtEst(magsSq);
         // Normalize the plane equations
         frustumPlanes.r[0] *= XMVectorSplatX(invMags);
@@ -163,10 +160,9 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         const XMVECTOR negSphereRadius = -boundingSphere.radius();
         // Compute the distances to the left/right/top/bottom frustum planes
         // distances = tfp.r[0] * sC.x + tfp.r[1] * sC.y + tfp.r[2] * sC.z + tfp.r[3]
-        const XMVECTOR distances = XMVectorMultiplyAdd(tfp.r[0], XMVectorSplatX(sphereCenter),
-                                   XMVectorMultiplyAdd(tfp.r[1], XMVectorSplatY(sphereCenter),
-                                   XMVectorMultiplyAdd(tfp.r[2], XMVectorSplatZ(sphereCenter),
-                                                       tfp.r[3])));
+        const XMVECTOR distances = (tfp.r[0] * XMVectorSplatX(sphereCenter) +
+                                    tfp.r[1] * XMVectorSplatY(sphereCenter)) +
+                                   (tfp.r[2] * XMVectorSplatZ(sphereCenter) + tfp.r[3]);
         // Test the distances against the (negated) radius of the bounding sphere
         const XMVECTOR outsideTests = XMVectorLess(distances, negSphereRadius);
         // Check if at least one of the 'outside' tests passed
