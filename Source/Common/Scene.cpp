@@ -166,7 +166,7 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         // Test the distances against the (negated) radius of the bounding sphere
         const XMVECTOR outsideTests = XMVectorLess(distances, negSphereRadius);
         // Check if at least one of the 'outside' tests passed
-        if (XMVector4NotEqual(outsideTests, XMVectorZero())) {
+        if (XMVector4NotEqual(outsideTests, XMVectorFalseInt())) {
             // Clear the 'object visible' flag
             objectVisibilityMask.clearBit(i);
             --visObjCnt;
