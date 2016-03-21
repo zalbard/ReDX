@@ -21,7 +21,7 @@ constexpr bool        USE_WARP_DEVICE = false;
 constexpr DXGI_FORMAT RTV_FORMAT      = DXGI_FORMAT_R8G8B8A8_UNORM;
 // Depth stencil view format
 constexpr DXGI_FORMAT DSV_FORMAT      = DXGI_FORMAT_D24_UNORM_S8_UINT;
-// Upload buffer size (8 MB)
+// Upload buffer size (8 MiB)
 constexpr uint        UPLOAD_BUF_SIZE = 8 * 1024 * 1024;
 // Camera's speed (in meters/sec)
 constexpr float       CAM_SPEED       = 500.f;

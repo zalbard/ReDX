@@ -2,7 +2,7 @@
 
 #include "Renderer.h"
 #include "HelperStructs.hpp"
-#include "..\ThirdParty\d3dx12.h"
+#include <d3dx12.h>
 
 template <typename T>
 D3D12::VertexBuffer D3D12::Renderer::createVertexBuffer(const uint count, const T* const elements) {

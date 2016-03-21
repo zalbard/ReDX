@@ -1,6 +1,7 @@
 #pragma once
 
 #include <dxgi1_4.h>
+#include <DirectXMathSSE4.h>
 #include "HelperStructs.h"
 #include "..\Common\Constants.h"
 #include "..\Common\DynBitSet.h"
@@ -8,8 +9,8 @@
 namespace D3D12 {
     class Renderer {
     public:
-        Renderer();
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
+        Renderer();
         // Creates a constant buffer for the data of the specified size in bytes
         ConstantBuffer createConstantBuffer(const uint size, const void* const data = nullptr);
         // Creates a vertex attribute buffer for the vertex array of 'count' elements
@@ -18,11 +19,13 @@ namespace D3D12 {
         // Creates an index buffer for the index array with the specified number of indices
         IndexBuffer createIndexBuffer(const uint count, const uint* const indices);
         // Sets the view-projection matrix in the shaders
-        void setViewProjMatrix(const XMMATRIX& viewProjMat);
-        // Executes all pending copy commands, and begins a new segment of the upload buffer
-        // 'fullSync' enforces full CPU-GPU synchronization by blocking the thread,
-        // ignoring the fact that the copy queue is double buffered
-        void executeCopyCommands(const bool fullSync = false);
+        void setViewProjMatrix(DirectX::FXMMATRIX viewProjMat);
+        // Submits all pending copy commands for execution, and begins a new segment
+        // of the upload buffer. As a result, the previous segment of the buffer becomes
+        // available for writing. 'immediateCopy' flag ensures that all copies from the
+        // current segment are also completed during this call (at the cost of blocking
+        // the thread), therefore making the entire buffer free and available for writing.
+        void executeCopyCommands(const bool immediateCopy = false);
         // Initializes the frame rendering process
         void startFrame();
         template <uint N>

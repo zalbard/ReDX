@@ -1,3 +1,4 @@
+#include <future>
 #include "Common\Camera.h"
 #include "Common\Scene.h"
 #include "Common\Timer.h"
@@ -23,9 +24,9 @@ int __cdecl main(const int argc, const char* argv[]) {
             printError("%s", argv[i]);
         }
 	}
-    // Verify SSE2 support for the DirectXMath library
-    if (!DirectX::XMVerifyCPUSupport()) {
-        printError("The CPU doesn't support SSE2. Aborting.");
+    // Verify SSE4.1 support for the DirectXMath library
+    if (!DirectX::SSE4::XMVerifySSE4Support()) {
+        printError("The CPU doesn't support SSE4.1. Aborting.");
         return -1;
     }
     // Create a window for rendering output
@@ -36,7 +37,7 @@ int __cdecl main(const int argc, const char* argv[]) {
     Scene scene{"..\\..\\Assets\\Sponza\\sponza.obj", engine};
     // Set up the camera
     PerspectiveCamera pCam{Window::width(), Window::height(), VERTICAL_FOV,
-                           /* pos */ {900.f, 200.f, -35.f},
+                           /* pos */ {300.f, 200.f, -35.f},
                            /* dir */ {-1.f, 0.f, 0.f},
                            /* up  */ {0.f, 1.f, 0.f}};
     // Initialize the input status (no pressed keys)
@@ -105,12 +106,15 @@ int __cdecl main(const int argc, const char* argv[]) {
         if (keyPressStatus.a) yaw   -= unitAngle;
         pCam.rotateAndMoveForward(pitch, yaw, dist);
         // Execute engine code
+        const auto asyncTask = std::async(std::launch::async, [&engine, &pCam]() {
+            engine.setViewProjMatrix(pCam.computeViewProjMatrix());
+            engine.executeCopyCommands();
+        });
         scene.performFrustumCulling(pCam);
-        engine.setViewProjMatrix(pCam.computeViewProjMatrix());
-        engine.executeCopyCommands();
         engine.startFrame();
         engine.drawIndexed(scene.vertAttribBuffers, scene.indexBuffers.get(),
                            scene.numObjects, scene.objectVisibilityMask);
+        asyncTask.wait();
         engine.finalizeFrame();
     }
 }

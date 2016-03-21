@@ -103,6 +103,9 @@
     <ClInclude Include="Source\Common\DynBitSet.h">
       <Filter>Source Files\Common</Filter>
     </ClInclude>
+    <ClInclude Include="Source\ThirdParty\DirectXMathSSE4.h">
+      <Filter>Source Files\ThirdParty</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore">
@@ -116,10 +119,10 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Source\Shaders\VSDraw.hlsl">
+    <FxCompile Include="Source\Shaders\DrawPS.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Source\Shaders\PSDraw.hlsl">
+    <FxCompile Include="Source\Shaders\DrawVS.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

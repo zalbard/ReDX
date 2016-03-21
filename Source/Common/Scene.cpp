@@ -1,21 +1,14 @@
 #include <cassert>
+#include <load_obj.h>
+#pragma warning(disable : 4458)
+    #include <miniball.hpp>
+#pragma warning(error : 4458)
 #include "Scene.h"
 #include "Utility.h"
 #include "..\Common\Camera.h"
 #include "..\D3D12\Renderer.hpp"
-#include "..\ThirdParty\load_obj.h"
-#pragma warning(disable : 4458)
-    #include "..\ThirdParty\miniball.hpp"
-#pragma warning(error : 4458)
 
-using DirectX::XMFLOAT3;
-using DirectX::XMVECTOR;
-
-using DirectX::XMVector3Dot;
-using DirectX::XMVectorGetIntW;
-using DirectX::XMVectorLess;
-using DirectX::XMVectorNegate;
-using DirectX::XMVectorSubtract;
+using namespace DirectX;
 
 struct IndexedPointIterator {
     const float* operator*() const {
@@ -40,15 +33,15 @@ using CoordIterator  = const float*;
 using BoundingSphere = Miniball::Miniball<Miniball::CoordAccessor<IndexedPointIterator,
                                                                   CoordIterator>>;
 
-Sphere::Sphere(DirectX::FXMVECTOR center, const float radius)
-    : m_data{DirectX::XMVectorSetW(center, radius)} {}
+Sphere::Sphere(const XMFLOAT3& center, const float radius)
+    : m_data{center.x, center.y, center.z, radius} {}
 
 XMVECTOR Sphere::center() const {
-    return DirectX::XMVectorSetW(m_data, 0.f);
+    return m_data;
 }
 
 XMVECTOR Sphere::radius() const {
-    return DirectX::XMVectorSplatW(m_data);
+    return XMVectorSplatW(m_data);
 }
 
 Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine) {
@@ -123,29 +116,74 @@ Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine) {
         const IndexedPointIterator begin = {indices[i].data(), positionArray};
         const IndexedPointIterator end   = {indices[i].data() + indices[i].size(), positionArray};
         const BoundingSphere sphere{3, begin, end};
-        const float* const c = sphere.center();
-        boundingSpheres[i] = Sphere{XMVECTOR{*c, *(c + 1), *(c + 2)},
-                                    sqrt(sphere.squared_radius())};
+        boundingSpheres[i] = Sphere{XMFLOAT3{sphere.center()}, sqrt(sphere.squared_radius())};
     }
     printInfo("Scene loaded successfully.");
 }
 
-void Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
+float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
     // Set all objects as visible
     objectVisibilityMask.reset(1);
-    // Compute camera parameters
-    const XMVECTOR camPos = pCam.position();
-    const XMVECTOR camDir = pCam.computeForwardDir();
+    uint           visObjCnt = numObjects;
+    const XMMATRIX viewMat   = pCam.computeViewMatrix();
+    // Compute the transposed equations of the left/right/top/bottom frustum planes
+    // See "Fast Extraction of Viewing Frustum Planes from the WorldView-Projection Matrix"
+    XMMATRIX tfp;
+    {
+        const XMMATRIX viewProjMat = viewMat * pCam.projectionMatrix();
+        const XMMATRIX tvp         = XMMatrixTranspose(viewProjMat);
+        XMMATRIX frustumPlanes;
+        // Left plane
+        frustumPlanes.r[0] = tvp.r[3] + tvp.r[0];
+        // Right plane
+        frustumPlanes.r[1] = tvp.r[3] - tvp.r[0];
+        // Top plane
+        frustumPlanes.r[2] = tvp.r[3] - tvp.r[1];
+        // Bottom plane
+        frustumPlanes.r[3] = tvp.r[3] + tvp.r[1];
+        // Compute the inverse magnitudes
+        tfp = XMMatrixTranspose(frustumPlanes);
+        // magsSq = tfp.r[0] * tfp.r[0] + tfp.r[1] * tfp.r[1] + tfp.r[2] * tfp.r[2]
+        const XMVECTOR magsSq  = XMVectorMultiplyAdd(tfp.r[0],  tfp.r[0],
+                                 XMVectorMultiplyAdd(tfp.r[1],  tfp.r[1],
+                                                     tfp.r[2] * tfp.r[2]));
+        const XMVECTOR invMags = XMVectorReciprocalSqrtEst(magsSq);
+        // Normalize the plane equations
+        frustumPlanes.r[0] *= XMVectorSplatX(invMags);
+        frustumPlanes.r[1] *= XMVectorSplatY(invMags);
+        frustumPlanes.r[2] *= XMVectorSplatZ(invMags);
+        frustumPlanes.r[3] *= XMVectorSplatW(invMags);
+        // Transpose the normalized plane equations
+        tfp = XMMatrixTranspose(frustumPlanes);
+    }
+    // Test each object
     for (uint i = 0, n = numObjects; i < n; ++i) {
-        const Sphere   boundingSphere = boundingSpheres[i];
-        const XMVECTOR sphereCenter   = boundingSphere.center();
-        const XMVECTOR camToSphere    = XMVectorSubtract(sphereCenter, camPos);
-        // Compute the signed distance from the sphere's center to the near plane
-        const XMVECTOR signDist       = XMVector3Dot(camToSphere, camDir);
-        // if (signDist < -boundingSphere.radius()) ...
-        if (XMVectorGetIntW(XMVectorLess(signDist, XMVectorNegate(boundingSphere.radius())))) {
+        const Sphere   boundingSphere  =  boundingSpheres[i];
+        const XMVECTOR sphereCenter    =  boundingSphere.center();
+        const XMVECTOR negSphereRadius = -boundingSphere.radius();
+        // Compute the distances to the left/right/top/bottom frustum planes
+        // distances = tfp.r[0] * sC.x + tfp.r[1] * sC.y + tfp.r[2] * sC.z + tfp.r[3]
+        const XMVECTOR distances = XMVectorMultiplyAdd(tfp.r[0], XMVectorSplatX(sphereCenter),
+                                   XMVectorMultiplyAdd(tfp.r[1], XMVectorSplatY(sphereCenter),
+                                   XMVectorMultiplyAdd(tfp.r[2], XMVectorSplatZ(sphereCenter),
+                                                       tfp.r[3])));
+        // Test the distances against the (negated) radius of the bounding sphere
+        const XMVECTOR outsideTests = XMVectorLess(distances, negSphereRadius);
+        // Check if at least one of the 'outside' tests passed
+        if (XMVector4NotEqual(outsideTests, XMVectorZero())) {
             // Clear the 'object visible' flag
             objectVisibilityMask.clearBit(i);
+            --visObjCnt;
+        } else {
+            // Test whether the object is in front of the camera
+            const XMVECTOR viewSpaceSphereCenter = XMVector3Transform(sphereCenter, viewMat);
+            // Test the Z coordinate against the (negated) radius of the bounding sphere
+            if (XMVectorGetZ(XMVectorLess(viewSpaceSphereCenter, negSphereRadius))) {
+                // Clear the 'object visible' flag
+                objectVisibilityMask.clearBit(i);
+                --visObjCnt;
+            }
         }
     }
+    return static_cast<float>(visObjCnt * 100) / static_cast<float>(numObjects);
 }

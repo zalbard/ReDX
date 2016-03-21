@@ -1,15 +1,12 @@
 #pragma once
 
 #include <d3d12.h>
-#include <DirectXMath.h>
 #include <utility>
 #include <wrl\client.h>
 #include "..\Common\Constants.h"
 #include "..\Common\Definitions.h"
 
 namespace D3D12 {
-    using DirectX::XMFLOAT3;
-    using DirectX::XMMATRIX;
     using Microsoft::WRL::ComPtr;
 
     // Corresponds to Direct3D descriptor types
@@ -49,8 +46,8 @@ namespace D3D12 {
     };
 
     struct UploadRingBuffer: public MemoryBuffer {
-        UploadRingBuffer();
         RULE_OF_FIVE_MOVE_ONLY(UploadRingBuffer);
+        UploadRingBuffer();
         byte*                        begin;         // CPU virtual memory-mapped address
         uint                         capacity;      // Buffer size in bytes
         uint                         offset;        // Offset from the beginning of the buffer
@@ -71,8 +68,8 @@ namespace D3D12 {
     template <QueueType T, uint N>
     struct CommandQueue {
     public:
-        CommandQueue() = default;
         RULE_OF_ZERO_MOVE_ONLY(CommandQueue);
+        CommandQueue() = default;
         // Submits a single command list for execution
         void execute(ID3D12CommandList* const commandList) const;
         // Submits S command lists for execution
@@ -110,7 +107,6 @@ namespace D3D12 {
     MIDL_INTERFACE("189819f1-1db6-4b57-be54-1821339b85f7")
     ID3D12DeviceEx: public ID3D12Device {
     public:
-        ID3D12DeviceEx() = delete;
         RULE_OF_ZERO(ID3D12DeviceEx);
         template<QueueType T, uint N>
         void createCommandQueue(CommandQueue<T, N>* const commandQueue, 

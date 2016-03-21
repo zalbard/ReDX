@@ -1,9 +1,11 @@
 #pragma once
 
-#include <DirectXMath.h>
+#include <DirectXMathSSE4.h>
+#include "Definitions.h"
 
 class PerspectiveCamera {
 public:
+    RULE_OF_ZERO(PerspectiveCamera);
     // Ctor. Parameters: the width and the height of the sensor (in pixels),
     // the vertical field of view 'vFoV' (in radians),
     // the position 'pos', the viewing direction 'dir' and the 'up' vector
@@ -12,13 +14,15 @@ public:
                                DirectX::FXMVECTOR up);
     // Returns the wold-space position of the camera
     DirectX::XMVECTOR position() const;
+    // Returns the projection matrix of the camera
+    DirectX::XMMATRIX projectionMatrix() const;
     // Returns the normalized direction along the optical axis
     DirectX::XMVECTOR computeForwardDir() const;
     // Returns the view matrix
-    DirectX::XMMATRIX computeViewMatrix() const;
-    // Returns the view-projection matrix
     DirectX::XMMATRIX computeViewProjMatrix() const;
     // Moves the camera forward by 'dist' meters
+    DirectX::XMMATRIX computeViewMatrix() const;
+    // Returns the view-projection matrix
     void moveForward(const float dist);
     // Moves the camera back by 'dist' meters
     void moveBack(const float dist);

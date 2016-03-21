@@ -47,12 +47,14 @@
     <OutDir>Bin\$(Platform)-$(Configuration)\</OutDir>
     <IntDir>Temp\$(Platform)-$(Configuration)\</IntDir>
     <SourcePath>$(ProjectDir)Source;$(SourcePath)</SourcePath>
+    <IncludePath>$(ProjectDir)Source\ThirdParty;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>Bin\$(Platform)-$(Configuration)\</OutDir>
     <IntDir>Temp\$(Platform)-$(Configuration)\</IntDir>
     <SourcePath>$(ProjectDir)Source;$(SourcePath)</SourcePath>
+    <IncludePath>$(ProjectDir)Source\ThirdParty;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -67,6 +69,7 @@
       <BasicRuntimeChecks>Default</BasicRuntimeChecks>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <CallingConvention>VectorCall</CallingConvention>
+      <EnableParallelCodeGeneration>false</EnableParallelCodeGeneration>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -88,6 +91,7 @@
       <RuntimeTypeInfo>false</RuntimeTypeInfo>
       <MinimalRebuild>true</MinimalRebuild>
       <CallingConvention>VectorCall</CallingConvention>
+      <EnableParallelCodeGeneration>false</EnableParallelCodeGeneration>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -121,6 +125,7 @@
     <ClInclude Include="Source\D3D12\Renderer.h" />
     <ClInclude Include="Source\D3D12\Renderer.hpp" />
     <ClInclude Include="Source\ThirdParty\d3dx12.h" />
+    <ClInclude Include="Source\ThirdParty\DirectXMathSSE4.h" />
     <ClInclude Include="Source\ThirdParty\load_obj.h" />
     <ClInclude Include="Source\ThirdParty\miniball.hpp" />
     <ClInclude Include="Source\ThirdParty\stb_image.h" />
@@ -130,7 +135,7 @@
     <None Include=".gitignore" />
     <None Include="LICENSE" />
     <None Include="README.md" />
-    <FxCompile Include="Source\Shaders\PSDraw.hlsl">
+    <FxCompile Include="Source\Shaders\DrawPS.hlsl">
       <FileType>Document</FileType>
       <AllResourcesBound Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</AllResourcesBound>
       <EnableUnboundedDescriptorTables Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</EnableUnboundedDescriptorTables>
@@ -151,7 +156,7 @@
       <AssemblerOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Shaders\%(Filename).asm</AssemblerOutputFile>
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">AssemblyCode</AssemblerOutput>
     </FxCompile>
-    <FxCompile Include="Source\Shaders\VSDraw.hlsl">
+    <FxCompile Include="Source\Shaders\DrawVS.hlsl">
       <FileType>Document</FileType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.1</ShaderModel>

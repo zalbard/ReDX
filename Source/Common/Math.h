@@ -1,6 +1,6 @@
 #pragma once
 
-#include <DirectXMath.h>
+#include <DirectXMathSSE4.h>
 
 // Computes the square of the value
 template <typename T>
@@ -42,9 +42,9 @@ namespace DirectX {
         assert(!XMVector3Equal(up, XMVectorZero()));
         assert(!XMVector3IsInfinite(up));
         // Compute the forward vector
-        const XMVECTOR R2 = XMVector3Normalize(forward);
+        const XMVECTOR R2 = SSE4::XMVector3Normalize(forward);
         // Compute the right vector
-        const XMVECTOR R0 = XMVector3Normalize(XMVector3Cross(up, R2));
+        const XMVECTOR R0 = SSE4::XMVector3Normalize(XMVector3Cross(up, R2));
         // Compute the up vector
         const XMVECTOR R1 = XMVector3Cross(R2, R0);
         // Compose the matrix
