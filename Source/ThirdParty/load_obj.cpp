@@ -343,7 +343,7 @@ static bool parse_mtl(std::istream& stream, obj::MaterialLib& mtl_lib) {
             auto& mat = current_material();
             mat.map_d = std::string(strip_spaces(ptr + 6));
         } else {
-            error("unknown command", ptr);
+            error("unknown command ", ptr);
             err_count++;
         }
     }
