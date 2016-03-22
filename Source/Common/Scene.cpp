@@ -44,13 +44,13 @@ XMVECTOR Sphere::radius() const {
     return XMVectorSplatW(m_data);
 }
 
-Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine) {
-    assert(objFilePath);
-    // Load the .obj and the referenced .mtl files
-    printInfo("Loading the scene from the file: %s.", objFilePath);
+Scene::Scene(const char* const path, const char* const objFileName, D3D12::Renderer& engine) {
+    assert(path && objFileName);
+    // Load the .obj file
+    printInfo("Loading a scene from the file: %s", objFileName);
     obj::File objFile;
-    if (!load_obj(std::string{objFilePath}, objFile)) {
-        printError("Failed to load the file: %s.", objFilePath);
+    if (!load_obj(std::string{path} + std::string{objFileName}, objFile)) {
+        printError("Failed to load the file: %s", objFileName);
         TERMINATE();
     }
     uint nObj = 0;

@@ -27,7 +27,8 @@ public:
     RULE_OF_ZERO(Scene);
     // Ctor; takes the .obj file name with the path as input
     // The renderer performs Direct3D resource initialization
-    explicit Scene(const char* const objFilePath, D3D12::Renderer& engine);
+    explicit Scene(const char* const path, const char* const objFileName,
+                   D3D12::Renderer& engine);
     // Performs culling of scene objects against the camera's frustum
     // Returns the percentage of the visible objects
     float performFrustumCulling(const PerspectiveCamera& pCam);
