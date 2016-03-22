@@ -14,9 +14,10 @@ struct IndexedPointIterator {
     const float* operator*() const {
         return reinterpret_cast<const float*>(&positions[*index]);
     }
-    IndexedPointIterator& operator++() {
+    IndexedPointIterator operator++() {
+        auto old = *this;
         ++index;
-        return *this;
+        return old;
     }
     bool operator==(const IndexedPointIterator& other) const {
         return index == other.index;
