@@ -16,6 +16,7 @@ static inline float invSq(const T v) {
 
 namespace DirectX {
     // Computes an infinite reversed projection matrix
+    // The distance to the near plane is infinite, the distance to the far plane is 1
     // Parameters: the width and the height of the viewport (in pixels),
     // and the vertical field of view 'vFoV' (in radians)
     static inline XMMATRIX XM_CALLCONV
