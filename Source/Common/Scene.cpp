@@ -26,8 +26,8 @@ struct IndexedPointIterator {
         return index != other.index;
     }
 public:
-    const uint*     index;
     const XMFLOAT3* positions;
+    const uint*     index;
 };
 
 using CoordIterator  = const float*;
@@ -45,6 +45,15 @@ XMVECTOR Sphere::radius() const {
     return XMVectorSplatW(m_data);
 }
 
+struct IndexedObject {
+    bool operator<(const IndexedObject& other) const {
+        return material < other.material;
+    }
+public:
+    int               material;
+    std::vector<uint> indices;
+};
+
 Scene::Scene(const char* const path, const char* const objFileName, D3D12::Renderer& engine) {
     assert(path && objFileName);
     // Load the .obj file
@@ -54,35 +63,24 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
         printError("Failed to load the file: %s", objFileName);
         TERMINATE();
     }
-    uint nObj = 0;
-    // Compute the total number of objects
+    // Populate the indexed object array and the vertex index map
+    std::vector<IndexedObject> indexedObjects;
+    obj::IndexMap indexMap{2 * objFile.vertices.size()};
     for (const auto& object : objFile.objects) {
         for (const auto& group : object.groups) {
-            if (!group.faces.empty()) { ++nObj; }
-        }
-    }
-    numObjects = nObj;
-    // Allocate memory
-    boundingSpheres      = std::make_unique<Sphere[]>(nObj);
-    objectVisibilityMask = DynBitSet{nObj};
-    indexBuffers         = std::make_unique<D3D12::IndexBuffer[]>(nObj);
-    auto indices         = std::make_unique<std::vector<uint>[]>(nObj);
-    for (uint i = 0; i < nObj; ++i) {
-        indices[i].reserve(16384);
-    }
-    obj::IndexMap indexMap;
-    indexMap.reserve(2 * objFile.vertices.size());
-    // Populate vertex and index buffers
-    uint objId = 0;
-    for (const auto& object : objFile.objects) {
-        for (const auto& group : object.groups) {
-            // Test whether the group contains any polygons
-            if (group.faces.empty()) { continue; }
+            if (group.faces.empty()) continue;
+            // New group -> new object
+            indexedObjects.push_back(IndexedObject{group.faces[0].material, {}});
+            IndexedObject* currObject = &indexedObjects.back();
             for (const auto& face : group.faces) {
-                // Populate the vertex index map
+                if (face.material != currObject->material) {
+                    // New material -> new object
+                    indexedObjects.push_back(IndexedObject{face.material, {}});
+                    currObject = &indexedObjects.back();
+                }
                 for (int i = 0; i < face.index_count; ++i) {
                     if (indexMap.find(face.indices[i]) == indexMap.end()) {
-                        // Insert a new key-value pair (vertex index : position in buffer)
+                        // Insert a new key-value pair (vertex index : position in vertex buffer)
                         indexMap.insert(std::make_pair(face.indices[i],
                                                        static_cast<uint>(indexMap.size())));
                     }
@@ -93,14 +91,25 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
                 for (int i = 1, n = face.index_count - 1; i < n; ++i) {
                     const uint next       = indexMap[face.indices[i + 1]];
                     const uint triangle[] = {v0, prev, next};
-                    indices[objId].insert(std::end(indices[objId]), triangle, triangle + 3);
+                    currObject->indices.insert(currObject->indices.end(), triangle, triangle + 3);
                     prev = next;
                 }
             }
-            indexBuffers[objId] = engine.createIndexBuffer(static_cast<uint>(indices[objId].size()),
-                                                           indices[objId].data());
-            ++objId;
         }
+    }
+    // Sort objects by material
+    std::sort(indexedObjects.begin(), indexedObjects.end());
+    // Allocate memory
+    const uint nObj      = static_cast<uint>(indexedObjects.size());
+    numObjects           = nObj;
+    objectVisibilityMask = DynBitSet{nObj};
+    boundingSpheres      = std::make_unique<Sphere[]>(nObj);
+    materialIndices      = std::make_unique<uint[]>(nObj);
+    indexBuffers         = std::make_unique<D3D12::IndexBuffer[]>(nObj);
+    // Create index buffers
+    for (uint i = 0; i < nObj; ++i) {
+        const uint count = static_cast<uint>(indexedObjects[i].indices.size());
+        indexBuffers[i]  = engine.createIndexBuffer(count, indexedObjects[i].indices.data());
     }
     // Create vertex attribute buffers
     const uint numVertices = static_cast<uint>(indexMap.size());
@@ -114,8 +123,9 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
     // Compute bounding spheres
     const XMFLOAT3* const positionArray = positions.data();
     for (uint i = 0; i < nObj; ++i) {
-        const IndexedPointIterator begin = {indices[i].data(), positionArray};
-        const IndexedPointIterator end   = {indices[i].data() + indices[i].size(), positionArray};
+        const IndexedPointIterator begin = {positionArray, indexedObjects[i].indices.data()};
+        const IndexedPointIterator end   = {positionArray, indexedObjects[i].indices.data() +
+                                                           indexedObjects[i].indices.size()};
         const BoundingSphere sphere{3, begin, end};
         boundingSpheres[i] = Sphere{XMFLOAT3{sphere.center()}, sqrt(sphere.squared_radius())};
     }

@@ -34,8 +34,9 @@ public:
     float performFrustumCulling(const PerspectiveCamera& pCam);
 public:
     uint                                  numObjects;
+    DynBitSet                             objectVisibilityMask;
     std::unique_ptr<Sphere[]>             boundingSpheres;
-    DynBitSet                             objectVisibilityMask;  
+    std::unique_ptr<uint[]>               materialIndices;
     std::unique_ptr<D3D12::IndexBuffer[]> indexBuffers;
     D3D12::VertexBuffer                   vertAttribBuffers[2]; // Positions, normals
 };
