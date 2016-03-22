@@ -124,13 +124,13 @@ Scene::Scene(const char* const objFilePath, D3D12::Renderer& engine) {
 float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
     // Set all objects as visible
     objectVisibilityMask.reset(1);
-    uint           visObjCnt = numObjects;
-    const XMMATRIX viewMat   = pCam.computeViewMatrix();
-    // Compute the transposed equations of the left/right/top/bottom frustum planes
+    uint visObjCnt = numObjects;
+    // Compute the transposed equations of the far/left/right/top/bottom frustum planes
     // See "Fast Extraction of Viewing Frustum Planes from the WorldView-Projection Matrix"
     XMMATRIX tfp;
+    XMVECTOR farPlane;
     {
-        const XMMATRIX viewProjMat = viewMat * pCam.projectionMatrix();
+        const XMMATRIX viewProjMat = pCam.computeViewProjMatrix();
         const XMMATRIX tvp         = XMMatrixTranspose(viewProjMat);
         XMMATRIX frustumPlanes;
         // Left plane
@@ -141,15 +141,18 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         frustumPlanes.r[2] = tvp.r[3] - tvp.r[1];
         // Bottom plane
         frustumPlanes.r[3] = tvp.r[3] + tvp.r[1];
+        // Far plane
+        farPlane           = tvp.r[3] - tvp.r[2];
         // Compute the inverse magnitudes
         tfp = XMMatrixTranspose(frustumPlanes);
         const XMVECTOR magsSq  = tfp.r[0] * tfp.r[0] + tfp.r[1] * tfp.r[1] + tfp.r[2] * tfp.r[2];
-        const XMVECTOR invMags = XMVectorReciprocalSqrtEst(magsSq);
+        const XMVECTOR invMags = XMVectorReciprocalSqrt(magsSq);
         // Normalize the plane equations
         frustumPlanes.r[0] *= XMVectorSplatX(invMags);
         frustumPlanes.r[1] *= XMVectorSplatY(invMags);
         frustumPlanes.r[2] *= XMVectorSplatZ(invMags);
         frustumPlanes.r[3] *= XMVectorSplatW(invMags);
+        farPlane            = XMPlaneNormalize(farPlane);
         // Transpose the normalized plane equations
         tfp = XMMatrixTranspose(frustumPlanes);
     }
@@ -166,15 +169,16 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         // Test the distances against the (negated) radius of the bounding sphere
         const XMVECTOR outsideTests = XMVectorLess(distances, negSphereRadius);
         // Check if at least one of the 'outside' tests passed
-        if (XMVector4NotEqual(outsideTests, XMVectorFalseInt())) {
+        if (XMVector4NotEqualInt(outsideTests, XMVectorFalseInt())) {
             // Clear the 'object visible' flag
             objectVisibilityMask.clearBit(i);
             --visObjCnt;
         } else {
             // Test whether the object is in front of the camera
-            const XMVECTOR viewSpaceSphereCenter = XMVector3Transform(sphereCenter, viewMat);
+            // Our projection matrix is reversed, so we use the far plane
+            const XMVECTOR distance = SSE4::XMVector4Dot(farPlane, XMVectorSetW(sphereCenter, 1.f));
             // Test the Z coordinate against the (negated) radius of the bounding sphere
-            if (XMVectorGetZ(XMVectorLess(viewSpaceSphereCenter, negSphereRadius))) {
+            if (XMVectorGetIntX(XMVectorLess(distance, negSphereRadius))) {
                 // Clear the 'object visible' flag
                 objectVisibilityMask.clearBit(i);
                 --visObjCnt;
