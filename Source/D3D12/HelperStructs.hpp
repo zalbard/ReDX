@@ -24,12 +24,12 @@ inline D3D12::UploadRingBuffer::UploadRingBuffer(UploadRingBuffer&& other) noexc
     , prevSegStart{other.prevSegStart}
     , currSegStart{other.currSegStart} {
     // Mark as moved
-    other.begin = nullptr;
+    other.resource = nullptr;
 }
 
 inline D3D12::UploadRingBuffer&
 D3D12::UploadRingBuffer::operator=(UploadRingBuffer&& other) noexcept {
-    if (begin) {
+    if (resource) {
         resource->Unmap(0, nullptr);
     }
     // Copy the data
@@ -40,13 +40,13 @@ D3D12::UploadRingBuffer::operator=(UploadRingBuffer&& other) noexcept {
     prevSegStart = other.prevSegStart;
     currSegStart = other.currSegStart;
     // Mark as moved
-    other.begin = nullptr;
+    other.resource = nullptr;
     return *this;
 }
 
 inline D3D12::UploadRingBuffer::~UploadRingBuffer() noexcept {
     // Check if it was moved
-    if (begin) {
+    if (resource) {
         resource->Unmap(0, nullptr);
     }
 }
