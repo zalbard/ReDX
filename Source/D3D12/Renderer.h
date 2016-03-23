@@ -42,9 +42,9 @@ namespace D3D12 {
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
         // Uploads the data of the specified size in bytes and alignment
-        // to the memory buffer via the intermediate upload buffer
+        // to the video memory buffer 'dst' via the intermediate upload buffer
         template<uint64 alignment>
-        void uploadData(MemoryBuffer& dst, const uint size, const void* const data);
+        void uploadData(ID3D12Resource* const dst, const uint size, const void* const data);
     private:
         /* Rendering parameters */
         D3D12_VIEWPORT                               m_viewport;

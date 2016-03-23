@@ -25,29 +25,26 @@ namespace D3D12 {
         COPY     = D3D12_COMMAND_LIST_TYPE_COPY     // Supports copy commands only
     };
 
-    struct MemoryBuffer {
+    struct VertexBuffer {
         ComPtr<ID3D12Resource>       resource;      // Buffer interface
-    protected:
-        // Prevent polymorphic deletion
-        ~MemoryBuffer() = default;
-    };
-
-    struct VertexBuffer: public MemoryBuffer {
         D3D12_VERTEX_BUFFER_VIEW     view;          // Buffer descriptor
     };
 
-    struct IndexBuffer: public MemoryBuffer {
+    struct IndexBuffer {
+        ComPtr<ID3D12Resource>       resource;      // Buffer interface
         D3D12_INDEX_BUFFER_VIEW      view;          // Buffer descriptor
         uint                         count() const; // Returns the number of elements
     };
 
-    struct ConstantBuffer: public MemoryBuffer {
+    struct ConstantBuffer {
+        ComPtr<ID3D12Resource>       resource;      // Buffer interface
         D3D12_GPU_VIRTUAL_ADDRESS    location;      // GPU virtual address of the buffer
     };
 
-    struct UploadRingBuffer: public MemoryBuffer {
+    struct UploadRingBuffer {
         RULE_OF_FIVE_MOVE_ONLY(UploadRingBuffer);
         UploadRingBuffer();
+        ComPtr<ID3D12Resource>       resource;      // Buffer interface
         byte*                        begin;         // CPU virtual memory-mapped address
         uint                         capacity;      // Buffer size in bytes
         uint                         offset;        // Offset from the beginning of the buffer

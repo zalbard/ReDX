@@ -400,7 +400,7 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* const
     if (data) {
         // Copy the data to video memory using the upload buffer
         constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-        uploadData<alignment>(buffer, size, data);
+        uploadData<alignment>(buffer.resource.Get(), size, data);
     }
     // Initialize the constant buffer location
     buffer.location = buffer.resource->GetGPUVirtualAddress();
@@ -424,7 +424,7 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
     // Copy the indices to video memory using the upload buffer
     // Max. alignment requirement for indices is 4 bytes
     constexpr uint64 alignment = 4;
-    uploadData<alignment>(buffer, size, indices);
+    uploadData<alignment>(buffer.resource.Get(), size, indices);
     // Initialize the index buffer view
     buffer.view = D3D12_INDEX_BUFFER_VIEW{
         /* BufferLocation */ buffer.resource->GetGPUVirtualAddress(),
@@ -436,13 +436,14 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
 
 void Renderer::setViewProjMatrix(FXMMATRIX viewProjMat) {
     // Copy the data to video memory using the upload buffer
-    constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     const XMMATRIX transposedViewProj = XMMatrixTranspose(viewProjMat);
-    uploadData<alignment>(m_constantBuffer, sizeof(transposedViewProj), &transposedViewProj);
+    uploadData<D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT>(m_constantBuffer.resource.Get(),
+                                                               sizeof(transposedViewProj),
+                                                               &transposedViewProj);
 }
 
 template<uint64 alignment>
-void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const data) {
+void Renderer::uploadData(ID3D12Resource* const dst, const uint size, const void* const data) {
     assert(data && size > 0);
     // Compute the address within the upload buffer which we will copy the data to
     byte*  alignedAddress = align<alignment>(m_uploadBuffer.begin + m_uploadBuffer.offset);
@@ -505,8 +506,7 @@ void Renderer::uploadData(MemoryBuffer& dst, const uint size, const void* const 
     // Load the data into the upload buffer
     memcpy(alignedAddress, data, size);
     // Copy the data from the upload buffer into the memory buffer
-    m_copyCommandList->CopyBufferRegion(dst.resource.Get(), 0,
-                                        m_uploadBuffer.resource.Get(), alignedOffset, size);
+    m_copyCommandList->CopyBufferRegion(dst, 0, m_uploadBuffer.resource.Get(), alignedOffset, size);
     // Move the offset to the end of the data
     m_uploadBuffer.offset = alignedEnd;
 }

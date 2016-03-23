@@ -23,7 +23,7 @@ D3D12::VertexBuffer D3D12::Renderer::createVertexBuffer(const uint count, const 
     // Copy the vertices to video memory using the upload buffer
     // Max. alignment requirement for vertex data is 4 bytes
     constexpr uint64 alignment = 4;
-    uploadData<alignment>(buffer, size, elements);
+    uploadData<alignment>(buffer.resource.Get(), size, elements);
     // Initialize the vertex buffer view
     buffer.view = D3D12_VERTEX_BUFFER_VIEW{
         /* BufferLocation */ buffer.resource->GetGPUVirtualAddress(),

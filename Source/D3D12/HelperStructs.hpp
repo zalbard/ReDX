@@ -8,7 +8,7 @@ inline uint D3D12::IndexBuffer::count() const {
     return view.SizeInBytes / sizeof(uint);
 }
 
-inline void swap(D3D12::IndexBuffer& a, D3D12::IndexBuffer& b) {
+static inline void swap(D3D12::IndexBuffer& a, D3D12::IndexBuffer& b) {
     a.resource.Swap(b.resource);
     const auto tmp = a.view;
     a.view         = b.view;
@@ -16,7 +16,7 @@ inline void swap(D3D12::IndexBuffer& a, D3D12::IndexBuffer& b) {
 }
 
 inline D3D12::UploadRingBuffer::UploadRingBuffer()
-    : MemoryBuffer{nullptr}
+    : resource{nullptr}
     , begin{nullptr}
     , capacity{0}
     , offset{0}
@@ -24,7 +24,7 @@ inline D3D12::UploadRingBuffer::UploadRingBuffer()
     , currSegStart{0} {}
 
 inline D3D12::UploadRingBuffer::UploadRingBuffer(UploadRingBuffer&& other) noexcept
-    : MemoryBuffer{std::move(other.resource)}
+    : resource{std::move(other.resource)}
     , begin{other.begin}
     , capacity{other.capacity}
     , offset{other.offset}
