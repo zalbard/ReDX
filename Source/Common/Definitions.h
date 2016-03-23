@@ -43,6 +43,7 @@
 using byte   = unsigned char;
 using int64  = long long int;
 using uint   = unsigned int;
+using uint16 = unsigned short;
 using uint64 = unsigned long long int;
 
 // Windows header macro definition removal
