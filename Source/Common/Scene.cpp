@@ -189,7 +189,7 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
             // Test whether the object is in front of the camera
             // Our projection matrix is reversed, so we use the far plane
             const XMVECTOR distance = SSE4::XMVector4Dot(farPlane, XMVectorSetW(sphereCenter, 1.f));
-            // Test the Z coordinate against the (negated) radius of the bounding sphere
+            // Test the distance against the (negated) radius of the bounding sphere
             if (XMVectorGetIntX(XMVectorLess(distance, negSphereRadius))) {
                 // Clear the 'object visible' flag
                 objectVisibilityMask.clearBit(i);
