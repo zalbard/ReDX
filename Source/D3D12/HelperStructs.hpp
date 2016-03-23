@@ -8,13 +8,6 @@ inline uint D3D12::IndexBuffer::count() const {
     return view.SizeInBytes / sizeof(uint);
 }
 
-static inline void swap(D3D12::IndexBuffer& a, D3D12::IndexBuffer& b) {
-    a.resource.Swap(b.resource);
-    const auto tmp = a.view;
-    a.view         = b.view;
-    b.view         = tmp;
-}
-
 inline D3D12::UploadRingBuffer::UploadRingBuffer()
     : resource{nullptr}
     , begin{nullptr}
