@@ -173,11 +173,11 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         const XMVECTOR sphereCenter    =  boundingSphere.center();
         const XMVECTOR negSphereRadius = -boundingSphere.radius();
         // Compute the distances to the left/right/top/bottom frustum planes
-        const XMVECTOR upper     = tfp.r[0] * XMVectorSplatX(sphereCenter) +
+        const XMVECTOR upperPart = tfp.r[0] * XMVectorSplatX(sphereCenter) +
                                    tfp.r[1] * XMVectorSplatY(sphereCenter);
-        const XMVECTOR lower     = tfp.r[2] * XMVectorSplatZ(sphereCenter) +
+        const XMVECTOR lowerPart = tfp.r[2] * XMVectorSplatZ(sphereCenter) +
                                    tfp.r[3];
-        const XMVECTOR distances = upper + lower;
+        const XMVECTOR distances = upperPart + lowerPart;
         // Test the distances against the (negated) radius of the bounding sphere
         const XMVECTOR outsideTests = XMVectorLess(distances, negSphereRadius);
         // Check if at least one of the 'outside' tests passed
