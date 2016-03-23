@@ -8,7 +8,7 @@
 
 // Aligns the address to the next multiple of alignment
 template <uint64 alignment>
-byte* align(const byte* const address) {
+static inline byte* align(const byte* const address) {
     // Make sure that the alignment is non-zero, and is a power of 2
     static_assert((0 != alignment) && (0 == (alignment & (alignment - 1))), "Invalid alignment.");
     const uint64 aligned = reinterpret_cast<uint64>((address + (alignment - 1))) & ~(alignment - 1);
