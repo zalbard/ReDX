@@ -121,12 +121,7 @@ namespace D3D12 {
         m_uploadBuffer.offset = alignedEnd;
         // Load the data into the upload buffer
         memcpy(alignedAddress, data, size);
-        /*
-        // Copy the data from the upload buffer into the video memory buffer
-        m_copyCommandList->CopyBufferRegion(dst.resource.Get(), 0,
-                                            m_uploadBuffer.resource.Get(), alignedOffset,
-                                            size);
-        */
+        // Return the offset to the beginning of the data
         return alignedOffset;
     }
 } // namespace D3D12
