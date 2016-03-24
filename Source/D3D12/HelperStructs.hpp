@@ -179,10 +179,9 @@ namespace D3D12 {
         // Create a descriptor heap
         CHECK_CALL(CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorPool->heap)),
                    "Failed to create a descriptor heap.");
-        // Get handles for the first descriptor of the heap
-        descriptorPool->cpuBegin = descriptorPool->heap->GetCPUDescriptorHandleForHeapStart();
-        descriptorPool->gpuBegin = descriptorPool->heap->GetGPUDescriptorHandleForHeapStart();
-        // Get the increment size for descriptor handles
+        // Query and store the heap properties
+        descriptorPool->cpuBegin     = descriptorPool->heap->GetCPUDescriptorHandleForHeapStart();
+        descriptorPool->gpuBegin     = descriptorPool->heap->GetGPUDescriptorHandleForHeapStart();
         descriptorPool->handleIncrSz = GetDescriptorHandleIncrementSize(nativeType);
     }
 } // namespace D3D12
