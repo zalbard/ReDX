@@ -164,10 +164,10 @@ namespace D3D12 {
 
     template<DescType T>
     inline void ID3D12DeviceEx::createDescriptorPool(DescriptorPool<T>* const descriptorPool,
-                                                     const uint count, const bool isShaderVisible) {
+                                                     const uint count) {
         assert(descriptorPool && count > 0);
-        assert(T == DescType::CBV_SRV_UAV || T == DescType::SAMPLER || !isShaderVisible);
-        constexpr auto nativeType = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);
+        constexpr auto nativeType      = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);
+        constexpr bool isShaderVisible = DescType::CBV_SRV_UAV == T || DescType::SAMPLER == T;
         // Fill out the descriptor heap description
         const D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {
             /* Type */           nativeType,

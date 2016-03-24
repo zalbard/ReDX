@@ -120,10 +120,9 @@ namespace D3D12 {
         void createCommandQueue(CommandQueueEx<T, N>* const commandQueue, 
                                 const bool isHighPriority    = false, 
                                 const bool disableGpuTimeout = false);
-        // Creates a descriptor pool of the specified type, capacity and shader visibility
+        // Creates a descriptor pool of the specified size (descriptor count) and type
         template <DescType T>
-        void createDescriptorPool(DescriptorPool<T>* const descriptorPool,
-                                  const uint count, const bool isShaderVisible = false);
+        void createDescriptorPool(DescriptorPool<T>* const descriptorPool, const uint count);
         // Creates a command queue of the specified type
         // Optionally, the queue priority can be set to 'high', and the GPU timeout can be disabled
         // Multi-GPU-adapter mask. Rendering is performed on a single GPU
