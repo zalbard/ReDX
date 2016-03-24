@@ -19,8 +19,8 @@ namespace DirectX {
     // The distance to the near plane is infinite, the distance to the far plane is 1
     // Parameters: the width and the height of the viewport (in pixels),
     // and the vertical field of view 'vFoV' (in radians)
-    static inline XMMATRIX XM_CALLCONV
-    InfRevProjMatLH(const long viewWidth, const long viewHeight, const float vFoV) {
+    static inline XMMATRIX InfRevProjMatLH(const long viewWidth, const long viewHeight,
+                                           const float vFoV) {
         const float cotHalfFovY    = cosf(0.5f * vFoV) / sinf(0.5f * vFoV);
         const float invAspectRatio = static_cast<float>(viewHeight) / static_cast<float>(viewWidth);
         const float m00 = invAspectRatio * cotHalfFovY;
@@ -36,8 +36,7 @@ namespace DirectX {
     }
 
     // Computes a rotation matrix using forward (Z) and up (Y) vectors
-    static inline XMMATRIX XM_CALLCONV
-    RotationMatrixLH(FXMVECTOR forward, FXMVECTOR up) {
+    static inline XMMATRIX RotationMatrixLH(FXMVECTOR forward, FXMVECTOR up) {
         assert(!XMVector3Equal(forward, XMVectorZero()));
         assert(!XMVector3IsInfinite(forward));
         assert(!XMVector3Equal(up, XMVectorZero()));
