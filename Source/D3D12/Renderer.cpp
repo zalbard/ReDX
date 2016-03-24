@@ -1,8 +1,9 @@
 #include <d3dcompiler.h>
 #include <d3dx12.h>
 #include <memory>
+#include <tuple>
 #include "HelperStructs.hpp"
-#include "Renderer.h"
+#include "Renderer.hpp"
 #include "..\Common\Math.h"
 #include "..\UI\Window.h"
 
@@ -383,30 +384,6 @@ void Renderer::configurePipeline() {
     m_constantBuffer = createConstantBuffer(sizeof(XMMATRIX));
 }
 
-ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* const data) {
-    assert(size >= 4);
-    ConstantBuffer buffer;
-    // Allocate the buffer on the default heap
-    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
-    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
-    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &bufferDesc, D3D12_RESOURCE_STATE_COMMON,
-                                                 nullptr, IID_PPV_ARGS(&buffer.resource)),
-               "Failed to allocate a constant buffer.");
-    // Transition the memory buffer state for graphics/compute command queue type class
-    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
-        D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-    m_graphicsCommandList->ResourceBarrier(1, &barrier);
-    if (data) {
-        // Copy the data to video memory using the upload buffer
-        constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-        uploadData<alignment>(buffer.resource.Get(), size, data);
-    }
-    // Initialize the constant buffer location
-    buffer.location = buffer.resource->GetGPUVirtualAddress();
-    return buffer;
-}
-
 IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indices) {
     assert(indices && count >= 3);
     IndexBuffer buffer;
@@ -418,13 +395,17 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
                                                  &bufferDesc, D3D12_RESOURCE_STATE_COMMON,
                                                  nullptr, IID_PPV_ARGS(&buffer.resource)),
                "Failed to allocate an index buffer.");
-    // Transition the memory buffer state for graphics/compute command queue type class
+    // Transition the buffer state for the graphics/compute command queue type class
     const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
         D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_INDEX_BUFFER);
-    // Copy the indices to video memory using the upload buffer
+    // Copy the indices into the upload buffer
     // Max. alignment requirement for indices is 4 bytes
     constexpr uint64 alignment = 4;
-    uploadData<alignment>(buffer.resource.Get(), size, indices);
+    const     uint64 ubOffset  = copyToUploadBuffer<alignment>(size, indices);
+    // Copy the data from the upload buffer into the video memory buffer
+    m_copyCommandList->CopyBufferRegion(buffer.resource.Get(), 0,
+                                        m_uploadBuffer.resource.Get(), ubOffset,
+                                        size);
     // Initialize the index buffer view
     buffer.view = D3D12_INDEX_BUFFER_VIEW{
         /* BufferLocation */ buffer.resource->GetGPUVirtualAddress(),
@@ -434,81 +415,43 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
     return buffer;
 }
 
-void Renderer::setViewProjMatrix(FXMMATRIX viewProjMat) {
-    // Copy the data to video memory using the upload buffer
-    const XMMATRIX transposedViewProj = XMMatrixTranspose(viewProjMat);
-    uploadData<D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT>(m_constantBuffer.resource.Get(),
-                                                               sizeof(transposedViewProj),
-                                                               &transposedViewProj);
+ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* const data) {
+    assert(!data || size >= 4);
+    ConstantBuffer buffer;
+    // Allocate the buffer on the default heap
+    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
+    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
+                                                 &bufferDesc, D3D12_RESOURCE_STATE_COMMON,
+                                                 nullptr, IID_PPV_ARGS(&buffer.resource)),
+               "Failed to allocate a constant buffer.");
+    // Transition the buffer state for the graphics/compute command queue type class
+    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
+        D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    m_graphicsCommandList->ResourceBarrier(1, &barrier);
+    if (data) {
+        // Copy the data into the upload buffer
+        constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+        const     uint64 ubOffset  = copyToUploadBuffer<alignment>(size, data);
+        // Copy the data from the upload buffer into the video memory buffer
+        m_copyCommandList->CopyBufferRegion(buffer.resource.Get(), 0,
+                                            m_uploadBuffer.resource.Get(), ubOffset,
+                                            size);
+    }
+    // Initialize the constant buffer location
+    buffer.location = buffer.resource->GetGPUVirtualAddress();
+    return buffer;
 }
 
-template<uint64 alignment>
-void Renderer::uploadData(ID3D12Resource* const dst, const uint size, const void* const data) {
-    assert(data && size > 0);
-    // Compute the address within the upload buffer which we will copy the data to
-    byte*  alignedAddress = align<alignment>(m_uploadBuffer.begin + m_uploadBuffer.offset);
-    uint64 alignedOffset  = alignedAddress - m_uploadBuffer.begin;
-    // Check whether the upload buffer has sufficient space left
-    const int64 remainingCapacity = m_uploadBuffer.capacity - alignedOffset;
-    const bool wrapAround = remainingCapacity < size;
-    if (wrapAround) {
-        // Recompute 'alignedAddress' and 'alignedOffset'
-        alignedAddress = align<alignment>(m_uploadBuffer.begin);
-        alignedOffset  = alignedAddress - m_uploadBuffer.begin;
-        // Make sure the upload buffer is sufficiently large
-        #ifdef _DEBUG
-        {
-            const int64 alignedCapacity = m_uploadBuffer.capacity - alignedOffset;
-            if (alignedCapacity < size) {
-                printError("Insufficient upload buffer capacity: "
-                           "current (aligned): %i, required: %u.",
-                           alignedCapacity, size);
-                TERMINATE();
-            }
-        }
-        #endif
-    }
-    const uint alignedEnd = static_cast<uint>(alignedOffset + size);
-    // 1. Make sure we do not overwrite the current segment of the upload buffer.
-    // (currSegStart == offset) is a perfectly valid configuration;
-    // in order to maintain this invariant, we should execute all copies
-    // (clear the buffer) in cases where (currSegStart == alignedEnd)
-    // Case A: |====OFFS~~~~CURR~~~~AEND====|
-    const bool caseA = (m_uploadBuffer.offset < m_uploadBuffer.currSegStart) &
-                       (m_uploadBuffer.currSegStart <= alignedEnd);
-    // Case B: |~~~~CURR~~~~OFFS~~~~AEND----| + wrap-around
-    //     or: |~~~~CURR~~~~AEND====OFFS----| + wrap-around
-    const bool caseB = (m_uploadBuffer.currSegStart <= alignedEnd) & wrapAround;
-    // Case C: |~~~~OFFS~~~~AEND----CURR====| + wrap-around
-    //     or: |~~~~OFFS~~~~CURR~~~~AEND====| + wrap-around
-    //     or: |~~~~AEND====OFFS----CURR====| + wrap-around
-    const bool caseC = (m_uploadBuffer.offset < m_uploadBuffer.currSegStart) & wrapAround;
-    // If there is not enough space for the new data, we have to execute
-    // all copies first, which will allow us to safely overwrite the old data
-    const bool executeAllCopies = caseA | caseB | caseC;
-    // 2. Make sure we do not overwrite the previous segment of the upload buffer.
-    // (prevSegStart == offset) means we are about to overwrite the previous segment
-    // Case D: |====OFFS~~~~PREV~~~~AEND====|
-    const bool caseD = (m_uploadBuffer.offset <= m_uploadBuffer.prevSegStart) &
-                       (m_uploadBuffer.prevSegStart < alignedEnd);
-    // Case E: |~~~~PREV~~~~AEND====OFFS----| + wrap-around
-    //     or: |~~~~PREV~~~~OFFS~~~~AEND----| + wrap-around
-    //     or: |~~~~OFFS~~~~PREV~~~~AEND----| + wrap-around
-    const bool caseE = (m_uploadBuffer.prevSegStart < alignedEnd) & wrapAround;
-    // We may have to wait until the data within the previous segment can be safely overwritten
-    const bool waitForPrevCopies = caseD | caseE;
-    // Move the offset to the beginning of the data
-    m_uploadBuffer.offset = static_cast<uint>(alignedOffset);
-    // Check whether any copies to the GPU have to be performed
-    if (executeAllCopies || waitForPrevCopies) {
-        executeCopyCommands(executeAllCopies);
-    }
-    // Load the data into the upload buffer
-    memcpy(alignedAddress, data, size);
-    // Copy the data from the upload buffer into the memory buffer
-    m_copyCommandList->CopyBufferRegion(dst, 0, m_uploadBuffer.resource.Get(), alignedOffset, size);
-    // Move the offset to the end of the data
-    m_uploadBuffer.offset = alignedEnd;
+void Renderer::setViewProjMatrix(FXMMATRIX viewProjMat) {
+    const     XMMATRIX tViewProj = XMMatrixTranspose(viewProjMat);
+    // Copy the data into the upload buffer
+    constexpr uint64   alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    const     uint64   ubOffset  = copyToUploadBuffer<alignment>(sizeof(tViewProj), &tViewProj);
+    // Copy the data from the upload buffer into the video memory buffer
+    m_copyCommandList->CopyBufferRegion(m_constantBuffer.resource.Get(), 0,
+                                        m_uploadBuffer.resource.Get(), ubOffset,
+                                        sizeof(tViewProj));
 }
 
 void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
@@ -516,10 +459,12 @@ void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
     CHECK_CALL(m_copyCommandList->Close(), "Failed to close the copy command list.");
     m_copyCommandQueue.execute(m_copyCommandList.Get());
     // Wait for the copy command list execution to finish
-    auto fenceAndValue = m_copyCommandQueue.insertFence();
-    m_copyCommandQueue.syncThread(immediateCopy ? fenceAndValue.second : 0);
+    ID3D12Fence* insertedFence;
+    uint64       insertedValue;
+    std::tie(insertedFence, insertedValue) = m_copyCommandQueue.insertFence();
+    m_copyCommandQueue.syncThread(immediateCopy ? insertedValue : 0);
     // Ensure synchronization between the graphics and the copy command queues
-    m_graphicsCommandQueue.syncQueue(fenceAndValue.first, fenceAndValue.second);
+    m_graphicsCommandQueue.syncQueue(insertedFence, insertedValue);
     // Command list allocators can only be reset when the associated 
     // command lists have finished execution on the GPU
     CHECK_CALL(m_copyCommandQueue.listAlloca()->Reset(),

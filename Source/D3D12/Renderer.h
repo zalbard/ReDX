@@ -11,13 +11,13 @@ namespace D3D12 {
     public:
         RULE_OF_ZERO_MOVE_ONLY(Renderer);
         Renderer();
-        // Creates a constant buffer for the data of the specified size in bytes
-        ConstantBuffer createConstantBuffer(const uint size, const void* const data = nullptr);
         // Creates a vertex attribute buffer for the vertex array of 'count' elements
         template <typename T>
         VertexBuffer createVertexBuffer(const uint count, const T* const elements);
         // Creates an index buffer for the index array with the specified number of indices
         IndexBuffer createIndexBuffer(const uint count, const uint* const indices);
+        // Creates a constant buffer for the data of the specified size in bytes
+        ConstantBuffer createConstantBuffer(const uint size, const void* const data = nullptr);        // ???
         // Sets the view-projection matrix in the shaders
         void setViewProjMatrix(DirectX::FXMMATRIX viewProjMat);
         // Submits all pending copy commands for execution, and begins a new segment
@@ -41,31 +41,31 @@ namespace D3D12 {
     private:
         // Configures the rendering pipeline, including the shaders
         void configurePipeline();
-        // Uploads the data of the specified size in bytes and alignment
-        // to the video memory buffer 'dst' via the intermediate upload buffer
+        // Copies the data of the specified size in bytes and alignment into the upload buffer
+        // Returns the offset into the upload buffer which corresponds to the location of the data
         template<uint64 alignment>
-        void uploadData(ID3D12Resource* const dst, const uint size, const void* const data);
+        uint64 copyToUploadBuffer(const uint size, const void* const data);
     private:
         /* Rendering parameters */
-        D3D12_VIEWPORT                               m_viewport;
-        D3D12_RECT                                   m_scissorRect;
-        uint                                         m_backBufferIndex;
+        D3D12_VIEWPORT                    m_viewport;
+        D3D12_RECT                        m_scissorRect;
+        uint                              m_backBufferIndex;
         /* Direct3D resources */
-        ComPtr<ID3D12DeviceEx>                       m_device;
-        CommandQueue<QueueType::COPY, 2>             m_copyCommandQueue;
-        CommandQueue<QueueType::GRAPHICS, FRAME_CNT> m_graphicsCommandQueue;
-        ComPtr<IDXGISwapChain3>                      m_swapChain;
-        HANDLE                                       m_swapChainWaitableObject;
-        DescriptorPool<DescType::RTV>                m_rtvPool;
-        ComPtr<ID3D12Resource>                       m_renderTargets[BUF_CNT];
-        DescriptorPool<DescType::DSV>                m_dsvPool;
-        ComPtr<ID3D12Resource>                       m_depthBuffer;
+        ComPtr<ID3D12DeviceEx>            m_device;
+        CopyCommandQueueEx<2>             m_copyCommandQueue;
+        GraphicsCommandQueueEx<FRAME_CNT> m_graphicsCommandQueue;
+        ComPtr<IDXGISwapChain3>           m_swapChain;
+        HANDLE                            m_swapChainWaitableObject;
+        DescriptorPool<DescType::RTV>     m_rtvPool;
+        ComPtr<ID3D12Resource>            m_renderTargets[BUF_CNT];
+        DescriptorPool<DescType::DSV>     m_dsvPool;
+        ComPtr<ID3D12Resource>            m_depthBuffer;
         /* Pipeline objects */
-        UploadRingBuffer                             m_uploadBuffer;
-        ComPtr<ID3D12GraphicsCommandList>            m_copyCommandList;
-        ConstantBuffer                               m_constantBuffer;
-        ComPtr<ID3D12RootSignature>                  m_graphicsRootSignature;
-        ComPtr<ID3D12PipelineState>                  m_graphicsPipelineState;
-        ComPtr<ID3D12GraphicsCommandList>            m_graphicsCommandList;
+        UploadRingBuffer                  m_uploadBuffer;
+        ComPtr<ID3D12GraphicsCommandList> m_copyCommandList;
+        ConstantBuffer                    m_constantBuffer;
+        ComPtr<ID3D12RootSignature>       m_graphicsRootSignature;
+        ComPtr<ID3D12PipelineState>       m_graphicsPipelineState;
+        ComPtr<ID3D12GraphicsCommandList> m_graphicsCommandList;
     };
 } // namespace D3D12

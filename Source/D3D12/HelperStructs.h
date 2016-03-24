@@ -25,6 +25,17 @@ namespace D3D12 {
         COPY     = D3D12_COMMAND_LIST_TYPE_COPY     // Supports copy commands only
     };
 
+    struct UploadRingBuffer {
+        RULE_OF_FIVE_MOVE_ONLY(UploadRingBuffer);
+        UploadRingBuffer();
+        ComPtr<ID3D12Resource>       resource;      // Buffer interface
+        byte*                        begin;         // CPU virtual memory-mapped address
+        uint                         capacity;      // Buffer size in bytes
+        uint                         offset;        // Offset from the beginning of the buffer
+        uint                         prevSegStart;  // Offset to the beginning of the prev. segment
+        uint                         currSegStart;  // Offset to the beginning of the curr. segment
+    };
+
     struct VertexBuffer {
         ComPtr<ID3D12Resource>       resource;      // Buffer interface
         D3D12_VERTEX_BUFFER_VIEW     view;          // Buffer descriptor
@@ -41,15 +52,11 @@ namespace D3D12 {
         D3D12_GPU_VIRTUAL_ADDRESS    location;      // GPU virtual address of the buffer
     };
 
-    struct UploadRingBuffer {
-        RULE_OF_FIVE_MOVE_ONLY(UploadRingBuffer);
-        UploadRingBuffer();
+    using D3D12_SHADER_RESOURCE_VIEW = D3D12_SHADER_RESOURCE_VIEW_DESC;
+
+    struct ShaderResource {
         ComPtr<ID3D12Resource>       resource;      // Buffer interface
-        byte*                        begin;         // CPU virtual memory-mapped address
-        uint                         capacity;      // Buffer size in bytes
-        uint                         offset;        // Offset from the beginning of the buffer
-        uint                         prevSegStart;  // Offset to the beginning of the prev. segment
-        uint                         currSegStart;  // Offset to the beginning of the curr. segment
+        D3D12_SHADER_RESOURCE_VIEW   view;          // Buffer descriptor
     };
 
     // Descriptor heap wrapper
@@ -61,17 +68,17 @@ namespace D3D12 {
         uint                         handleIncrSz;  // Handle increment size
     };
 
-    // Command queue wrapper with N allocators
+    // Command queue extension with N allocators
     template <QueueType T, uint N>
-    struct CommandQueue {
+    struct CommandQueueEx {
     public:
-        RULE_OF_ZERO_MOVE_ONLY(CommandQueue);
-        CommandQueue() = default;
+        RULE_OF_ZERO_MOVE_ONLY(CommandQueueEx);
+        CommandQueueEx() = default;
         // Submits a single command list for execution
         void execute(ID3D12CommandList* const commandList) const;
-        // Submits S command lists for execution
-        template <uint S>
-        void execute(ID3D12CommandList* const (&commandLists)[S]) const;
+        // Submits K command lists for execution
+        template <uint K>
+        void execute(ID3D12CommandList* const (&commandLists)[K]) const;
         // Inserts the fence into the queue
         // Optionally, a custom value of the fence can be specified
         // Returns the inserted fence and its value
@@ -100,13 +107,17 @@ namespace D3D12 {
         friend struct ID3D12DeviceEx;
     };
 
+    template <uint N> using GraphicsCommandQueueEx = CommandQueueEx<QueueType::GRAPHICS, N>;
+    template <uint N> using ComputeCommandQueueEx  = CommandQueueEx<QueueType::COMPUTE, N>;
+    template <uint N> using CopyCommandQueueEx     = CommandQueueEx<QueueType::COPY, N>;
+
     // ID3D12Device extension; uses the same UUID as ID3D12Device
     MIDL_INTERFACE("189819f1-1db6-4b57-be54-1821339b85f7")
     ID3D12DeviceEx: public ID3D12Device {
     public:
         RULE_OF_ZERO(ID3D12DeviceEx);
         template<QueueType T, uint N>
-        void createCommandQueue(CommandQueue<T, N>* const commandQueue, 
+        void createCommandQueue(CommandQueueEx<T, N>* const commandQueue, 
                                 const bool isHighPriority    = false, 
                                 const bool disableGpuTimeout = false);
         // Creates a descriptor pool of the specified type, capacity and shader visibility
