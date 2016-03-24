@@ -185,5 +185,4 @@ namespace D3D12 {
         // Get the increment size for descriptor handles
         descriptorPool->handleIncrSz = GetDescriptorHandleIncrementSize(nativeType);
     }
-
 } // namespace D3D12
