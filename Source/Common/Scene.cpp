@@ -173,10 +173,11 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         const XMVECTOR sphereCenter    =  boundingSphere.center();
         const XMVECTOR negSphereRadius = -boundingSphere.radius();
         // Compute the distances to the left/right/top/bottom frustum planes
-        // distances = tfp.r[0] * sC.x + tfp.r[1] * sC.y + tfp.r[2] * sC.z + tfp.r[3]
-        const XMVECTOR distances = (tfp.r[0] * XMVectorSplatX(sphereCenter) +
-                                    tfp.r[1] * XMVectorSplatY(sphereCenter)) +
-                                   (tfp.r[2] * XMVectorSplatZ(sphereCenter) + tfp.r[3]);
+        const XMVECTOR upperPart = tfp.r[0] * XMVectorSplatX(sphereCenter) +
+                                   tfp.r[1] * XMVectorSplatY(sphereCenter);
+        const XMVECTOR lowerPart = tfp.r[2] * XMVectorSplatZ(sphereCenter) +
+                                   tfp.r[3];
+        const XMVECTOR distances = upperPart + lowerPart;
         // Test the distances against the (negated) radius of the bounding sphere
         const XMVECTOR outsideTests = XMVectorLess(distances, negSphereRadius);
         // Check if at least one of the 'outside' tests passed
@@ -188,7 +189,7 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
             // Test whether the object is in front of the camera
             // Our projection matrix is reversed, so we use the far plane
             const XMVECTOR distance = SSE4::XMVector4Dot(farPlane, XMVectorSetW(sphereCenter, 1.f));
-            // Test the Z coordinate against the (negated) radius of the bounding sphere
+            // Test the distance against the (negated) radius of the bounding sphere
             if (XMVectorGetIntX(XMVectorLess(distance, negSphereRadius))) {
                 // Clear the 'object visible' flag
                 objectVisibilityMask.clearBit(i);
