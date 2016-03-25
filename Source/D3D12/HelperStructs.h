@@ -101,13 +101,13 @@ namespace D3D12 {
         const ID3D12GraphicsCommandList*  commandList(const uint index) const;
     private:
         ComPtr<ID3D12CommandQueue>        m_commandQueue;
-        uint                              m_allocatorIndex;
-        ComPtr<ID3D12CommandAllocator>    m_commandAllocators[N];
         ComPtr<ID3D12GraphicsCommandList> m_commandLists[L];
+        ComPtr<ID3D12CommandAllocator>    m_commandAllocators[N];
+        uint                              m_allocatorIndex;
         /* Synchronization objects */
+        uint64                            m_lastFenceValues[N];
         ComPtr<ID3D12Fence>               m_fence;
         uint64                            m_fenceValue;
-        uint64                            m_lastFenceValues[N];
         HANDLE                            m_syncEvent;
         /* Accessors */
         friend struct ID3D12DeviceEx;

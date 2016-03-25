@@ -46,19 +46,18 @@ namespace D3D12 {
         uint64 copyToUploadBuffer(const uint size, const void* const data);
     private:
         /* Rendering parameters */
+        ComPtr<ID3D12DeviceEx>            m_device;
         D3D12_VIEWPORT                    m_viewport;
         D3D12_RECT                        m_scissorRect;
-        uint                              m_backBufferIndex;
-        /* Direct3D resources */
-        ComPtr<ID3D12DeviceEx>            m_device;
-        CopyContext<2, 1>                 m_copyContext;
         GraphicsContext<FRAME_CNT, 1>     m_graphicsContext;
+        ComPtr<ID3D12Resource>            m_renderTargets[BUF_CNT];
+        uint                              m_backBufferIndex;
+        ComPtr<ID3D12Resource>            m_depthBuffer;
+        DescriptorPool<DescType::RTV>     m_rtvPool;
+        DescriptorPool<DescType::DSV>     m_dsvPool;
         ComPtr<IDXGISwapChain3>           m_swapChain;
         HANDLE                            m_swapChainWaitableObject;
-        DescriptorPool<DescType::RTV>     m_rtvPool;
-        ComPtr<ID3D12Resource>            m_renderTargets[BUF_CNT];
-        DescriptorPool<DescType::DSV>     m_dsvPool;
-        ComPtr<ID3D12Resource>            m_depthBuffer;
+        CopyContext<2, 1>                 m_copyContext;
         UploadRingBuffer                  m_uploadBuffer;
         /* Pipeline objects */
         ConstantBuffer                    m_constantBuffer;
