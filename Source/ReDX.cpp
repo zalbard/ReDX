@@ -19,9 +19,9 @@ struct KeyPressStatus {
 int __cdecl main(const int argc, const char* argv[]) {
     // Parse command line arguments
 	if (argc > 1) {
-		printError("The following command line arguments have been ignored:");
+		printWarning("The following command line arguments have been ignored:");
         for (int i = 1; i < argc; ++i) {
-            printError("%s", argv[i]);
+            printWarning("%s", argv[i]);
         }
 	}
     // Verify SSE4.1 support for the DirectXMath library

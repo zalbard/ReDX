@@ -16,13 +16,17 @@ static inline byte* align(const byte* const address) {
 }
 
 // For internal use only!
-static inline void printInternal(FILE* const stream, const char* const fmt, const va_list& args) {
+static inline void printInternal(FILE* const stream, const char* const prefix,
+                                 const char* const fmt, const va_list& args) {
     // Print the time stamp
     time_t rawTime;
     time(&rawTime);
     struct tm timeInfo;
     localtime_s(&timeInfo, &rawTime);
-    fprintf(stdout, "[%i:%i:%i] ", timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_sec);
+    fprintf(stream, "[%i:%i:%i] ", timeInfo.tm_hour, timeInfo.tm_min, timeInfo.tm_sec);
+    if (prefix) {
+        fprintf(stream, "%s ", prefix);
+    }
     // Print the arguments
     vfprintf(stream, fmt, args);
 }
@@ -31,16 +35,25 @@ static inline void printInternal(FILE* const stream, const char* const fmt, cons
 static inline void printInfo(const char* const fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    printInternal(stdout, fmt, args);
+    printInternal(stdout, nullptr, fmt, args);
     va_end(args);
     fputs("\n", stdout);
 }
 
-// Prints warnings/errors to stderr (printf syntax) and appends a newline at the end
+// Prints warnings to stdout (printf syntax) and appends a newline at the end
+static inline void printWarning(const char* const fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    printInternal(stdout, "Warning:", fmt, args);
+    va_end(args);
+    fputs("\n", stdout);
+}
+
+// Prints fatal errors to stderr (printf syntax) and appends a newline at the end
 static inline void printError(const char* const fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    printInternal(stderr, fmt, args);
+    printInternal(stderr, "Error:", fmt, args);
     va_end(args);
     fputs("\n", stderr);
 }
