@@ -52,6 +52,19 @@ namespace D3D12 {
     }
 
     template<CmdType T, uint N, uint L>
+    inline auto CommandContext<T, N, L>::createSwapChain(IDXGIFactory4* const factory,
+                                                         const HWND hWnd,
+                                                         const DXGI_SWAP_CHAIN_DESC1& swapChainDesc)
+    -> ComPtr<IDXGISwapChain3> {
+        ComPtr<IDXGISwapChain3> swapChain;
+        const auto swapChainAddr = reinterpret_cast<IDXGISwapChain1**>(swapChain.GetAddressOf());
+        CHECK_CALL(factory->CreateSwapChainForHwnd(m_commandQueue.Get(), hWnd, &swapChainDesc, 
+                                                   nullptr, nullptr, swapChainAddr),
+                   "Failed to create a swap chain.");
+        return swapChain;
+    }
+
+    template<CmdType T, uint N, uint L>
     inline auto CommandContext<T, N, L>::executeCommandList(const uint index)
     -> std::pair<ID3D12Fence*, uint64> {
         assert(index < L);
@@ -120,18 +133,6 @@ namespace D3D12 {
                    "Failed to insert a fence into the command queue.");
         syncThread(UINT64_MAX);
         CloseHandle(m_syncEvent);
-    }
-
-    template<CmdType T, uint N, uint L>
-    inline auto CommandContext<T, N, L>::commandQueue()
-    -> ID3D12CommandQueue* {
-        return m_commandQueue.Get();
-    }
-
-    template<CmdType T, uint N, uint L>
-    inline auto CommandContext<T, N, L>::commandQueue() const
-    -> const ID3D12CommandQueue* {
-        return m_commandQueue.Get();
     }
 
     template<CmdType T, uint N, uint L>

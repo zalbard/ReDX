@@ -1,6 +1,5 @@
 #pragma once
 
-#include <dxgi1_4.h>
 #include <DirectXMathSSE4.h>
 #include "HelperStructs.h"
 #include "..\Common\Constants.h"

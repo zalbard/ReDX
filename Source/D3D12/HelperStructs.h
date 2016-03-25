@@ -1,6 +1,7 @@
 #pragma once
 
 #include <d3d12.h>
+#include <dxgi1_4.h>
 #include <utility>
 #include <wrl\client.h>
 #include "..\Common\Constants.h"
@@ -74,6 +75,10 @@ namespace D3D12 {
     public:
         RULE_OF_ZERO_MOVE_ONLY(CommandContext);
         CommandContext() = default;
+        // Creates a swap chain for the window handle 'wHnd' according to the specified description.
+        // Wraps around IDXGIFactory2::CreateSwapChainForHwnd().
+        ComPtr<IDXGISwapChain3> createSwapChain(IDXGIFactory4* const factory, const HWND hWnd,
+                                                const DXGI_SWAP_CHAIN_DESC1& swapChainDesc);
         // Closes the command list with the specified index, submits it for execution,
         // and inserts a fence into the command queue afterwards.
         // Returns the inserted fence and its value.
@@ -92,8 +97,6 @@ namespace D3D12 {
         // Waits for all command queue operations to complete, and stops synchronization.
         void destroy();
         /* Accessors */
-        ID3D12CommandQueue*               commandQueue();
-        const ID3D12CommandQueue*         commandQueue() const;
         ID3D12GraphicsCommandList*        commandList(const uint index);
         const ID3D12GraphicsCommandList*  commandList(const uint index) const;
     private:

@@ -119,12 +119,9 @@ Renderer::Renderer() {
             /* AlphaMode */   DXGI_ALPHA_MODE_UNSPECIFIED,
             /* Flags */       DXGI_SWAP_CHAIN_FLAG_FRAME_LATENCY_WAITABLE_OBJECT
         };
-        // Create a swap chain; it needs a command queue to flush the latter
-        auto swapChainAddr = reinterpret_cast<IDXGISwapChain1**>(m_swapChain.GetAddressOf());
-        CHECK_CALL(factory->CreateSwapChainForHwnd(m_graphicsContext.commandQueue(),
-                                                   Window::handle(), &swapChainDesc,
-                                                   nullptr, nullptr, swapChainAddr),
-                   "Failed to create a swap chain.");
+        // Create a swap chain for the window.
+        m_swapChain = m_graphicsContext.createSwapChain(factory.Get(), Window::handle(),
+                                                        swapChainDesc);
         // Set the maximal rendering queue depth
         CHECK_CALL(m_swapChain->SetMaximumFrameLatency(FRAME_CNT),
                    "Failed to set the maximal frame latency of the swap chain.");
