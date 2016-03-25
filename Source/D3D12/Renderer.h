@@ -59,8 +59,8 @@ namespace D3D12 {
         ComPtr<ID3D12Resource>            m_renderTargets[BUF_CNT];
         DescriptorPool<DescType::DSV>     m_dsvPool;
         ComPtr<ID3D12Resource>            m_depthBuffer;
-        /* Pipeline objects */
         UploadRingBuffer                  m_uploadBuffer;
+        /* Pipeline objects */
         ConstantBuffer                    m_constantBuffer;
         ComPtr<ID3D12RootSignature>       m_graphicsRootSignature;
         ComPtr<ID3D12PipelineState>       m_graphicsPipelineState;

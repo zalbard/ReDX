@@ -184,6 +184,24 @@ Renderer::Renderer() {
         };
         m_device->CreateDepthStencilView(m_depthBuffer.Get(), &dsvDesc, m_dsvPool.cpuBegin);
     }
+    // Create a persistently mapped buffer on the upload heap
+    {
+        m_uploadBuffer.capacity   = UPLOAD_BUF_SIZE;
+        // Allocate the buffer on the upload heap
+        const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
+        const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(m_uploadBuffer.capacity);
+        CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, 
+                                                     &bufferDesc,
+                                                     D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+                                                     IID_PPV_ARGS(&m_uploadBuffer.resource)),
+                   "Failed to allocate an upload buffer.");
+        // Note: we don't intend to read from this resource on the CPU
+        constexpr D3D12_RANGE emptyReadRange{0, 0};
+        // Map the buffer to a range in the CPU virtual address space
+        CHECK_CALL(m_uploadBuffer.resource->Map(0, &emptyReadRange,
+                                                reinterpret_cast<void**>(&m_uploadBuffer.begin)),
+                   "Failed to map the upload buffer.");
+    }
     // Set up the rendering pipeline
     configurePipeline();
 }
@@ -235,24 +253,6 @@ static inline Shader loadShaderBytecode(const char* const pathAndFileName) {
 }
 
 void Renderer::configurePipeline() {
-    // Create a persistently mapped buffer on the upload heap
-    {
-        m_uploadBuffer.capacity = UPLOAD_BUF_SIZE;
-        // Allocate the buffer on the upload heap
-        const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
-        const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(m_uploadBuffer.capacity);
-        CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, 
-                                                     &bufferDesc,
-                                                     D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
-                                                     IID_PPV_ARGS(&m_uploadBuffer.resource)),
-                   "Failed to allocate an upload buffer.");
-        // Note: we don't intend to read from this resource on the CPU
-        const D3D12_RANGE emptyReadRange{0, 0};
-        // Map the buffer to a range in the CPU virtual address space
-        CHECK_CALL(m_uploadBuffer.resource->Map(0, &emptyReadRange,
-                                                reinterpret_cast<void**>(&m_uploadBuffer.begin)),
-                   "Failed to map the upload buffer.");
-    }
     // Create a graphics root signature
     {
         CD3DX12_ROOT_PARAMETER vertexCBV;
