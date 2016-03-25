@@ -174,7 +174,7 @@ namespace D3D12 {
         }
         // Set the initial allocator index to 0.
         commandContext->m_allocatorIndex = 0;
-        // Create command lists in the closed NULL state using the initial allocator.
+        // Create command lists in the closed, NULL state using the initial allocator.
         for (uint i = 0; i < L; ++i) {
             CHECK_CALL(CreateCommandList(nodeMask, static_cast<D3D12_COMMAND_LIST_TYPE>(T),
                                          commandContext->m_commandAllocators[0].Get(), nullptr,

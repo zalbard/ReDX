@@ -88,7 +88,7 @@ namespace D3D12 {
         // Resets the command list allocator. This function should be called once per frame.
         void resetCommandAllocator();
         // Resets the command list with the specified index to the specified state.
-        // This function should be called after resetCommandAllocator().
+        // Since it opens the command list, avoid calling it right before resetCommandAllocator().
         void resetCommandList(const uint index, ID3D12PipelineState* const state);
         // Creates a swap chain for the window handle 'wHnd' according to the specified description.
         // Wraps around IDXGIFactory2::CreateSwapChainForHwnd().
