@@ -52,8 +52,8 @@ namespace D3D12 {
         uint                              m_backBufferIndex;
         /* Direct3D resources */
         ComPtr<ID3D12DeviceEx>            m_device;
-        CopyCommandQueueEx<2>             m_copyCommandQueue;
-        GraphicsCommandQueueEx<FRAME_CNT> m_graphicsCommandQueue;
+        CopyContext<2, 1>                 m_copyContext;
+        GraphicsContext<FRAME_CNT, 1>     m_graphicsContext;
         ComPtr<IDXGISwapChain3>           m_swapChain;
         HANDLE                            m_swapChainWaitableObject;
         DescriptorPool<DescType::RTV>     m_rtvPool;
@@ -62,10 +62,8 @@ namespace D3D12 {
         ComPtr<ID3D12Resource>            m_depthBuffer;
         /* Pipeline objects */
         UploadRingBuffer                  m_uploadBuffer;
-        ComPtr<ID3D12GraphicsCommandList> m_copyCommandList;
         ConstantBuffer                    m_constantBuffer;
         ComPtr<ID3D12RootSignature>       m_graphicsRootSignature;
         ComPtr<ID3D12PipelineState>       m_graphicsPipelineState;
-        ComPtr<ID3D12GraphicsCommandList> m_graphicsCommandList;
     };
 } // namespace D3D12

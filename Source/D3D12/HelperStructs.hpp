@@ -51,84 +51,109 @@ namespace D3D12 {
         return view.SizeInBytes / sizeof(uint);
     }
 
-    template <QueueType T, uint N>
-    inline void
-    CommandQueueEx<T, N>::execute(ID3D12CommandList* const commandList) const {
-        assert(commandList);
-        ID3D12CommandList* commandLists[] = {commandList};
-        execute(commandLists);
-    }
-
-    template <QueueType T, uint N> template<uint K>
-    inline void CommandQueueEx<T, N>::execute(ID3D12CommandList* const (&commandLists)[K]) const {
-        m_interface->ExecuteCommandLists(K, commandLists);
-    }
-
-    template<QueueType T, uint N>
-    inline auto CommandQueueEx<T, N>::insertFence(const uint64 customFenceValue)
+    template<CmdType T, uint N, uint L>
+    inline auto CommandContext<T, N, L>::executeCommandList(const uint index)
     -> std::pair<ID3D12Fence*, uint64> {
-        // Insert a fence into the command queue with a value appropriate for N-buffering
+        assert(index < L);
+        // Close the command list.
+        CHECK_CALL(m_commandLists[index]->Close(), "Failed to close the command list.");
+        // Submit the command list for execution.
+        ID3D12CommandList* const cmdList = m_commandLists[index].Get();
+        m_commandQueue->ExecuteCommandLists(1, &cmdList);
+        // Insert a fence (with the updated value) into the command queue.
         // Once we reach the fence in the queue, a signal will go off,
-        // which will set the internal value of the fence object to 'insertedValue'
-        const uint64 insertedValue = customFenceValue ? customFenceValue
-                                                      : N + m_fenceValue++;
+        // which will set the internal value of the fence object to 'value'.
         ID3D12Fence* const fence = m_fence.Get();
-        CHECK_CALL(m_interface->Signal(fence, insertedValue),
-                   "Failed to insert the fence into the command queue.");
-        return {fence, insertedValue};
+        const uint64       value = ++m_fenceValue;
+        CHECK_CALL(m_commandQueue->Signal(fence, value),
+                   "Failed to insert a fence into the command queue.");
+        return {fence, value};
     }
 
-    template <QueueType T, uint N>
-    inline void CommandQueueEx<T, N>::syncThread(const uint64 customFenceValue) {
-        // fence->GetCompletedValue() returns the value of the fence reached so far
-        // If we haven't reached the fence yet...
-        const uint64 awaitedValue = customFenceValue ? customFenceValue : m_fenceValue;
-        if (m_fence->GetCompletedValue() < awaitedValue) {
-            // ... we wait using a synchronization event
-            CHECK_CALL(m_fence->SetEventOnCompletion(awaitedValue, m_syncEvent),
+    template<CmdType T, uint N, uint L>
+    inline void CommandContext<T, N, L>::syncThread(const uint64 fenceValue) {
+        // fence->GetCompletedValue() returns the value of the fence reached so far.
+        // If we haven't reached the fence with 'fenceValue' yet...
+        if (m_fence->GetCompletedValue() < fenceValue) {
+            // ... we wait using a synchronization event.
+            CHECK_CALL(m_fence->SetEventOnCompletion(fenceValue, m_syncEvent),
                        "Failed to set a synchronization event.");
             WaitForSingleObject(m_syncEvent, INFINITE);
         }
     }
 
-    template<QueueType T, uint N>
-    inline void CommandQueueEx<T, N>::syncQueue(ID3D12Fence* const fence, const uint64 fenceValue) {
-        CHECK_CALL(m_interface->Wait(fence, fenceValue), "Failed to start waiting for the fence.");
+    template<CmdType T, uint N, uint L>
+    inline void CommandContext<T, N, L>::syncCommandQueue(ID3D12Fence* const fence,
+                                                          const uint64 fenceValue) {
+        CHECK_CALL(m_commandQueue->Wait(fence, fenceValue),
+                   "Failed to start waiting for the fence.");
     }
 
-    template <QueueType T, uint N>
-    inline void CommandQueueEx<T, N>::finish() {
-        insertFence(UINT64_MAX);
+    template<CmdType T, uint N, uint L>
+    inline void CommandContext<T, N, L>::resetCommandAllocator() {
+        // Update the value of the last inserted fence for the current allocator.
+        m_lastFenceValues[m_allocatorIndex] = m_fenceValue;
+        // Switch to the next command list allocator.
+        const uint newAllocatorIndex = m_allocatorIndex = (m_allocatorIndex + 1) % N;
+        // Command list allocators can only be reset when the associated 
+        // command lists have finished execution on the GPU.
+        // Therefore, we have to check the value of the fence, and wait if necessary.
+        syncThread(m_lastFenceValues[newAllocatorIndex]);
+        // It's now safe to reset the command allocator.
+        CHECK_CALL(m_commandAllocators[newAllocatorIndex]->Reset(),
+                   "Failed to reset the command list allocator.");
+    }
+
+    template<CmdType T, uint N, uint L>
+    inline void CommandContext<T, N, L>::resetCommandList(const uint index,
+                                                          ID3D12PipelineState* const state) {
+        assert(index < L);
+        // After a command list has been executed, it can be then
+        // reset at any time (and must be before re-recording).
+        CHECK_CALL(m_commandLists[index]->Reset(m_commandAllocators[m_allocatorIndex].Get(), state),
+                   "Failed to reset the command list.");
+    }
+
+    template<CmdType T, uint N, uint L>
+    inline void CommandContext<T, N, L>::destroy() {
+        CHECK_CALL(m_commandQueue->Signal(m_fence.Get(), UINT64_MAX),
+                   "Failed to insert a fence into the command queue.");
         syncThread(UINT64_MAX);
         CloseHandle(m_syncEvent);
     }
 
-    template<QueueType T, uint N>
-    inline ID3D12CommandQueue* CommandQueueEx<T, N>::get() {
-        return m_interface.Get();
+    template<CmdType T, uint N, uint L>
+    inline auto CommandContext<T, N, L>::commandQueue()
+    -> ID3D12CommandQueue* {
+        return m_commandQueue.Get();
     }
 
-    template<QueueType T, uint N>
-    inline const ID3D12CommandQueue* CommandQueueEx<T, N>::get() const {
-        return m_interface.Get();
+    template<CmdType T, uint N, uint L>
+    inline auto CommandContext<T, N, L>::commandQueue() const
+    -> const ID3D12CommandQueue* {
+        return m_commandQueue.Get();
     }
 
-    template<QueueType T, uint N>
-    inline ID3D12CommandAllocator* CommandQueueEx<T, N>::listAlloca() {
-        return m_listAlloca[m_fenceValue % N].Get();
+    template<CmdType T, uint N, uint L>
+    inline auto CommandContext<T, N, L>::commandList(const uint index)
+    -> ID3D12GraphicsCommandList* {
+        assert(index < L);
+        return m_commandLists[index].Get();
     }
 
-    template<QueueType T, uint N>
-    inline const ID3D12CommandAllocator* CommandQueueEx<T, N>::listAlloca() const {
-        return m_listAlloca[m_fenceValue % N].Get();
+    template<CmdType T, uint N, uint L>
+    inline auto CommandContext<T, N, L>::commandList(const uint index) const
+    -> const ID3D12GraphicsCommandList* {
+        assert(index < L);
+        return m_commandLists[index].Get();
     }
 
-    template<QueueType T, uint N>
-    inline void ID3D12DeviceEx::createCommandQueue(CommandQueueEx<T, N>* const commandQueue,
-                                                   const bool isHighPriority,
-                                                   const bool disableGpuTimeout) {
-        assert(commandQueue);
-        // Fill out the command queue description
+    template<CmdType T, uint N, uint L>
+    inline void ID3D12DeviceEx::createCommandContext(CommandContext<T, N, L>* const commandContext,
+                                                     const bool isHighPriority,
+                                                     const bool disableGpuTimeout) {
+        assert(commandContext);
+        // Fill out the command queue description.
         const D3D12_COMMAND_QUEUE_DESC queueDesc = {
             /* Type */     static_cast<D3D12_COMMAND_LIST_TYPE>(T),
             /* Priority */ isHighPriority ? D3D12_COMMAND_QUEUE_PRIORITY_HIGH
@@ -137,26 +162,38 @@ namespace D3D12 {
                                              : D3D12_COMMAND_QUEUE_FLAG_NONE,
             /* NodeMask */ nodeMask
         };
-        // Create a command queue
-        CHECK_CALL(CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandQueue->m_interface)),
+        // Create a command queue.
+        CHECK_CALL(CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandContext->m_commandQueue)),
                    "Failed to create a command queue.");
-        // Create command allocators
+        // Create command allocators.
         for (uint i = 0; i < N; ++i) {
             CHECK_CALL(CreateCommandAllocator(static_cast<D3D12_COMMAND_LIST_TYPE>(T),
-                                              IID_PPV_ARGS(&commandQueue->m_listAlloca[i])),
+                       IID_PPV_ARGS(&commandContext->m_commandAllocators[i])),
                        "Failed to create a command list allocator.");
         }
-        // Create a 0-initialized fence object
-        commandQueue->m_fenceValue = 0;
-        CHECK_CALL(CreateFence(commandQueue->m_fenceValue, D3D12_FENCE_FLAG_NONE,
-                               IID_PPV_ARGS(&commandQueue->m_fence)),
+        // Set the initial allocator index to 0.
+        commandContext->m_allocatorIndex = 0;
+        // Create command lists in the closed NULL state using the initial allocator.
+        for (uint i = 0; i < L; ++i) {
+            CHECK_CALL(CreateCommandList(nodeMask, static_cast<D3D12_COMMAND_LIST_TYPE>(T),
+                                         commandContext->m_commandAllocators[0].Get(), nullptr,
+                                         IID_PPV_ARGS(&commandContext->m_commandLists[i])),
+                       "Failed to create a command list.");
+            CHECK_CALL(commandContext->m_commandLists[i]->Close(),
+                       "Failed to close the command list.");
+
+        }
+        // Create a 0-initialized fence object.
+        commandContext->m_fenceValue = 0;
+        CHECK_CALL(CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&commandContext->m_fence)),
                    "Failed to create a fence object.");
-        // Signal that we do not need to wait for the first N fences
-        CHECK_CALL(commandQueue->m_interface->Signal(commandQueue->m_fence.Get(), N - 1),
-                   "Failed to insert the fence into the command queue.");
-        // Create a synchronization event
-        commandQueue->m_syncEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        if (!commandQueue->m_syncEvent) {
+        // Set the last fence value for each command allocator to 0.
+        for (uint i = 0; i < N; ++i) {
+            commandContext->m_lastFenceValues[i] = 0;
+        }
+        // Create a synchronization event.
+        commandContext->m_syncEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        if (!commandContext->m_syncEvent) {
             CHECK_CALL(HRESULT_FROM_WIN32(GetLastError()),
                        "Failed to create a synchronization event.");
         }

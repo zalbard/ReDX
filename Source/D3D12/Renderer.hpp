@@ -20,15 +20,15 @@ namespace D3D12 {
         // Transition the buffer state for the graphics/compute command queue type class
         const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
             D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-        m_graphicsCommandList->ResourceBarrier(1, &barrier);
+        m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
         // Copy the vertices into the upload buffer
         // Max. alignment requirement for vertex data is 4 bytes
         constexpr uint64 alignment = 4;
         const     uint64 ubOffset  = copyToUploadBuffer<alignment>(size, elements);
         // Copy the data from the upload buffer into the video memory buffer
-        m_copyCommandList->CopyBufferRegion(buffer.resource.Get(), 0,
-                                            m_uploadBuffer.resource.Get(), ubOffset,
-                                            size);
+        m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
+                                                       m_uploadBuffer.resource.Get(), ubOffset,
+                                                       size);
         // Initialize the vertex buffer view
         buffer.view = D3D12_VERTEX_BUFFER_VIEW{
             /* BufferLocation */ buffer.resource->GetGPUVirtualAddress(),
@@ -46,12 +46,13 @@ namespace D3D12 {
         for (uint i = 0; i < N; ++i) {
             vboViews[i] = vbos[i].view;
         }
-        // Record the commands into the command list
-        m_graphicsCommandList->IASetVertexBuffers(0, N, vboViews);
+        // Record commands into the command list
+        const auto graphicsCommandList = m_graphicsContext.commandList(0);
+        graphicsCommandList->IASetVertexBuffers(0, N, vboViews);
         for (uint i = 0; i < iboCount; ++i) {
             if (drawMask.testBit(i)) {
-                m_graphicsCommandList->IASetIndexBuffer(&ibos[i].view);
-                m_graphicsCommandList->DrawIndexedInstanced(ibos[i].count(), 1, 0, 0, 0);
+                graphicsCommandList->IASetIndexBuffer(&ibos[i].view);
+                graphicsCommandList->DrawIndexedInstanced(ibos[i].count(), 1, 0, 0, 0);
             }
         }
     }

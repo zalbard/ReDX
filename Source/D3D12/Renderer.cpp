@@ -95,9 +95,9 @@ Renderer::Renderer() {
         // Use hardware acceleration
         m_device = createHardwareDevice(factory.Get());
     }
-    // Create command queues
-    m_device->createCommandQueue(&m_copyCommandQueue);
-    m_device->createCommandQueue(&m_graphicsCommandQueue);
+    // Create command contexts.
+    m_device->createCommandContext(&m_copyContext);
+    m_device->createCommandContext(&m_graphicsContext);
     // Create a buffer swap chain
     {
         // Fill out the multi-sampling parameters
@@ -121,8 +121,9 @@ Renderer::Renderer() {
         };
         // Create a swap chain; it needs a command queue to flush the latter
         auto swapChainAddr = reinterpret_cast<IDXGISwapChain1**>(m_swapChain.GetAddressOf());
-        CHECK_CALL(factory->CreateSwapChainForHwnd(m_graphicsCommandQueue.get(), Window::handle(),
-                                                   &swapChainDesc, nullptr, nullptr, swapChainAddr),
+        CHECK_CALL(factory->CreateSwapChainForHwnd(m_graphicsContext.commandQueue(),
+                                                   Window::handle(), &swapChainDesc,
+                                                   nullptr, nullptr, swapChainAddr),
                    "Failed to create a swap chain.");
         // Set the maximal rendering queue depth
         CHECK_CALL(m_swapChain->SetMaximumFrameLatency(FRAME_CNT),
@@ -131,6 +132,8 @@ Renderer::Renderer() {
         m_swapChainWaitableObject = m_swapChain->GetFrameLatencyWaitableObject();
         // Block the thread until the swap chain is ready accept a new frame
         WaitForSingleObject(m_swapChainWaitableObject, INFINITE);
+        // Update the index of the frame buffer used for rendering
+        m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
     }
     // Create a render target view (RTV) descriptor pool
     m_device->createDescriptorPool(&m_rtvPool, BUF_CNT);
@@ -253,11 +256,6 @@ void Renderer::configurePipeline() {
                                                 reinterpret_cast<void**>(&m_uploadBuffer.begin)),
                    "Failed to map the upload buffer.");
     }
-    // Create a copy command list in the default state
-    CHECK_CALL(m_device->CreateCommandList(m_device->nodeMask, D3D12_COMMAND_LIST_TYPE_COPY,
-                                           m_copyCommandQueue.listAlloca(), nullptr,
-                                           IID_PPV_ARGS(&m_copyCommandList)),
-               "Failed to create a copy command list.");
     // Create a graphics root signature
     {
         CD3DX12_ROOT_PARAMETER vertexCBV;
@@ -374,12 +372,9 @@ void Renderer::configurePipeline() {
     CHECK_CALL(m_device->CreateGraphicsPipelineState(&pipelineStateDesc,
                                                      IID_PPV_ARGS(&m_graphicsPipelineState)),
                "Failed to create a graphics pipeline state object.");
-    // Create a graphics command list
-    CHECK_CALL(m_device->CreateCommandList(m_device->nodeMask, D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                           m_graphicsCommandQueue.listAlloca(),
-                                           m_graphicsPipelineState.Get(),
-                                           IID_PPV_ARGS(&m_graphicsCommandList)),
-               "Failed to create a graphics command list.");
+    // Set command list states.
+    m_copyContext.resetCommandList(0, nullptr);
+    m_graphicsContext.resetCommandList(0, m_graphicsPipelineState.Get());
     // Create a constant buffer
     m_constantBuffer = createConstantBuffer(sizeof(XMMATRIX));
 }
@@ -403,9 +398,9 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
     constexpr uint64 alignment = 4;
     const     uint64 ubOffset  = copyToUploadBuffer<alignment>(size, indices);
     // Copy the data from the upload buffer into the video memory buffer
-    m_copyCommandList->CopyBufferRegion(buffer.resource.Get(), 0,
-                                        m_uploadBuffer.resource.Get(), ubOffset,
-                                        size);
+    m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
+                                                   m_uploadBuffer.resource.Get(), ubOffset,
+                                                   size);
     // Initialize the index buffer view
     buffer.view = D3D12_INDEX_BUFFER_VIEW{
         /* BufferLocation */ buffer.resource->GetGPUVirtualAddress(),
@@ -428,15 +423,15 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* const
     // Transition the buffer state for the graphics/compute command queue type class
     const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
         D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-    m_graphicsCommandList->ResourceBarrier(1, &barrier);
+    m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
         // Copy the data into the upload buffer
         constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
         const     uint64 ubOffset  = copyToUploadBuffer<alignment>(size, data);
         // Copy the data from the upload buffer into the video memory buffer
-        m_copyCommandList->CopyBufferRegion(buffer.resource.Get(), 0,
-                                            m_uploadBuffer.resource.Get(), ubOffset,
-                                            size);
+        m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
+                                                       m_uploadBuffer.resource.Get(), ubOffset,
+                                                       size);
     }
     // Initialize the constant buffer location
     buffer.location = buffer.resource->GetGPUVirtualAddress();
@@ -449,61 +444,52 @@ void Renderer::setViewProjMatrix(FXMMATRIX viewProjMat) {
     constexpr uint64   alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     const     uint64   ubOffset  = copyToUploadBuffer<alignment>(sizeof(tViewProj), &tViewProj);
     // Copy the data from the upload buffer into the video memory buffer
-    m_copyCommandList->CopyBufferRegion(m_constantBuffer.resource.Get(), 0,
-                                        m_uploadBuffer.resource.Get(), ubOffset,
-                                        sizeof(tViewProj));
+    m_copyContext.commandList(0)->CopyBufferRegion(m_constantBuffer.resource.Get(), 0,
+                                                   m_uploadBuffer.resource.Get(), ubOffset,
+                                                   sizeof(tViewProj));
 }
 
 void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
-    // Finalize and execute the command list
-    CHECK_CALL(m_copyCommandList->Close(), "Failed to close the copy command list.");
-    m_copyCommandQueue.execute(m_copyCommandList.Get());
-    // Wait for the copy command list execution to finish
+    // Finalize and execute the command list.
     ID3D12Fence* insertedFence;
     uint64       insertedValue;
-    std::tie(insertedFence, insertedValue) = m_copyCommandQueue.insertFence();
-    m_copyCommandQueue.syncThread(immediateCopy ? insertedValue : 0);
-    // Ensure synchronization between the graphics and the copy command queues
-    m_graphicsCommandQueue.syncQueue(insertedFence, insertedValue);
-    // Command list allocators can only be reset when the associated 
-    // command lists have finished execution on the GPU
-    CHECK_CALL(m_copyCommandQueue.listAlloca()->Reset(),
-               "Failed to reset the copy command list allocator.");
-    // After a command list has been executed, 
-    // it can then be reset at any time (and must be before re-recording)
-    CHECK_CALL(m_copyCommandList->Reset(m_copyCommandQueue.listAlloca(), nullptr),
-               "Failed to reset the copy command list.");
-    // Begin a new segment of the upload buffer
+    std::tie(insertedFence, insertedValue) = m_copyContext.executeCommandList(0);
+    // Ensure synchronization between the graphics and the copy command queues.
+    m_graphicsContext.syncCommandQueue(insertedFence, insertedValue);
+    // Reset the command list allocator.
+    m_copyContext.resetCommandAllocator();
+    // Reset the command list to its initial state.
+    m_copyContext.resetCommandList(0, nullptr);
+    // Begin a new segment of the upload buffer.
     m_uploadBuffer.prevSegStart = immediateCopy ? UINT_MAX : m_uploadBuffer.currSegStart;
     m_uploadBuffer.currSegStart = m_uploadBuffer.offset;
 }
 
 void Renderer::startFrame() {
-    // Update the index of the frame buffer used for drawing
-    m_backBufferIndex     = m_swapChain->GetCurrentBackBufferIndex();
     // Transition the back buffer state: Presenting -> Render Target
     const auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
     const auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
                             D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    m_graphicsCommandList->ResourceBarrier(1, &barrier);
+    const auto graphicsCommandList = m_graphicsContext.commandList(0);
+    graphicsCommandList->ResourceBarrier(1, &barrier);
     // Set the necessary state
-    m_graphicsCommandList->SetGraphicsRootSignature(m_graphicsRootSignature.Get());
-    m_graphicsCommandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer.location);
-    m_graphicsCommandList->RSSetViewports(1, &m_viewport);
-    m_graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
+    graphicsCommandList->SetGraphicsRootSignature(m_graphicsRootSignature.Get());
+    graphicsCommandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer.location);
+    graphicsCommandList->RSSetViewports(1, &m_viewport);
+    graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
     // Set the back buffer as the render target
     const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvPool.cpuBegin,
                                                   static_cast<int>(m_backBufferIndex),
                                                   m_rtvPool.handleIncrSz};
     const CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle{m_dsvPool.cpuBegin};
-    m_graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+    graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
     // Clear the RTV and the DSV
     constexpr float clearColor[] = {0.f, 0.f, 0.f, 1.f};
-    m_graphicsCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+    graphicsCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
     const D3D12_CLEAR_FLAGS clearFlags = D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL;
-    m_graphicsCommandList->ClearDepthStencilView(dsvHandle, clearFlags, 0.f, 0, 0, nullptr);
+    graphicsCommandList->ClearDepthStencilView(dsvHandle, clearFlags, 0.f, 0, 0, nullptr);
     // Set the primitive/topology type
-    m_graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
 void Renderer::finalizeFrame() {
@@ -511,30 +497,22 @@ void Renderer::finalizeFrame() {
     const auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
     const auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
                             D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-    m_graphicsCommandList->ResourceBarrier(1, &barrier);
-    // Finalize and execute the command list
-    CHECK_CALL(m_graphicsCommandList->Close(), "Failed to close the graphics command list.");
-    m_graphicsCommandQueue.execute(m_graphicsCommandList.Get());
-    // Present the frame
+    m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
+    // Finalize and execute the command list.
+    m_graphicsContext.executeCommandList(0);
+    // Present the frame, and update the index of the frame buffer used for rendering.
     CHECK_CALL(m_swapChain->Present(VSYNC_INTERVAL, 0), "Failed to display the frame buffer.");
-    // Wait until all the previously issued commands have been executed
-    m_graphicsCommandQueue.insertFence();
-    m_graphicsCommandQueue.syncThread();
-    // Command list allocators can only be reset when the associated 
-    // command lists have finished execution on the GPU
-    CHECK_CALL(m_graphicsCommandQueue.listAlloca()->Reset(),
-               "Failed to reset the graphics command list allocator.");
-    // After a command list has been executed, 
-    // it can then be reset at any time (and must be before re-recording)
-    CHECK_CALL(m_graphicsCommandList->Reset(m_graphicsCommandQueue.listAlloca(),
-                                            m_graphicsPipelineState.Get()),
-               "Failed to reset the graphics command list.");
-    // Block the thread until the swap chain is ready accept a new frame
-    // Otherwise, Present() may block the thread, increasing the input lag
+    m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
+    // Reset the command list allocator.
+    m_graphicsContext.resetCommandAllocator();
+    // Reset the command list to its initial state.
+    m_graphicsContext.resetCommandList(0, m_graphicsPipelineState.Get());
+    // Block the thread until the swap chain is ready accept a new frame.
+    // Otherwise, Present() may block the thread, increasing the input lag.
     WaitForSingleObject(m_swapChainWaitableObject, INFINITE);
 }
 
 void Renderer::stop() {
-    m_copyCommandQueue.finish();
-    m_graphicsCommandQueue.finish();
+    m_copyContext.destroy();
+    m_graphicsContext.destroy();
 }

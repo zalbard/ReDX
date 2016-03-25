@@ -19,7 +19,7 @@ namespace D3D12 {
     };
 
     // Corresponds to Direct3D command list types
-    enum class QueueType {
+    enum class CmdType {
         GRAPHICS = D3D12_COMMAND_LIST_TYPE_DIRECT,  // Supports all types of commands
         COMPUTE  = D3D12_COMMAND_LIST_TYPE_COMPUTE, // Supports compute and copy commands only
         COPY     = D3D12_COMMAND_LIST_TYPE_COPY     // Supports copy commands only
@@ -68,59 +68,64 @@ namespace D3D12 {
         uint                         handleIncrSz;  // Handle increment size
     };
 
-    // Command queue extension with N allocators
-    template <QueueType T, uint N>
-    struct CommandQueueEx {
+    // Encapsulates an N-buffered command queue of type T with L command lists.
+    template <CmdType T, uint N, uint L>
+    struct CommandContext {
     public:
-        RULE_OF_ZERO_MOVE_ONLY(CommandQueueEx);
-        CommandQueueEx() = default;
-        // Submits a single command list for execution
-        void execute(ID3D12CommandList* const commandList) const;
-        // Submits K command lists for execution
-        template <uint K>
-        void execute(ID3D12CommandList* const (&commandLists)[K]) const;
-        // Inserts the fence into the queue
-        // Optionally, a custom value of the fence can be specified
-        // Returns the inserted fence and its value
-        std::pair<ID3D12Fence*, uint64> insertFence(const uint64 customFenceValue = 0);
-        // Blocks the execution of the thread until the fence is reached
-        // Optionally, a custom value of the fence can be specified
-        void syncThread(const uint64 customFenceValue = 0);
-        // Blocks the execution of the queue until the fence
-        // with the specified value is reached
-        void syncQueue(ID3D12Fence* const fence, const uint64 fenceValue);
-        // Waits for the queue to become drained, and stops synchronization
-        void finish();
+        RULE_OF_ZERO_MOVE_ONLY(CommandContext);
+        CommandContext() = default;
+        // Closes the command list with the specified index, submits it for execution,
+        // and inserts a fence into the command queue afterwards.
+        // Returns the inserted fence and its value.
+        std::pair<ID3D12Fence*, uint64> executeCommandList(const uint index);
+        // Stalls the execution of the current thread until
+        // the fence with the specified value is reached.
+        void syncThread(const uint64 fenceValue);
+        // Stalls the execution of the command queue until
+        // the fence with the specified value is reached.
+        void syncCommandQueue(ID3D12Fence* const fence, const uint64 fenceValue);
+        // Resets the command list allocator. This function should be called once per frame.
+        void resetCommandAllocator();
+        // Resets the command list with the specified index to the specified state.
+        // This function should be called after resetCommandAllocator().
+        void resetCommandList(const uint index, ID3D12PipelineState* const state);
+        // Waits for all command queue operations to complete, and stops synchronization.
+        void destroy();
         /* Accessors */
-        ID3D12CommandQueue*            get();
-        const ID3D12CommandQueue*      get() const;
-        ID3D12CommandAllocator*        listAlloca();
-        const ID3D12CommandAllocator*  listAlloca() const;
+        ID3D12CommandQueue*               commandQueue();
+        const ID3D12CommandQueue*         commandQueue() const;
+        ID3D12GraphicsCommandList*        commandList(const uint index);
+        const ID3D12GraphicsCommandList*  commandList(const uint index) const;
     private:
-        ComPtr<ID3D12CommandQueue>     m_interface;     // Command queue interface
-        ComPtr<ID3D12CommandAllocator> m_listAlloca[N]; // Command list allocator interface
+        ComPtr<ID3D12CommandQueue>        m_commandQueue;
+        uint                              m_allocatorIndex;
+        ComPtr<ID3D12CommandAllocator>    m_commandAllocators[N];
+        ComPtr<ID3D12GraphicsCommandList> m_commandLists[L];
         /* Synchronization objects */
-        ComPtr<ID3D12Fence>            m_fence;
-        uint64                         m_fenceValue;
-        HANDLE                         m_syncEvent;
+        ComPtr<ID3D12Fence>               m_fence;
+        uint64                            m_fenceValue;
+        uint64                            m_lastFenceValues[N];
+        HANDLE                            m_syncEvent;
         /* Accessors */
         friend struct ID3D12DeviceEx;
     };
 
-    template <uint N> using GraphicsCommandQueueEx = CommandQueueEx<QueueType::GRAPHICS, N>;
-    template <uint N> using ComputeCommandQueueEx  = CommandQueueEx<QueueType::COMPUTE, N>;
-    template <uint N> using CopyCommandQueueEx     = CommandQueueEx<QueueType::COPY, N>;
+    template <uint N, uint L> using GraphicsContext = CommandContext<CmdType::GRAPHICS, N, L>;
+    template <uint N, uint L> using ComputeContext  = CommandContext<CmdType::COMPUTE,  N, L>;
+    template <uint N, uint L> using CopyContext     = CommandContext<CmdType::COPY,     N, L>;
 
     // ID3D12Device extension; uses the same UUID as ID3D12Device
     MIDL_INTERFACE("189819f1-1db6-4b57-be54-1821339b85f7")
     ID3D12DeviceEx: public ID3D12Device {
     public:
         RULE_OF_ZERO(ID3D12DeviceEx);
-        template<QueueType T, uint N>
-        void createCommandQueue(CommandQueueEx<T, N>* const commandQueue, 
-                                const bool isHighPriority    = false, 
-                                const bool disableGpuTimeout = false);
-        // Creates a descriptor pool of the specified size (descriptor count) and type
+        // Creates a command context of the specified type
+        template <CmdType T, uint N, uint L>
+        void createCommandContext(CommandContext<T, N, L>* const commandContext, 
+                                  const bool isHighPriority    = false, 
+                                  const bool disableGpuTimeout = false);
+
+        // Creates a descriptor pool of the specified type and size (descriptor count)
         template <DescType T>
         void createDescriptorPool(DescriptorPool<T>* const descriptorPool, const uint count);
         // Creates a command queue of the specified type
