@@ -75,10 +75,6 @@ namespace D3D12 {
     public:
         RULE_OF_ZERO_MOVE_ONLY(CommandContext);
         CommandContext() = default;
-        // Creates a swap chain for the window handle 'wHnd' according to the specified description.
-        // Wraps around IDXGIFactory2::CreateSwapChainForHwnd().
-        ComPtr<IDXGISwapChain3> createSwapChain(IDXGIFactory4* const factory, const HWND hWnd,
-                                                const DXGI_SWAP_CHAIN_DESC1& swapChainDesc);
         // Closes the command list with the specified index, submits it for execution,
         // and inserts a fence into the command queue afterwards.
         // Returns the inserted fence and its value.
@@ -94,6 +90,10 @@ namespace D3D12 {
         // Resets the command list with the specified index to the specified state.
         // This function should be called after resetCommandAllocator().
         void resetCommandList(const uint index, ID3D12PipelineState* const state);
+        // Creates a swap chain for the window handle 'wHnd' according to the specified description.
+        // Wraps around IDXGIFactory2::CreateSwapChainForHwnd().
+        ComPtr<IDXGISwapChain3> createSwapChain(IDXGIFactory4* const factory, const HWND hWnd,
+                                                const DXGI_SWAP_CHAIN_DESC1& swapChainDesc);
         // Waits for all command queue operations to complete, and stops synchronization.
         void destroy();
         /* Accessors */

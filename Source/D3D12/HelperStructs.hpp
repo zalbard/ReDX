@@ -52,19 +52,6 @@ namespace D3D12 {
     }
 
     template<CmdType T, uint N, uint L>
-    inline auto CommandContext<T, N, L>::createSwapChain(IDXGIFactory4* const factory,
-                                                         const HWND hWnd,
-                                                         const DXGI_SWAP_CHAIN_DESC1& swapChainDesc)
-    -> ComPtr<IDXGISwapChain3> {
-        ComPtr<IDXGISwapChain3> swapChain;
-        const auto swapChainAddr = reinterpret_cast<IDXGISwapChain1**>(swapChain.GetAddressOf());
-        CHECK_CALL(factory->CreateSwapChainForHwnd(m_commandQueue.Get(), hWnd, &swapChainDesc, 
-                                                   nullptr, nullptr, swapChainAddr),
-                   "Failed to create a swap chain.");
-        return swapChain;
-    }
-
-    template<CmdType T, uint N, uint L>
     inline auto CommandContext<T, N, L>::executeCommandList(const uint index)
     -> std::pair<ID3D12Fence*, uint64> {
         assert(index < L);
@@ -125,6 +112,19 @@ namespace D3D12 {
         // reset at any time (and must be before re-recording).
         CHECK_CALL(m_commandLists[index]->Reset(m_commandAllocators[m_allocatorIndex].Get(), state),
                    "Failed to reset the command list.");
+    }
+
+    template<CmdType T, uint N, uint L>
+    inline auto CommandContext<T, N, L>::createSwapChain(IDXGIFactory4* const factory,
+                                                         const HWND hWnd,
+                                                         const DXGI_SWAP_CHAIN_DESC1& swapChainDesc)
+    -> ComPtr<IDXGISwapChain3> {
+        ComPtr<IDXGISwapChain3> swapChain;
+        const auto swapChainAddr = reinterpret_cast<IDXGISwapChain1**>(swapChain.GetAddressOf());
+        CHECK_CALL(factory->CreateSwapChainForHwnd(m_commandQueue.Get(), hWnd, &swapChainDesc, 
+                                                   nullptr, nullptr, swapChainAddr),
+                   "Failed to create a swap chain.");
+        return swapChain;
     }
 
     template<CmdType T, uint N, uint L>
