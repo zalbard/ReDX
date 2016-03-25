@@ -258,11 +258,11 @@ void Renderer::configurePipeline() {
         CD3DX12_ROOT_PARAMETER vertexCBV;
         vertexCBV.InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
         // Fill out the root signature description
-        const auto rootSigneDesc = D3D12_ROOT_SIGNATURE_DESC{1, &vertexCBV, 0, nullptr,
-                                   D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT};
+        const auto rootSignDesc = D3D12_ROOT_SIGNATURE_DESC{1, &vertexCBV, 0, nullptr,
+                                  D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT};
         // Serialize a root signature from the description
         ComPtr<ID3DBlob> signature, error;
-        CHECK_CALL(D3D12SerializeRootSignature(&rootSigneDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+        CHECK_CALL(D3D12SerializeRootSignature(&rootSignDesc, D3D_ROOT_SIGNATURE_VERSION_1,
                                                &signature, &error),
                    "Failed to serialize a root signature.");
         // Create a root signature layout using the serialized signature
