@@ -2,27 +2,29 @@
 
 #include <DirectXMathSSE4.h>
 
-// Computes the square of the value
+// Computes the square of the value.
 template <typename T>
-static inline T sq(const T v) {
+static inline auto sq(const T v)
+-> T {
     return v * v;
 }
 
-// Computes the reciprocal of the value
+// Computes the reciprocal of the value.
 template <typename T>
-static inline float rcp(const T v) {
+static inline auto rcp(const T v)
+-> float {
     return 1.f / v;
 }
 
 namespace DirectX {
-    // Computes an infinite reversed projection matrix
-    // The distance to the near plane is infinite, the distance to the far plane is 1
+    // Constructs an infinite reversed projection matrix.
+    // The distance to the near plane is infinite, the distance to the far plane is 1.
     // Parameters: the width and the height of the viewport (in pixels),
-    // and the vertical field of view 'vFoV' (in radians)
-    static inline XMMATRIX InfRevProjMatLH(const long viewWidth, const long viewHeight,
-                                           const float vFoV) {
+    // and the vertical field of view 'vFoV' (in radians).
+    static inline auto InfRevProjMatLH(const long width, const long height, const float vFoV)
+    -> XMMATRIX {
         const float cotHalfFovY    = cosf(0.5f * vFoV) / sinf(0.5f * vFoV);
-        const float invAspectRatio = static_cast<float>(viewHeight) / static_cast<float>(viewWidth);
+        const float invAspectRatio = static_cast<float>(height) / static_cast<float>(width);
         const float m00 = invAspectRatio * cotHalfFovY;
         const float m11 = cotHalfFovY;
         // A few notes about the structure of the matrix are available at the link below:
@@ -35,19 +37,20 @@ namespace DirectX {
         };
     }
 
-    // Computes a rotation matrix using forward (Z) and up (Y) vectors
-    static inline XMMATRIX RotationMatrixLH(FXMVECTOR forward, FXMVECTOR up) {
+    // Constructs a rotation matrix using forward (Z) and up (Y) vectors.
+    static inline auto RotationMatrixLH(FXMVECTOR forward, FXMVECTOR up)
+    -> XMMATRIX {
         assert(!XMVector3Equal(forward, XMVectorZero()));
         assert(!XMVector3IsInfinite(forward));
         assert(!XMVector3Equal(up, XMVectorZero()));
         assert(!XMVector3IsInfinite(up));
-        // Compute the forward vector
+        // Compute the forward vector.
         const XMVECTOR R2 = SSE4::XMVector3Normalize(forward);
-        // Compute the right vector
+        // Compute the right vector.
         const XMVECTOR R0 = SSE4::XMVector3Normalize(XMVector3Cross(up, R2));
-        // Compute the up vector
+        // Compute the up vector.
         const XMVECTOR R1 = XMVector3Cross(R2, R0);
-        // Compose the matrix
+        // Compose the matrix.
         XMMATRIX M;
         M.r[0] = XMVectorSelect(g_XMIdentityR0.v, R0, g_XMSelect1110.v);
         M.r[1] = XMVectorSelect(g_XMIdentityR1.v, R1, g_XMSelect1110.v);
