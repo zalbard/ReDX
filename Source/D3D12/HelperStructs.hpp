@@ -5,6 +5,16 @@
 #include "..\Common\Utility.h"
 
 namespace D3D12 {
+    static inline auto width(const D3D12_RECT& rect)
+    -> uint {
+        return static_cast<uint>(rect.right - rect.left);
+    }
+
+    static inline auto height(const D3D12_RECT& rect)
+    -> uint {
+        return static_cast<uint>(rect.bottom - rect.top);
+    }
+
     inline UploadRingBuffer::UploadRingBuffer()
         : resource{nullptr}
         , begin{nullptr}

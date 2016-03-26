@@ -6,30 +6,32 @@
 
 namespace D3D12 {
     template <typename T>
-    inline VertexBuffer Renderer::createVertexBuffer(const uint count, const T* const elements) {
+    inline auto Renderer::createVertexBuffer(const uint count, const T* const elements)
+    -> VertexBuffer {
         assert(elements && count >= 3);
         VertexBuffer buffer;
         const uint size = count * sizeof(T);
-        // Allocate the buffer on the default heap
+        // Allocate the buffer on the default heap.
         const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
         const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
         CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
                                                      &bufferDesc, D3D12_RESOURCE_STATE_COMMON,
                                                      nullptr, IID_PPV_ARGS(&buffer.resource)),
                    "Failed to allocate a vertex buffer.");
-        // Transition the buffer state for the graphics/compute command queue type class
+        // Transition the buffer state for the graphics/compute command queue type class.
         const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
-            D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+                                                   D3D12_RESOURCE_STATE_COMMON,
+                                                   D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
         m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
-        // Copy the vertices into the upload buffer
-        // Max. alignment requirement for vertex data is 4 bytes
+        // Max. alignment requirement for vertex data is 4 bytes.
         constexpr uint64 alignment = 4;
+        // Copy vertices into the upload buffer.
         const     uint64 ubOffset  = copyToUploadBuffer<alignment>(size, elements);
-        // Copy the data from the upload buffer into the video memory buffer
+        // Copy the data from the upload buffer into the video memory buffer.
         m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
                                                        m_uploadBuffer.resource.Get(), ubOffset,
                                                        size);
-        // Initialize the vertex buffer view
+        // Initialize the vertex buffer view.
         buffer.view = D3D12_VERTEX_BUFFER_VIEW{
             /* BufferLocation */ buffer.resource->GetGPUVirtualAddress(),
             /* SizeInBytes */    size,
@@ -46,7 +48,7 @@ namespace D3D12 {
         for (uint i = 0; i < N; ++i) {
             vboViews[i] = vbos[i].view;
         }
-        // Record commands into the command list
+        // Record commands into the command list.
         const auto graphicsCommandList = m_graphicsContext.commandList(0);
         graphicsCommandList->IASetVertexBuffers(0, N, vboViews);
         for (uint i = 0; i < iboCount; ++i) {
@@ -58,19 +60,20 @@ namespace D3D12 {
     }
 
     template<uint64 alignment>
-    inline uint64 Renderer::copyToUploadBuffer(const uint size, const void* const data) {
+    inline auto Renderer::copyToUploadBuffer(const uint size, const void* const data)
+    -> uint64 {
         assert(data && size > 0);
-        // Compute the address within the upload buffer which we will copy the data to
+        // Compute the address within the upload buffer which we will copy the data to.
         byte*  alignedAddress = align<alignment>(m_uploadBuffer.begin + m_uploadBuffer.offset);
         uint64 alignedOffset  = alignedAddress - m_uploadBuffer.begin;
-        // Check whether the upload buffer has sufficient space left
+        // Check whether the upload buffer has sufficient space left.
         const int64 remainingCapacity = m_uploadBuffer.capacity - alignedOffset;
         const bool wrapAround = remainingCapacity < size;
         if (wrapAround) {
-            // Recompute 'alignedAddress' and 'alignedOffset'
+            // Recompute 'alignedAddress' and 'alignedOffset'.
             alignedAddress = align<alignment>(m_uploadBuffer.begin);
             alignedOffset  = alignedAddress - m_uploadBuffer.begin;
-            // Make sure the upload buffer is sufficiently large
+            // Make sure the upload buffer is sufficiently large.
             #ifdef _DEBUG
             {
                 const int64 alignedCapacity = m_uploadBuffer.capacity - alignedOffset;
@@ -87,7 +90,7 @@ namespace D3D12 {
         // 1. Make sure we do not overwrite the current segment of the upload buffer.
         // (currSegStart == offset) is a perfectly valid configuration;
         // in order to maintain this invariant, we should execute all copies
-        // (clear the buffer) in cases where (currSegStart == alignedEnd)
+        // (clear the buffer) in cases where (currSegStart == alignedEnd).
         // Case A: |====OFFS~~~~CURR~~~~AEND====|
         const bool caseA = (m_uploadBuffer.offset < m_uploadBuffer.currSegStart) &
                            (m_uploadBuffer.currSegStart <= alignedEnd);
@@ -99,10 +102,10 @@ namespace D3D12 {
         //     or: |~~~~AEND====OFFS----CURR====| + wrap-around
         const bool caseC = (m_uploadBuffer.offset < m_uploadBuffer.currSegStart) & wrapAround;
         // If there is not enough space for the new data, we have to execute
-        // all copies first, which will allow us to safely overwrite the old data
+        // all copies first, which will allow us to safely overwrite the old data.
         const bool executeAllCopies = caseA | caseB | caseC;
         // 2. Make sure we do not overwrite the previous segment of the upload buffer.
-        // (prevSegStart == offset) means we are about to overwrite the previous segment
+        // (prevSegStart == offset) means we are about to overwrite the previous segment.
         // Case D: |====OFFS~~~~PREV~~~~AEND====|
         const bool caseD = (m_uploadBuffer.offset <= m_uploadBuffer.prevSegStart) &
                            (m_uploadBuffer.prevSegStart < alignedEnd);
@@ -110,19 +113,19 @@ namespace D3D12 {
         //     or: |~~~~PREV~~~~OFFS~~~~AEND----| + wrap-around
         //     or: |~~~~OFFS~~~~PREV~~~~AEND----| + wrap-around
         const bool caseE = (m_uploadBuffer.prevSegStart < alignedEnd) & wrapAround;
-        // We may have to wait until the data within the previous segment can be safely overwritten
+        // We may have to wait until the data within the previous segment can be safely overwritten.
         const bool waitForPrevCopies = caseD | caseE;
-        // Move the offset to the beginning of the data
+        // Move the offset to the beginning of the data.
         m_uploadBuffer.offset = static_cast<uint>(alignedOffset);
-        // Check whether any copies to the GPU have to be performed
+        // Check whether any copies to the GPU have to be performed.
         if (executeAllCopies || waitForPrevCopies) {
             executeCopyCommands(executeAllCopies);
         }
-        // Move the offset to the end of the data
+        // Move the offset to the end of the data.
         m_uploadBuffer.offset = alignedEnd;
-        // Load the data into the upload buffer
+        // Load the data into the upload buffer.
         memcpy(alignedAddress, data, size);
-        // Return the offset to the beginning of the data
+        // Return the offset to the beginning of the data.
         return alignedOffset;
     }
 } // namespace D3D12
