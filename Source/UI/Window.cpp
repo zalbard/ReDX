@@ -4,11 +4,11 @@
 #include <Windows.h>
 #include "Window.h"
 
-// Static member initialization
+// Perform static member initialization.
 HWND Window::m_hwnd = nullptr;
 RECT Window::m_rect = {};
 
-// Main message handler
+// Main message handler.
 LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
                             const WPARAM wParam, const LPARAM lParam) {
     switch (message) {
@@ -24,10 +24,10 @@ LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
 }
 
 void Window::open(const long width, const long height) {
-    // Set up the rectangle position and dimensions
+    // Set up the rectangle position and dimensions.
     m_rect = {0, 0, width, height};
     AdjustWindowRect(&m_rect, WS_OVERLAPPEDWINDOW, FALSE);
-    // Set up the window class
+    // Set up the window class.
     WNDCLASSEX wndClass    = {};
     wndClass.cbSize        = sizeof(WNDCLASSEX);
     wndClass.style         = CS_HREDRAW | CS_VREDRAW;
@@ -36,7 +36,7 @@ void Window::open(const long width, const long height) {
     wndClass.hCursor       = LoadCursor(nullptr, IDC_ARROW);
     wndClass.lpszClassName = L"ReDXWindowClass";
     RegisterClassEx(&wndClass);
-    // Create a window and store its handle
+    // Create a window and store its handle.
     m_hwnd = CreateWindow(wndClass.lpszClassName,
                           L"ReDX",
                           WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,  // Disable resizing
@@ -45,7 +45,7 @@ void Window::open(const long width, const long height) {
                           nullptr, nullptr,                         // No parent window, no menus
                           GetModuleHandle(nullptr),
                           nullptr);
-    // Make the window visible
+    // Make the window visible.
     ShowWindow(Window::handle(), SW_SHOWNORMAL);
 }
 
@@ -67,7 +67,7 @@ float Window::aspectRatio() {
 }
 
 void Window::displayFrameTime(const float deltaTime) {
-    // Only print up to 4 digits (plus the separator)
+    // Only print up to 4 digits (plus the separator).
     wchar_t title[] = L"ReDX : 00.00 ms";
     swprintf(title + 7, 9, L"%5.2f ms", std::min(99.99f, deltaTime));
     SetWindowText(m_hwnd, title);
