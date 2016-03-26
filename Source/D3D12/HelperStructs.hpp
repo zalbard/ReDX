@@ -20,7 +20,7 @@ namespace D3D12 {
         , offset{other.offset}
         , prevSegStart{other.prevSegStart}
         , currSegStart{other.currSegStart} {
-        // Mark as moved
+        // Mark as moved.
         other.resource = nullptr;
     }
 
@@ -28,20 +28,20 @@ namespace D3D12 {
         if (resource) {
             resource->Unmap(0, nullptr);
         }
-        // Copy the data
+        // Copy the data.
         resource     = std::move(other.resource);
         begin        = other.begin;
         capacity     = other.capacity;
         offset       = other.offset;
         prevSegStart = other.prevSegStart;
         currSegStart = other.currSegStart;
-        // Mark as moved
+        // Mark as moved.
         other.resource = nullptr;
         return *this;
     }
 
     inline UploadRingBuffer::~UploadRingBuffer() noexcept {
-        // Check if it was moved
+        // Check if it was moved.
         if (resource) {
             resource->Unmap(0, nullptr);
         }
@@ -206,7 +206,7 @@ namespace D3D12 {
         assert(descriptorPool && count > 0);
         constexpr auto nativeType      = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);
         constexpr bool isShaderVisible = DescType::CBV_SRV_UAV == T || DescType::SAMPLER == T;
-        // Fill out the descriptor heap description
+        // Fill out the descriptor heap description.
         const D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {
             /* Type */           nativeType,
             /* NumDescriptors */ count,
@@ -214,10 +214,10 @@ namespace D3D12 {
                                                  : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
             /* NodeMask */       nodeMask
         };
-        // Create a descriptor heap
+        // Create a descriptor heap.
         CHECK_CALL(CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorPool->heap)),
                    "Failed to create a descriptor heap.");
-        // Query and store the heap properties
+        // Query and store the heap properties.
         descriptorPool->cpuBegin     = descriptorPool->heap->GetCPUDescriptorHandleForHeapStart();
         descriptorPool->gpuBegin     = descriptorPool->heap->GetGPUDescriptorHandleForHeapStart();
         descriptorPool->handleIncrSz = GetDescriptorHandleIncrementSize(nativeType);
