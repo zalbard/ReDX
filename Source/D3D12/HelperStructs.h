@@ -10,7 +10,7 @@
 namespace D3D12 {
     using Microsoft::WRL::ComPtr;
 
-    // Corresponds to Direct3D descriptor types
+    // Corresponds to Direct3D descriptor types.
     enum class DescType {
         // Constant Buffer Views | Shader Resource Views | Unordered Access Views
         CBV_SRV_UAV = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 
@@ -19,7 +19,7 @@ namespace D3D12 {
         DSV         = D3D12_DESCRIPTOR_HEAP_TYPE_DSV          // Depth Stencil Views
     };
 
-    // Corresponds to Direct3D command list types
+    // Corresponds to Direct3D command list types.
     enum class CmdType {
         GRAPHICS = D3D12_COMMAND_LIST_TYPE_DIRECT,  // Supports all types of commands
         COMPUTE  = D3D12_COMMAND_LIST_TYPE_COMPUTE, // Supports compute and copy commands only
@@ -60,7 +60,7 @@ namespace D3D12 {
         D3D12_SHADER_RESOURCE_VIEW   view;          // Buffer descriptor
     };
 
-    // Descriptor heap wrapper
+    // Descriptor heap wrapper.
     template <DescType T>
     struct DescriptorPool {
         ComPtr<ID3D12DescriptorHeap> heap;          // Descriptor heap interface
@@ -117,23 +117,22 @@ namespace D3D12 {
     template <uint N, uint L> using ComputeContext  = CommandContext<CmdType::COMPUTE,  N, L>;
     template <uint N, uint L> using CopyContext     = CommandContext<CmdType::COPY,     N, L>;
 
-    // ID3D12Device extension; uses the same UUID as ID3D12Device
+    // ID3D12Device extension; uses the same UUID as ID3D12Device.
     MIDL_INTERFACE("189819f1-1db6-4b57-be54-1821339b85f7")
     ID3D12DeviceEx: public ID3D12Device {
     public:
         RULE_OF_ZERO(ID3D12DeviceEx);
-        // Creates a command context of the specified type
+        // Creates a command context of the specified type.
+        // Optionally, the priority can be set to 'high', and the GPU timeout can be disabled.
         template <CmdType T, uint N, uint L>
         void createCommandContext(CommandContext<T, N, L>* const commandContext, 
                                   const bool isHighPriority    = false, 
                                   const bool disableGpuTimeout = false);
 
-        // Creates a descriptor pool of the specified type and size (descriptor count)
+        // Creates a descriptor pool of the specified type and size (descriptor count).
         template <DescType T>
         void createDescriptorPool(DescriptorPool<T>* const descriptorPool, const uint count);
-        // Creates a command queue of the specified type
-        // Optionally, the queue priority can be set to 'high', and the GPU timeout can be disabled
-        // Multi-GPU-adapter mask. Rendering is performed on a single GPU
+        // Multi-GPU-adapter mask. Rendering is performed on a single GPU.
         static constexpr uint nodeMask = 0;
     };
 } // namespace D3D12
