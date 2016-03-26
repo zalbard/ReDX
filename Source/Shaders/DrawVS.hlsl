@@ -16,7 +16,7 @@ PSInput VSMain(VSInput input) {
     PSInput result;
 
     // Hint the compiler about the structure of the matrix
-    // to help with constant propagation (saves 3 VALU) 
+    // to help with constant propagation (save 3 VALU).
     const float4x4 constViewProj = {
         viewProj[0][0], viewProj[0][1], 0.f, viewProj[0][3],
         viewProj[1][0], viewProj[1][1], 0.f, viewProj[1][3],
