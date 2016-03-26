@@ -449,12 +449,14 @@ void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
     ID3D12Fence* insertedFence;
     uint64       insertedValue;
     std::tie(insertedFence, insertedValue) = m_copyContext.executeCommandList(0);
+    // Ensure synchronization between the graphics and the copy command queues.
+    m_graphicsContext.syncCommandQueue(insertedFence, insertedValue);
     if (immediateCopy) {
         printWarning("Immediate copy requested. Thread stall imminent.");
         m_copyContext.syncThread(insertedValue);
     } else {
-        // Ensure synchronization between the graphics and the copy command queues.
-        m_graphicsContext.syncCommandQueue(insertedFence, insertedValue);
+        // For single- and double-buffered copy contexts, resetCommandAllocator() will
+        // take care of waiting until the previous copy command list has completed execution.
     }
     // Reset the command list allocator.
     m_copyContext.resetCommandAllocator();
