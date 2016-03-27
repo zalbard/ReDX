@@ -30,14 +30,14 @@
                                   T& operator=(T&&) noexcept;      \
                                   ~T() noexcept
 
-// Declares a singleton class which cannot be
+// Declares a static class which cannot be
 // constructed, destroyed, copied, moved or assigned.
-#define SINGLETON(T) T()                        = delete; \
-                     T(const T&)                = delete; \
-                     T& operator=(const T&)     = delete; \
-                     T(T&&) noexcept            = delete; \
-                     T& operator=(T&&) noexcept = delete; \
-                     ~T() noexcept              = delete
+#define STATIC_CLASS(T) T()                        = delete; \
+                        T(const T&)                = delete; \
+                        T& operator=(const T&)     = delete; \
+                        T(T&&) noexcept            = delete; \
+                        T& operator=(T&&) noexcept = delete; \
+                        ~T() noexcept              = delete
 
 // Typedefs.
 using byte   = unsigned char;

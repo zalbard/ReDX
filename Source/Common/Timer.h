@@ -7,7 +7,7 @@
 // Accesses the processor's time stamp counter (TSC) using the QueryPerformanceCounter API.
 class HighResTimer {
 public:
-    SINGLETON(HighResTimer);
+    STATIC_CLASS(HighResTimer);
     using rep        = long long;
     using period     = std::micro;
     using duration   = std::chrono::duration<rep, period>;

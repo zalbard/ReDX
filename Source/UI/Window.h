@@ -6,7 +6,7 @@
 // GUI Window.
 class Window {
 public:
-   SINGLETON(Window);
+   STATIC_CLASS(Window);
    // Creates a window; takes the window dimensions (in pixels) as input.
    static void open(const long width, const long height);
    // Returns the handle of the window.
