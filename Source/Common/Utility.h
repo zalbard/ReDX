@@ -12,8 +12,8 @@ static inline auto align(const byte* const address)
 -> byte* {
     // Make sure that the alignment is non-zero, and is a power of 2.
     static_assert((0 != alignment) && (0 == (alignment & (alignment - 1))), "Invalid alignment.");
-    const uint64 aligned = reinterpret_cast<uint64>((address + (alignment - 1))) & ~(alignment - 1);
-    return reinterpret_cast<byte*>(aligned);
+    const uint64 addr = reinterpret_cast<uint64>(address);
+    return reinterpret_cast<byte*>((addr + (alignment - 1)) & ~(alignment - 1));
 }
 
 // For internal use only!
