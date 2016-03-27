@@ -8,7 +8,7 @@
 
 // Aligns the memory address to the next multiple of alignment.
 template <uint64 alignment>
-static inline auto align(const byte* const address)
+static inline auto align(const void* const address)
 -> byte* {
     // Make sure that the alignment is non-zero, and is a power of 2.
     static_assert((0 != alignment) && (0 == (alignment & (alignment - 1))), "Invalid alignment.");
