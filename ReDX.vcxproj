@@ -44,17 +44,19 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>Bin\$(Platform)-$(Configuration)\</OutDir>
-    <IntDir>Temp\$(Platform)-$(Configuration)\</IntDir>
-    <SourcePath>$(ProjectDir)Source;$(SourcePath)</SourcePath>
-    <IncludePath>$(ProjectDir)Source\ThirdParty;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <OutDir>$(SolutionDir)Bin\$(Platform)-$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)Temp\$(TargetName)\$(Platform)-$(Configuration)\</IntDir>
+    <SourcePath>$(SolutionDir)Source;$(SourcePath)</SourcePath>
+    <IncludePath>$(SolutionDir)Source\ThirdParty;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <LibraryPath>$(SolutionDir)Lib\$(Platform)-$(Configuration)\;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>Bin\$(Platform)-$(Configuration)\</OutDir>
-    <IntDir>Temp\$(Platform)-$(Configuration)\</IntDir>
-    <SourcePath>$(ProjectDir)Source;$(SourcePath)</SourcePath>
-    <IncludePath>$(ProjectDir)Source\ThirdParty;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <OutDir>$(SolutionDir)Bin\$(Platform)-$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)Temp\$(TargetName)\$(Platform)-$(Configuration)\</IntDir>
+    <SourcePath>$(SolutionDir)Source;$(SourcePath)</SourcePath>
+    <IncludePath>$(SolutionDir)Source\ThirdParty;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
+    <LibraryPath>$(SolutionDir)Lib\$(Platform)-$(Configuration)\;$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(NETFXKitsDir)Lib\um\x64</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -74,7 +76,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
-      <AdditionalDependencies>d3d12.lib;d3dcompiler.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d12.lib;d3dcompiler.lib;dxgi.lib;DirectXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -98,7 +100,7 @@
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>d3d12.lib;d3dcompiler.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d12.lib;d3dcompiler.lib;dxgi.lib;DirectXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -126,9 +128,9 @@
     <ClInclude Include="Source\D3D12\Renderer.hpp" />
     <ClInclude Include="Source\ThirdParty\d3dx12.h" />
     <ClInclude Include="Source\ThirdParty\DirectXMathSSE4.h" />
+    <ClInclude Include="Source\ThirdParty\DirectXTex\DirectXTex.h" />
     <ClInclude Include="Source\ThirdParty\load_obj.h" />
     <ClInclude Include="Source\ThirdParty\miniball.hpp" />
-    <ClInclude Include="Source\ThirdParty\stb_image.h" />
     <ClInclude Include="Source\UI\Window.h" />
   </ItemGroup>
   <ItemGroup>
@@ -177,6 +179,9 @@
       <AssemblerOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Shaders\%(Filename).asm</AssemblerOutputFile>
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">AssemblyCode</AssemblerOutput>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="GPLv3.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

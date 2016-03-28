@@ -4,8 +4,11 @@
 *
 !*/
 
-# Ignore the temporary file folder
-Temp*/
+# Ignore temporary folders
+Temp/
+Bin/
+Lib/
+
 
 # File exceptions
 !.gitignore
@@ -15,22 +18,16 @@ Temp*/
 !*.h
 !*.hpp
 !*.inl
+!*.inc
 !*.c
 !*.cc
 !*.cpp
-!*.cu
 
 # Shader files
-!*.vs
-!*.vert
-!*.gs
-!*.geom
-!*.tcs
-!*.tes
-!*.fs
-!*.frag
-!*.cs
 !*.hlsl
+
+# Scripts
+!*.cmd
 
 # Docs & info
 !*.txt
@@ -41,7 +38,3 @@ Temp*/
 !*.vcxproj
 !*.vcxproj.filters
 !*.vcxproj.user
-
-# Libraries
-!*.lib
-!*.dll

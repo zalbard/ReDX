@@ -73,9 +73,6 @@
     <ClInclude Include="Source\Common\Timer.h">
       <Filter>Source Files\Common</Filter>
     </ClInclude>
-    <ClInclude Include="Source\ThirdParty\stb_image.h">
-      <Filter>Source Files\ThirdParty</Filter>
-    </ClInclude>
     <ClInclude Include="Source\ThirdParty\d3dx12.h">
       <Filter>Source Files\ThirdParty</Filter>
     </ClInclude>
@@ -106,6 +103,9 @@
     <ClInclude Include="Source\ThirdParty\DirectXMathSSE4.h">
       <Filter>Source Files\ThirdParty</Filter>
     </ClInclude>
+    <ClInclude Include="Source\ThirdParty\DirectXTex\DirectXTex.h">
+      <Filter>Source Files\ThirdParty</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore">
@@ -125,5 +125,10 @@
     <FxCompile Include="Source\Shaders\DrawVS.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="GPLv3.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
 </Project>
