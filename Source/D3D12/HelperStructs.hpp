@@ -163,6 +163,7 @@ namespace D3D12 {
     inline void ID3D12DeviceEx::createCommandContext(CommandContext<T, N, L>* const commandContext,
                                                      const bool isHighPriority,
                                                      const bool disableGpuTimeout) {
+        static_assert(N > 0 && L > 0, "Invalid command context parameters.");
         assert(commandContext);
         // Fill out the command queue description.
         const D3D12_COMMAND_QUEUE_DESC queueDesc = {
