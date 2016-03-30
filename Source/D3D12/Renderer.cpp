@@ -468,13 +468,11 @@ Texture Renderer::createTexture(const D3D12_RESOURCE_DESC& desc, const uint size
 
 void Renderer::setTransformMatrices(FXMMATRIX viewProj, CXMMATRIX viewMat) {
     // Format the data.
-    XMFLOAT4X4A tViewMat, matrices[2];
-    XMStoreFloat4x4A(&tViewMat,    XMMatrixTranspose(viewMat));
+    XMFLOAT4X4A matrices[2];
     XMStoreFloat4x4A(&matrices[0], XMMatrixTranspose(viewProj));
+    const XMMATRIX tViewMat = XMMatrixTranspose(viewMat);
     for (uint i = 0; i < 3; ++i) {
-        for (uint j = 0; j < 3; ++j) {
-            matrices[1].m[i][j] = tViewMat.m[i][j];
-        }
+        XMStoreFloat4A(reinterpret_cast<XMFLOAT4A*>(&matrices[1]) + i, tViewMat.r[i]);
     }
     constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     // Copy the data into the upload buffer.
