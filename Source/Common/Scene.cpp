@@ -1,3 +1,4 @@
+#include <DirectXTex\DirectXTex.h>
 #include <load_obj.h>
 #pragma warning(disable : 4458)
 #include <miniball.hpp>
@@ -53,12 +54,35 @@ public:
     std::vector<uint> indices;
 };
 
+// Returns 'true' if the string (path or filename) has a '.tga' extension.
+static inline auto hasTgaExt(const std::string& str)
+-> bool {
+    const auto len = str.length();
+    return len > 4 && '.' == str[len - 4] &&
+                      't' == str[len - 3] &&
+                      'g' == str[len - 2] &&
+                      'a' == str[len - 1];
+}
+
+// Converts the string 'str' to a UTF-8 character string 'wideStr' of length up to 'wideStrLen'.
+static inline void convertToUtf8(const std::string& str,
+                                 wchar_t* const wideStr, const uint wideStrLen) {
+    if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+                             str.c_str(), static_cast<int>(str.length() + 1),
+                             wideStr, wideStrLen)) {
+        const DWORD err = GetLastError(); err;
+        printError("Conversion to UTF-8 failed.");
+        TERMINATE();
+    }
+}
+
 Scene::Scene(const char* const path, const char* const objFileName, D3D12::Renderer& engine) {
     assert(path && objFileName);
+    const std::string pathStr = path;
     // Load the .obj file.
     printInfo("Loading a scene from the file: %s", objFileName);
     obj::File objFile;
-    if (!load_obj(std::string{path} + std::string{objFileName}, objFile)) {
+    if (!load_obj(pathStr + std::string{objFileName}, objFile)) {
         printError("Failed to load the file: %s", objFileName);
         TERMINATE();
     }
@@ -103,9 +127,13 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
     numObjects           = nObj;
     objectVisibilityMask = DynBitSet{nObj};
     boundingSpheres      = std::make_unique<Sphere[]>(nObj);
-    materialIndices      = std::make_unique<uint[]>(nObj);
+    materialIndices      = std::make_unique<uint16[]>(nObj);
     indexBuffers         = std::make_unique<D3D12::IndexBuffer[]>(nObj);
-    // Create index buffers.
+    // Store material indices
+    for (uint i = 0; i < nObj; ++i) {
+        materialIndices[i] = static_cast<uint16>(indexedObjects[i].material);
+    }
+    // Create index buffers
     for (uint i = 0; i < nObj; ++i) {
         const uint count = static_cast<uint>(indexedObjects[i].indices.size());
         indexBuffers[i]  = engine.createIndexBuffer(count, indexedObjects[i].indices.data());
@@ -119,6 +147,8 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
     }
     vertAttribBuffers[0] = engine.createVertexBuffer(numVertices, positions.data());
     vertAttribBuffers[1] = engine.createVertexBuffer(numVertices, normals.data());
+    // Copy the scene geometry to the GPU.
+    engine.executeCopyCommands();
     // Compute bounding spheres.
     const XMFLOAT3* const positionArray = positions.data();
     for (uint i = 0; i < nObj; ++i) {
@@ -127,6 +157,98 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
                                                            indexedObjects[i].indices.size()};
         const BoundingSphere sphere{3, begin, end};
         boundingSpheres[i] = Sphere{XMFLOAT3{sphere.center()}, sqrt(sphere.squared_radius())};
+    }
+    // Storing textures in a map to avoid duplicates.
+    std::unordered_map<std::string, D3D12::Texture> textureLib;
+    // This function populates the texture library.
+    auto addTextureToLib = [&textureLib, &pathStr, &engine](const std::string& name) {
+        // Currently, only .tga textures are supported.
+        assert(hasTgaExt(name));
+        // Combine the path and the filename.
+        wchar_t tgaFilePath[128];
+        convertToUtf8(pathStr + name, tgaFilePath, 128);
+        // Load the .tga texture.
+        TexMetadata  info;
+        ScratchImage img;
+        CHECK_CALL(LoadFromTGAFile(tgaFilePath, &info, img),
+            "Failed to load the .tga file.");
+        // Perform quick verification.
+        assert(1 == img.GetImageCount());
+        assert(TEX_DIMENSION_TEXTURE2D == info.dimension);
+        // Describe the 2D texture.
+        const DXGI_SAMPLE_DESC sampleDesc = {
+            /* Count */   1,            // No multi-sampling
+            /* Quality */ 0             // Default sampler
+        };
+        const D3D12_RESOURCE_DESC textureDesc = {
+            /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+            /* Alignment */        0,   // Automatic
+            /* Width */            info.width,
+            /* Height */           static_cast<uint>(info.height),
+            /* DepthOrArraySize */ static_cast<uint16>(info.depth),
+            /* MipLevels */        0,   // Automatic
+            /* Format */           info.format,
+            /* SampleDesc */       sampleDesc,
+            /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
+            /* Flags */            D3D12_RESOURCE_FLAG_NONE
+        };
+        // Create the texture.
+        const uint textureSize = static_cast<uint>(img.GetPixelsSize());
+        textureLib.insert(std::make_pair(name, engine.createTexture(textureDesc, textureSize,
+                                                                    img.GetPixels())));
+    };
+    // Load the .mtl files referenced in the .obj file.
+    for (const auto& matLibFileName: objFile.mtl_libs) {
+        printInfo("Loading a material library from the file: %s", matLibFileName.c_str());
+        obj::MaterialLib matLib;
+        if (!load_mtl(pathStr + matLibFileName, matLib)) {
+            printError("Failed to load the file: %s", matLibFileName);
+            TERMINATE();
+        }
+        // Load individual materials.
+        for (const auto& entry : matLib) {
+            const obj::Material& material = entry.second;
+            // Currently, only glossy and specular materials are supported.
+            assert(2 == material.illum);
+            // Load the metallicness map (0 = dielectric, 1 = metal).
+            if (!material.map_ka.empty()) {
+                if (textureLib.find(material.map_ka) == textureLib.end()) {
+                    addTextureToLib(material.map_ka);
+                }
+            }
+            // Load the base color texture 
+            if (!material.map_kd.empty()) {
+                if (textureLib.find(material.map_kd) == textureLib.end()) {
+                    addTextureToLib(material.map_kd);
+                }
+            }
+            // Load the normal map
+            if (!material.map_bump.empty()) {
+                if (textureLib.find(material.map_bump) == textureLib.end()) {
+                    addTextureToLib(material.map_bump);
+                }
+            }
+            // Load the alpha mask
+            if (!material.map_d.empty()) {
+                if (textureLib.find(material.map_d) == textureLib.end()) {
+                    addTextureToLib(material.map_d);
+                }
+            }
+            // Load the roughness map 
+            if (!material.map_ns.empty()) {
+                if (textureLib.find(material.map_ns) == textureLib.end()) {
+                    addTextureToLib(material.map_ns);
+                }
+            }
+            // Copy the textures to the GPU.
+            engine.executeCopyCommands();
+        }
+    }
+    // Move the textures into the array.
+    textures = std::make_unique<D3D12::Texture[]>(textureLib.size());
+    uint i = 0;
+    for (auto& entry : textureLib) {
+        textures[i++] = std::move(entry.second);
     }
     printInfo("Scene loaded successfully.");
 }

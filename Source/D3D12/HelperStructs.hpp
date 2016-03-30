@@ -61,6 +61,48 @@ namespace D3D12 {
         return view.SizeInBytes / sizeof(uint);
     }
 
+    template<typename T>
+    inline void ResourceViewSoA<T>::allocate(const uint count) {
+        assert(!resources && !views);
+        resources = std::make_unique<R[]>(count);
+        views     = std::make_unique<V[]>(count);
+    }
+
+    template<typename T>
+    inline void ResourceViewSoA<T>::assign(const uint index, T&& object) {
+        assert(resources && views);
+        resources[index] = std::forward<R>(object.resource);
+        views[index]     = std::forward<V>(object.view);
+    }
+
+    template<DescType T, uint N>
+    inline auto DescriptorPool<T, N>::getCpuHandle(const uint index)
+    -> D3D12_CPU_DESCRIPTOR_HANDLE {
+        assert(index < capacity);
+        return D3D12_CPU_DESCRIPTOR_HANDLE{index * m_handleIncrSz + m_cpuBegin.ptr};
+    }
+
+    template<DescType T, uint N>
+    inline auto DescriptorPool<T, N>::getCpuHandle(const uint index) const
+        -> const D3D12_CPU_DESCRIPTOR_HANDLE {
+        assert(index < capacity);
+        return D3D12_CPU_DESCRIPTOR_HANDLE{index * m_handleIncrSz + m_cpuBegin.ptr};
+    }
+
+    template<DescType T, uint N>
+    inline auto DescriptorPool<T, N>::getGpuHandle(const uint index)
+    -> D3D12_GPU_DESCRIPTOR_HANDLE {
+        assert(index < capacity);
+        return D3D12_GPU_DESCRIPTOR_HANDLE{index * m_handleIncrSz + m_gpuBegin.ptr};
+    }
+
+    template<DescType T, uint N>
+    inline auto DescriptorPool<T, N>::getGpuHandle(const uint index) const
+    -> const D3D12_GPU_DESCRIPTOR_HANDLE {
+        assert(index < capacity);
+        return D3D12_GPU_DESCRIPTOR_HANDLE{index * m_handleIncrSz + m_gpuBegin.ptr};
+    }
+
     template<CmdType T, uint N, uint L>
     inline auto CommandContext<T, N, L>::executeCommandList(const uint index)
     -> std::pair<ID3D12Fence*, uint64> {
@@ -211,26 +253,26 @@ namespace D3D12 {
         }
     }
 
-    template<DescType T>
-    inline void ID3D12DeviceEx::createDescriptorPool(DescriptorPool<T>* const descriptorPool,
-                                                     const uint count) {
-        assert(descriptorPool && count > 0);
+    template<DescType T, uint N>
+    inline void ID3D12DeviceEx::createDescriptorPool(DescriptorPool<T, N>* const descriptorPool) {
+        static_assert(N > 0, "Invalid descriptor pool capacity.");
+        assert(descriptorPool);
         constexpr auto nativeType      = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);
         constexpr bool isShaderVisible = DescType::CBV_SRV_UAV == T || DescType::SAMPLER == T;
         // Fill out the descriptor heap description.
         const D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {
             /* Type */           nativeType,
-            /* NumDescriptors */ count,
+            /* NumDescriptors */ N,
             /* Flags */          isShaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
                                                  : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
             /* NodeMask */       nodeMask
         };
         // Create a descriptor heap.
-        CHECK_CALL(CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorPool->heap)),
+        CHECK_CALL(CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorPool->m_heap)),
                    "Failed to create a descriptor heap.");
         // Query and store the heap properties.
-        descriptorPool->cpuBegin     = descriptorPool->heap->GetCPUDescriptorHandleForHeapStart();
-        descriptorPool->gpuBegin     = descriptorPool->heap->GetGPUDescriptorHandleForHeapStart();
-        descriptorPool->handleIncrSz = GetDescriptorHandleIncrementSize(nativeType);
+        descriptorPool->m_cpuBegin = descriptorPool->m_heap->GetCPUDescriptorHandleForHeapStart();
+        descriptorPool->m_gpuBegin = descriptorPool->m_heap->GetGPUDescriptorHandleForHeapStart();
+        descriptorPool->m_handleIncrSz = GetDescriptorHandleIncrementSize(nativeType);
     }
 } // namespace D3D12

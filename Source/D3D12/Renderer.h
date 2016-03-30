@@ -17,6 +17,9 @@ namespace D3D12 {
         IndexBuffer createIndexBuffer(const uint count, const uint* const indices);
         // Creates a constant buffer for the data of the specified size in bytes.
         ConstantBuffer createConstantBuffer(const uint size, const void* const data = nullptr);
+        // Creates a texture according of the specified size to the description.
+        Texture createTexture(const D3D12_RESOURCE_DESC& desc, const uint size,
+                              const void* const data = nullptr);
         // Sets the view-projection matrix in the shaders.
         void setViewProjMatrix(DirectX::FXMMATRIX viewProjMat);
         // Submits all pending copy commands for execution, and begins a new segment
@@ -46,22 +49,23 @@ namespace D3D12 {
         uint64 copyToUploadBuffer(const uint size, const void* const data);
     private:
         /* Rendering parameters */
-        ComPtr<ID3D12DeviceEx>            m_device;
-        D3D12_VIEWPORT                    m_viewport;
-        D3D12_RECT                        m_scissorRect;
-        GraphicsContext<FRAME_CNT, 1>     m_graphicsContext;
-        ComPtr<ID3D12Resource>            m_renderTargets[BUF_CNT];
-        uint                              m_backBufferIndex;
-        ComPtr<ID3D12Resource>            m_depthBuffer;
-        DescriptorPool<DescType::RTV>     m_rtvPool;
-        DescriptorPool<DescType::DSV>     m_dsvPool;
-        ComPtr<IDXGISwapChain3>           m_swapChain;
-        HANDLE                            m_swapChainWaitableObject;
-        CopyContext<2, 1>                 m_copyContext;
-        UploadRingBuffer                  m_uploadBuffer;
+        ComPtr<ID3D12DeviceEx>        m_device;
+        D3D12_VIEWPORT                m_viewport;
+        D3D12_RECT                    m_scissorRect;
+        ConstantBuffer                m_constantBuffer;
+        GraphicsContext<FRAME_CNT, 1> m_graphicsContext;
+        ComPtr<ID3D12Resource>        m_renderTargets[BUF_CNT];
+        uint                          m_backBufferIndex;
+        ComPtr<ID3D12Resource>        m_depthBuffer;
+        RtvPool<BUF_CNT>              m_rtvPool;
+        DsvPool<1>                    m_dsvPool;
+        CbvSrvUavPool<TEX_CNT>        m_texPool;
+        ComPtr<IDXGISwapChain3>       m_swapChain;
+        HANDLE                        m_swapChainWaitableObject;
+        CopyContext<2, 1>             m_copyContext;
+        UploadRingBuffer              m_uploadBuffer;
         /* Pipeline objects */
-        ConstantBuffer                    m_constantBuffer;
-        ComPtr<ID3D12RootSignature>       m_graphicsRootSignature;
-        ComPtr<ID3D12PipelineState>       m_graphicsPipelineState;
+        ComPtr<ID3D12RootSignature>   m_graphicsRootSignature;
+        ComPtr<ID3D12PipelineState>   m_graphicsPipelineState;
     };
 } // namespace D3D12

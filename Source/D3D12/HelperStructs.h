@@ -10,6 +10,56 @@
 namespace D3D12 {
     using Microsoft::WRL::ComPtr;
 
+    struct UploadRingBuffer {
+        RULE_OF_FIVE_MOVE_ONLY(UploadRingBuffer);
+        UploadRingBuffer();
+        ComPtr<ID3D12Resource>      resource;        // Memory buffer
+        byte*                       begin;           // CPU virtual memory-mapped address
+        uint                        capacity;        // Buffer size in bytes
+        uint                        offset;          // Offset from the beginning of the buffer
+        uint                        prevSegStart;    // Offset to the beginning of the prev. segment
+        uint                        currSegStart;    // Offset to the beginning of the curr. segment
+    };
+
+    struct VertexBuffer {
+        ComPtr<ID3D12Resource>      resource;        // Memory buffer
+        D3D12_VERTEX_BUFFER_VIEW    view;            // Descriptor
+    };
+
+    struct IndexBuffer {
+        ComPtr<ID3D12Resource>      resource;        // Memory buffer
+        D3D12_INDEX_BUFFER_VIEW     view;            // Descriptor
+        uint                        count() const;   // Returns the number of elements
+    };
+
+    struct ConstantBuffer {
+        ComPtr<ID3D12Resource>      resource;        // Memory buffer
+        D3D12_GPU_VIRTUAL_ADDRESS   view;            // Descriptor (Constant Buffer View)
+    };
+
+    struct Texture {
+        ComPtr<ID3D12Resource>      resource;        // Memory buffer
+        D3D12_CPU_DESCRIPTOR_HANDLE view;            // Descriptor handle (Shader Resource View)
+    };
+
+    // Stores objects of type T in the SoA layout.
+    // T must be composed of 2 members: 'resource' and 'view'.
+    template <typename T>
+    struct ResourceViewSoA {
+        // Allocates an SoA for 'count' elements.
+        void allocate(const uint count);
+        // Stores the object at the position denoted by 'index'.
+        void assign(const uint index, T&& object);
+        // Typedefs.
+        using R = decltype(T::resource);
+        using V = decltype(T::view);
+    public:
+        std::unique_ptr<R[]>        resources;       // Memory buffer array
+        std::unique_ptr<V[]>        views;           // Descriptor [handle] array
+    };
+
+    using IndexBufferSoA = ResourceViewSoA<IndexBuffer>;
+
     // Corresponds to Direct3D descriptor types.
     enum class DescType {
         // Constant Buffer Views | Shader Resource Views | Unordered Access Views
@@ -19,54 +69,37 @@ namespace D3D12 {
         DSV         = D3D12_DESCRIPTOR_HEAP_TYPE_DSV          // Depth Stencil Views
     };
 
+    // Wrapper for a descriptor heap of capacity N.
+    template <DescType T, uint N>
+    struct DescriptorPool {
+        // Returns the CPU handle of the descriptor stored at the 'index' position.
+        D3D12_CPU_DESCRIPTOR_HANDLE       getCpuHandle(const uint index);
+        const D3D12_CPU_DESCRIPTOR_HANDLE getCpuHandle(const uint index) const;
+        // Returns the GPU handle of the descriptor stored at the 'index' position.
+        D3D12_GPU_DESCRIPTOR_HANDLE       getGpuHandle(const uint index);
+        const D3D12_GPU_DESCRIPTOR_HANDLE getGpuHandle(const uint index) const;
+    public:
+        uint                         size     = 0;   // Current descriptor count
+        static constexpr uint        capacity = N;   // Maximal descriptor count
+    private:
+        ComPtr<ID3D12DescriptorHeap> m_heap;         // Descriptor heap interface
+        D3D12_CPU_DESCRIPTOR_HANDLE  m_cpuBegin;     // CPU handle of the 1st descriptor of the pool
+        D3D12_GPU_DESCRIPTOR_HANDLE  m_gpuBegin;     // GPU handle of the 1st descriptor of the pool
+        uint                         m_handleIncrSz; // Handle increment size
+        /* Accessors */
+        friend struct ID3D12DeviceEx;
+    };
+
+    template <uint N> using CbvSrvUavPool = DescriptorPool<DescType::CBV_SRV_UAV, N>;
+    template <uint N> using SamplerPool   = DescriptorPool<DescType::SAMPLER, N>;
+    template <uint N> using RtvPool       = DescriptorPool<DescType::RTV, N>;
+    template <uint N> using DsvPool       = DescriptorPool<DescType::DSV, N>;
+
     // Corresponds to Direct3D command list types.
     enum class CmdType {
-        GRAPHICS = D3D12_COMMAND_LIST_TYPE_DIRECT,  // Supports all types of commands
-        COMPUTE  = D3D12_COMMAND_LIST_TYPE_COMPUTE, // Supports compute and copy commands only
-        COPY     = D3D12_COMMAND_LIST_TYPE_COPY     // Supports copy commands only
-    };
-
-    struct UploadRingBuffer {
-        RULE_OF_FIVE_MOVE_ONLY(UploadRingBuffer);
-        UploadRingBuffer();
-        ComPtr<ID3D12Resource>       resource;      // Buffer interface
-        byte*                        begin;         // CPU virtual memory-mapped address
-        uint                         capacity;      // Buffer size in bytes
-        uint                         offset;        // Offset from the beginning of the buffer
-        uint                         prevSegStart;  // Offset to the beginning of the prev. segment
-        uint                         currSegStart;  // Offset to the beginning of the curr. segment
-    };
-
-    struct VertexBuffer {
-        ComPtr<ID3D12Resource>       resource;      // Buffer interface
-        D3D12_VERTEX_BUFFER_VIEW     view;          // Buffer descriptor
-    };
-
-    struct IndexBuffer {
-        ComPtr<ID3D12Resource>       resource;      // Buffer interface
-        D3D12_INDEX_BUFFER_VIEW      view;          // Buffer descriptor
-        uint                         count() const; // Returns the number of elements
-    };
-
-    struct ConstantBuffer {
-        ComPtr<ID3D12Resource>       resource;      // Buffer interface
-        D3D12_GPU_VIRTUAL_ADDRESS    location;      // GPU virtual address of the buffer
-    };
-
-    using D3D12_SHADER_RESOURCE_VIEW = D3D12_SHADER_RESOURCE_VIEW_DESC;
-
-    struct ShaderResource {
-        ComPtr<ID3D12Resource>       resource;      // Buffer interface
-        D3D12_SHADER_RESOURCE_VIEW   view;          // Buffer descriptor
-    };
-
-    // Descriptor heap wrapper.
-    template <DescType T>
-    struct DescriptorPool {
-        ComPtr<ID3D12DescriptorHeap> heap;          // Descriptor heap interface
-        D3D12_CPU_DESCRIPTOR_HANDLE  cpuBegin;      // CPU handle of the 1st descriptor of the pool
-        D3D12_GPU_DESCRIPTOR_HANDLE  gpuBegin;      // GPU handle of the 1st descriptor of the pool
-        uint                         handleIncrSz;  // Handle increment size
+        GRAPHICS = D3D12_COMMAND_LIST_TYPE_DIRECT,   // Supports all types of commands
+        COMPUTE  = D3D12_COMMAND_LIST_TYPE_COMPUTE,  // Supports compute and copy commands only
+        COPY     = D3D12_COMMAND_LIST_TYPE_COPY      // Supports copy commands only
     };
 
     // Encapsulates an N-buffered command queue of type T with L command lists.
@@ -100,7 +133,8 @@ namespace D3D12 {
         ID3D12GraphicsCommandList*        commandList(const uint index);
         const ID3D12GraphicsCommandList*  commandList(const uint index) const;
     public:
-        static constexpr uint             bufferCount = N;
+        static constexpr uint             bufferCount      = N;
+        static constexpr uint             commandListCount = L;
     private:
         ComPtr<ID3D12CommandQueue>        m_commandQueue;
         ComPtr<ID3D12GraphicsCommandList> m_commandLists[L];
@@ -116,8 +150,8 @@ namespace D3D12 {
     };
 
     template <uint N, uint L> using GraphicsContext = CommandContext<CmdType::GRAPHICS, N, L>;
-    template <uint N, uint L> using ComputeContext  = CommandContext<CmdType::COMPUTE,  N, L>;
-    template <uint N, uint L> using CopyContext     = CommandContext<CmdType::COPY,     N, L>;
+    template <uint N, uint L> using ComputeContext  = CommandContext<CmdType::COMPUTE, N, L>;
+    template <uint N, uint L> using CopyContext     = CommandContext<CmdType::COPY, N, L>;
 
     // ID3D12Device extension; uses the same UUID as ID3D12Device.
     MIDL_INTERFACE("189819f1-1db6-4b57-be54-1821339b85f7")
@@ -131,9 +165,9 @@ namespace D3D12 {
                                   const bool isHighPriority    = false, 
                                   const bool disableGpuTimeout = false);
 
-        // Creates a descriptor pool of the specified type and size (descriptor count).
-        template <DescType T>
-        void createDescriptorPool(DescriptorPool<T>* const descriptorPool, const uint count);
+        // Creates a descriptor pool of type T and size (descriptor count) N.
+        template <DescType T, uint N>
+        void createDescriptorPool(DescriptorPool<T, N>* const descriptorPool);
         // Multi-GPU-adapter mask. Rendering is performed on a single GPU.
         static constexpr uint nodeMask = 0;
     };

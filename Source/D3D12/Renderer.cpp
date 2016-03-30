@@ -91,6 +91,10 @@ Renderer::Renderer() {
     // Create command contexts.
     m_device->createCommandContext(&m_copyContext);
     m_device->createCommandContext(&m_graphicsContext);
+    // Create descriptor pools.
+    m_device->createDescriptorPool(&m_rtvPool);
+    m_device->createDescriptorPool(&m_dsvPool);
+    m_device->createDescriptorPool(&m_texPool);
     // Create a buffer swap chain.
     {
         // Fill out the multi-sampling parameters.
@@ -125,23 +129,17 @@ Renderer::Renderer() {
         // Update the index of the frame buffer used for rendering.
         m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
     }
-    // Create a render target view (RTV) descriptor pool.
-    m_device->createDescriptorPool(&m_rtvPool, BUF_CNT);
-    // Create RTVs.
+    // Create render target views (RTVs).
     {
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvPool.cpuBegin};
         // Create an RTV for each frame buffer.
         for (uint bufferIdx = 0; bufferIdx < BUF_CNT; ++bufferIdx) {
             CHECK_CALL(m_swapChain->GetBuffer(bufferIdx, IID_PPV_ARGS(&m_renderTargets[bufferIdx])),
                        "Failed to acquire a swap chain buffer.");
-            m_device->CreateRenderTargetView(m_renderTargets[bufferIdx].Get(), nullptr, rtvHandle);
-            // Get the handle of the next descriptor.
-            rtvHandle.Offset(1, m_rtvPool.handleIncrSz);
+            m_device->CreateRenderTargetView(m_renderTargets[bufferIdx].Get(), nullptr,
+                                             m_rtvPool.getCpuHandle(m_rtvPool.size++));
         }
     }
-    // Create a depth stencil view (DSV) descriptor pool.
-    m_device->createDescriptorPool(&m_dsvPool, 1);
-    // Create a depth buffer.
+    // Create a depth-stencil buffer.
     {
         const DXGI_SAMPLE_DESC sampleDesc = {
             /* Count */   1,            // No multi-sampling
@@ -175,7 +173,8 @@ Renderer::Renderer() {
             /* Flags */         D3D12_DSV_FLAG_NONE,
             /* Texture2D */     {}
         };
-        m_device->CreateDepthStencilView(m_depthBuffer.Get(), &dsvDesc, m_dsvPool.cpuBegin);
+        m_device->CreateDepthStencilView(m_depthBuffer.Get(), &dsvDesc,
+                                         m_dsvPool.getCpuHandle(m_dsvPool.size++));
     }
     // Create a persistently mapped buffer on the upload heap.
     {
@@ -197,29 +196,6 @@ Renderer::Renderer() {
     }
     // Set up the rendering pipeline.
     configurePipeline();
-}
-
-// Loads and compiles a shader. As input, it takes the full path to the shader file,
-// the name of the main (entry point) function, and the shader type.
-static inline auto loadAndCompileShader(const wchar_t* const pathAndFileName,
-                                        const char* const entryPoint,
-                                        const char* const type)
--> ComPtr<ID3DBlob> {
-    #ifdef _DEBUG
-        // Enable debugging symbol information, and disable certain optimizations.
-        constexpr uint compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-    #else
-        constexpr uint compileFlags = 0;
-    #endif
-    // Load and compile the shader.
-    ComPtr<ID3DBlob> shader, errors;
-    if (FAILED(D3DCompileFromFile(pathAndFileName, nullptr, nullptr, entryPoint,
-                                  type, compileFlags, 0, &shader, &errors))) {
-        printError("Failed to load and compile a shader.");
-        printError(static_cast<const char* const>(errors->GetBufferPointer()));
-        TERMINATE();
-    }
-    return shader;
 }
 
 struct Shader {
@@ -390,17 +366,15 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
     // Max. alignment requirement for indices is 4 bytes.
     constexpr uint64 alignment = 4;
     // Copy indices into the upload buffer.
-    const     uint64 ubOffset  = copyToUploadBuffer<alignment>(size, indices);
+    const     uint64 offset    = copyToUploadBuffer<alignment>(size, indices);
     // Copy the data from the upload buffer into the video memory buffer.
     m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
-                                                   m_uploadBuffer.resource.Get(), ubOffset,
+                                                   m_uploadBuffer.resource.Get(), offset,
                                                    size);
     // Initialize the index buffer view.
-    buffer.view = D3D12_INDEX_BUFFER_VIEW{
-        /* BufferLocation */ buffer.resource->GetGPUVirtualAddress(),
-        /* SizeInBytes */    size,
-        /* Format */         DXGI_FORMAT_R32_UINT
-    };
+    buffer.view.BufferLocation = buffer.resource->GetGPUVirtualAddress(),
+    buffer.view.SizeInBytes    = size;
+    buffer.view.Format         = DXGI_FORMAT_R32_UINT;
     return buffer;
 }
 
@@ -422,25 +396,73 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* const
     if (data) {
         constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
         // Copy the data into the upload buffer.
-        const     uint64 ubOffset  = copyToUploadBuffer<alignment>(size, data);
+        const     uint64 offset    = copyToUploadBuffer<alignment>(size, data);
         // Copy the data from the upload buffer into the video memory buffer.
         m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
-                                                       m_uploadBuffer.resource.Get(), ubOffset,
+                                                       m_uploadBuffer.resource.Get(), offset,
                                                        size);
     }
-    // Initialize the constant buffer location.
-    buffer.location = buffer.resource->GetGPUVirtualAddress();
+    // Initialize the constant buffer view.
+    buffer.view = buffer.resource->GetGPUVirtualAddress();
     return buffer;
+}
+
+Texture Renderer::createTexture(const D3D12_RESOURCE_DESC& desc, const uint size,
+                                const void* const data) {
+
+    assert(!data || size >= 4);
+    Texture texture;
+    // Allocate the texture on the default heap.
+    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
+                                                 &desc, D3D12_RESOURCE_STATE_COMMON,
+                                                 nullptr, IID_PPV_ARGS(&texture.resource)),
+               "Failed to allocate a texture.");
+    // Transition the buffer state for the graphics/compute command queue type class.
+    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(texture.resource.Get(),
+                                                   D3D12_RESOURCE_STATE_COMMON,
+                                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
+    if (data) {
+        constexpr uint64 alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+        // Copy the data into the upload buffer.
+        const     uint64 offset    = copyToUploadBuffer<alignment>(size, data);
+        // Copy the data from the upload buffer into the video memory texture.
+        const D3D12_SUBRESOURCE_FOOTPRINT footprint = {
+            /* Format */   desc.Format,
+            /* Width */    static_cast<uint>(desc.Width),
+            /* Height */   desc.Height,
+            /* Depth */    desc.DepthOrArraySize,
+            /* RowPitch */ size / desc.Height
+        };
+        assert(0 == footprint.RowPitch % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+        const CD3DX12_TEXTURE_COPY_LOCATION src{m_uploadBuffer.resource.Get(), {offset, footprint}};
+        const CD3DX12_TEXTURE_COPY_LOCATION dst{texture.resource.Get(), 0};
+        m_copyContext.commandList(0)->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+    }
+    // Describe the shader resource view.
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+    srvDesc.Format                        = desc.Format;
+    srvDesc.ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Shader4ComponentMapping       = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Texture2D.MostDetailedMip     = 0;
+    srvDesc.Texture2D.MipLevels           = 1;
+    srvDesc.Texture2D.PlaneSlice          = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.f;
+    // Initialize the shader resource view.
+    texture.view = m_texPool.getCpuHandle(m_texPool.size++);
+    m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc, texture.view);
+    return texture;
 }
 
 void Renderer::setViewProjMatrix(FXMMATRIX viewProjMat) {
     const XMMATRIX tViewProj = XMMatrixTranspose(viewProjMat);
     constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     // Copy the data into the upload buffer.
-    const     uint64 ubOffset  = copyToUploadBuffer<alignment>(sizeof(tViewProj), &tViewProj);
+    const     uint64 offset    = copyToUploadBuffer<alignment>(sizeof(tViewProj), &tViewProj);
     // Copy the data from the upload buffer into the video memory buffer.
     m_copyContext.commandList(0)->CopyBufferRegion(m_constantBuffer.resource.Get(), 0,
-                                                   m_uploadBuffer.resource.Get(), ubOffset,
+                                                   m_uploadBuffer.resource.Get(), offset,
                                                    sizeof(tViewProj));
 }
 
@@ -478,14 +500,12 @@ void Renderer::startFrame() {
     graphicsCommandList->ResourceBarrier(1, &barrier);
     // Set the necessary state.
     graphicsCommandList->SetGraphicsRootSignature(m_graphicsRootSignature.Get());
-    graphicsCommandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer.location);
+    graphicsCommandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer.view);
     graphicsCommandList->RSSetViewports(1, &m_viewport);
     graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
     // Set the back buffer as the render target.
-    const CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle{m_rtvPool.cpuBegin,
-                                                  static_cast<int>(m_backBufferIndex),
-                                                  m_rtvPool.handleIncrSz};
-    const CD3DX12_CPU_DESCRIPTOR_HANDLE dsvHandle{m_dsvPool.cpuBegin};
+    const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvPool.getCpuHandle(m_backBufferIndex);
+    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_dsvPool.getCpuHandle(0);
     graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
     // Clear the RTV and the DSV.
     constexpr float clearColor[] = {0.f, 0.f, 0.f, 1.f};

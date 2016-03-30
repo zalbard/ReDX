@@ -179,6 +179,7 @@
       <AssemblerOutputFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)Shaders\%(Filename).asm</AssemblerOutputFile>
       <AssemblerOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">AssemblyCode</AssemblerOutput>
     </FxCompile>
+    <None Include="Source\ThirdParty\DirectXTex\DirectXTex.inl" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="GPLv3.txt" />

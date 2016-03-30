@@ -26,17 +26,15 @@ namespace D3D12 {
         // Max. alignment requirement for vertex data is 4 bytes.
         constexpr uint64 alignment = 4;
         // Copy vertices into the upload buffer.
-        const     uint64 ubOffset  = copyToUploadBuffer<alignment>(size, elements);
+        const     uint64 offset    = copyToUploadBuffer<alignment>(size, elements);
         // Copy the data from the upload buffer into the video memory buffer.
         m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
-                                                       m_uploadBuffer.resource.Get(), ubOffset,
+                                                       m_uploadBuffer.resource.Get(), offset,
                                                        size);
         // Initialize the vertex buffer view.
-        buffer.view = D3D12_VERTEX_BUFFER_VIEW{
-            /* BufferLocation */ buffer.resource->GetGPUVirtualAddress(),
-            /* SizeInBytes */    size,
-            /* StrideInBytes */  sizeof(T)
-        };
+        buffer.view.BufferLocation = buffer.resource->GetGPUVirtualAddress();
+        buffer.view.SizeInBytes    = size;
+        buffer.view.StrideInBytes  = sizeof(T);
         return buffer;
     }
 

@@ -29,14 +29,16 @@ constexpr uint  BUF_CNT         = 3;
 constexpr uint  FRAME_CNT       = 2;
 // Vertical blank count after which the synchronization is performed. 
 constexpr uint  VSYNC_INTERVAL  = 0;
+// Maximal texture count.
+constexpr uint  TEX_CNT         = 256;
 // Software rendering flag.
 constexpr bool  USE_WARP_DEVICE = false;
 // Render target view format.
 constexpr auto  RTV_FORMAT      = DXGI_FORMAT_R8G8B8A8_UNORM;
 // Depth stencil view format.
 constexpr auto  DSV_FORMAT      = DXGI_FORMAT_D24_UNORM_S8_UINT;
-// Upload buffer size (8 MiB).
-constexpr uint  UPLOAD_BUF_SIZE = 8 * 1024 * 1024;
+// Upload buffer size (16 MiB).
+constexpr uint  UPLOAD_BUF_SIZE = 16 * 1024 * 1024;
 // Camera's speed (in meters/sec).
 constexpr float CAM_SPEED       = 500.f;
 // Camera's angular speed (in radians/sec).

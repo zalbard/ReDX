@@ -117,6 +117,9 @@
     <None Include="LICENSE">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="Source\ThirdParty\DirectXTex\DirectXTex.inl">
+      <Filter>Source Files\ThirdParty</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Source\Shaders\DrawPS.hlsl">
