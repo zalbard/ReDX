@@ -82,10 +82,10 @@ namespace D3D12 {
         uint                         size     = 0;   // Current descriptor count
         static constexpr uint        capacity = N;   // Maximal descriptor count
     private:
-        ComPtr<ID3D12DescriptorHeap> m_heap;         // Descriptor heap interface
+        uint                         m_handleIncrSz; // Handle increment size
         D3D12_CPU_DESCRIPTOR_HANDLE  m_cpuBegin;     // CPU handle of the 1st descriptor of the pool
         D3D12_GPU_DESCRIPTOR_HANDLE  m_gpuBegin;     // GPU handle of the 1st descriptor of the pool
-        uint                         m_handleIncrSz; // Handle increment size
+        ComPtr<ID3D12DescriptorHeap> m_heap;         // Descriptor heap interface
         /* Accessors */
         friend struct ID3D12DeviceEx;
     };
