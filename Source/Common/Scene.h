@@ -36,7 +36,7 @@ public:
     uint                                  numTextures;
     DynBitSet                             objectVisibilityMask;
     std::unique_ptr<Sphere[]>             boundingSpheres;
-    D3D12::VertexBuffer                   vertAttribBuffers[2]; // Positions, normals
+    D3D12::VertexBuffer                   vertAttribBuffers[3]; // Positions, normals, UVs
     std::unique_ptr<D3D12::IndexBuffer[]> indexBuffers;
     std::unique_ptr<uint16[]>             materialIndices;
     std::unique_ptr<D3D12::Texture[]>     textures;

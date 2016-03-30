@@ -6,6 +6,8 @@
 #include "D3D12\Renderer.hpp"
 #include "UI\Window.h"
 
+using namespace DirectX;
+
 // Key press status: 1 if pressed, 0 otherwise .
 struct KeyPressStatus {
     uint w : 1;
@@ -25,7 +27,7 @@ int __cdecl main(const int argc, const char* argv[]) {
         }
 	}
     // Verify SSE4.1 support for the DirectXMath library.
-    if (!DirectX::SSE4::XMVerifySSE4Support()) {
+    if (!SSE4::XMVerifySSE4Support()) {
         printError("The CPU doesn't support SSE4.1. Aborting.");
         return -1;
     }
@@ -107,7 +109,8 @@ int __cdecl main(const int argc, const char* argv[]) {
         pCam.rotateAndMoveForward(pitch, yaw, dist);
         // Execute engine code.
         const auto asyncTask = std::async(std::launch::async, [&engine, &pCam]() {
-            engine.setViewProjMatrix(pCam.computeViewProjMatrix());
+            XMMATRIX viewMat;
+            engine.setTransformMatrices(pCam.computeViewProjMatrix(&viewMat), viewMat);
             engine.executeCopyCommands();
         });
         scene.performFrustumCulling(pCam);

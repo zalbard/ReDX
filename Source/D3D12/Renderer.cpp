@@ -284,7 +284,17 @@ void Renderer::configurePipeline() {
             /* AlignedByteOffset */    0,
             /* InputSlotClass */       D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
             /* InstanceDataStepRate */ 0
-        }
+        },
+        {
+            /* SemanticName */         "TEXCOORD",
+            /* SemanticIndex */        0,
+            /* Format */               DXGI_FORMAT_R32G32_FLOAT,
+            /* InputSlot */            2,
+            /* AlignedByteOffset */    0,
+            /* InputSlotClass */       D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+            /* InstanceDataStepRate */ 0
+        },
+
     };
     const D3D12_INPUT_LAYOUT_DESC inputLayoutDesc = {
         /* pInputElementDescs */ inputElementDescs,
@@ -344,8 +354,8 @@ void Renderer::configurePipeline() {
     // Set the command list states.
     m_copyContext.resetCommandList(0, nullptr);
     m_graphicsContext.resetCommandList(0, m_graphicsPipelineState.Get());
-    // Create a constant buffer.
-    m_constantBuffer = createConstantBuffer(sizeof(XMMATRIX));
+    // Create a constant buffer for transformations.
+    m_constantBuffer = createConstantBuffer(XFORM_BUF_SIZE);
 }
 
 IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indices) {
@@ -456,15 +466,23 @@ Texture Renderer::createTexture(const D3D12_RESOURCE_DESC& desc, const uint size
     return texture;
 }
 
-void Renderer::setViewProjMatrix(FXMMATRIX viewProjMat) {
-    const XMMATRIX tViewProj = XMMatrixTranspose(viewProjMat);
+void Renderer::setTransformMatrices(FXMMATRIX viewProj, CXMMATRIX viewMat) {
+    // Format the data.
+    XMFLOAT4X4A tViewMat, matrices[2];
+    XMStoreFloat4x4A(&tViewMat,    XMMatrixTranspose(viewMat));
+    XMStoreFloat4x4A(&matrices[0], XMMatrixTranspose(viewProj));
+    for (uint i = 0; i < 3; ++i) {
+        for (uint j = 0; j < 3; ++j) {
+            matrices[1].m[i][j] = tViewMat.m[i][j];
+        }
+    }
     constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     // Copy the data into the upload buffer.
-    const     uint64 offset    = copyToUploadBuffer<alignment>(sizeof(tViewProj), &tViewProj);
+    const     uint64 offset    = copyToUploadBuffer<alignment>(XFORM_BUF_SIZE, matrices);
     // Copy the data from the upload buffer into the video memory buffer.
     m_copyContext.commandList(0)->CopyBufferRegion(m_constantBuffer.resource.Get(), 0,
                                                    m_uploadBuffer.resource.Get(), offset,
-                                                   sizeof(tViewProj));
+                                                   XFORM_BUF_SIZE);
 }
 
 void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {

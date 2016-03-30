@@ -21,8 +21,8 @@ namespace D3D12 {
         // Currently, only 2D textures are supported.
         Texture createTexture(const D3D12_RESOURCE_DESC& desc, const uint size,
                               const void* const data = nullptr);
-        // Sets the view-projection matrix in the shaders.
-        void setViewProjMatrix(DirectX::FXMMATRIX viewProjMat);
+        // Sets the transformation matrices in the shaders.
+        void setTransformMatrices(DirectX::FXMMATRIX viewProj, DirectX::CXMMATRIX viewMat);
         // Submits all pending copy commands for execution, and begins a new segment
         // of the upload buffer. As a result, the previous segment of the buffer becomes
         // available for writing. 'immediateCopy' flag ensures that all copies from the
@@ -53,7 +53,6 @@ namespace D3D12 {
         ComPtr<ID3D12DeviceEx>        m_device;
         D3D12_VIEWPORT                m_viewport;
         D3D12_RECT                    m_scissorRect;
-        ConstantBuffer                m_constantBuffer;
         GraphicsContext<FRAME_CNT, 1> m_graphicsContext;
         ComPtr<ID3D12Resource>        m_renderTargets[BUF_CNT];
         uint                          m_backBufferIndex;
@@ -65,6 +64,7 @@ namespace D3D12 {
         HANDLE                        m_swapChainWaitableObject;
         CopyContext<2, 1>             m_copyContext;
         UploadRingBuffer              m_uploadBuffer;
+        ConstantBuffer                m_constantBuffer;
         /* Pipeline objects */
         ComPtr<ID3D12RootSignature>   m_graphicsRootSignature;
         ComPtr<ID3D12PipelineState>   m_graphicsPipelineState;

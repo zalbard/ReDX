@@ -140,13 +140,17 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
     }
     // Create vertex attribute buffers.
     const uint numVertices = static_cast<uint>(indexMap.size());
-    std::vector<XMFLOAT3> positions{numVertices}, normals{numVertices};
+    std::vector<XMFLOAT3> positions{numVertices};
+    std::vector<XMFLOAT3> normals{numVertices};
+    std::vector<XMFLOAT2> uvCoords{numVertices};
     for (const auto& entry : indexMap) {
         positions[entry.second] = objFile.vertices[entry.first.v];
         normals[entry.second]   = objFile.normals[entry.first.n];
+        uvCoords[entry.second]  = objFile.texcoords[entry.first.t];
     }
     vertAttribBuffers[0] = engine.createVertexBuffer(numVertices, positions.data());
     vertAttribBuffers[1] = engine.createVertexBuffer(numVertices, normals.data());
+    vertAttribBuffers[2] = engine.createVertexBuffer(numVertices, uvCoords.data());
     // Copy the scene geometry to the GPU.
     engine.executeCopyCommands();
     // Compute bounding spheres.

@@ -23,14 +23,14 @@ constexpr long  WND_WIDTH       = 1280;
 constexpr long  WND_HEIGHT      = 720;
 // Vertical field of view (in radians).
 constexpr float VERTICAL_FOV    = M_PI / 3.f;
+// Maximal texture count.
+constexpr uint  TEX_CNT         = 256;
 // Double/triple buffering.
 constexpr uint  BUF_CNT         = 3;
 // Maximal rendering queue depth (determines the frame latency).
 constexpr uint  FRAME_CNT       = 2;
 // Vertical blank count after which the synchronization is performed. 
 constexpr uint  VSYNC_INTERVAL  = 0;
-// Maximal texture count.
-constexpr uint  TEX_CNT         = 256;
 // Software rendering flag.
 constexpr bool  USE_WARP_DEVICE = false;
 // Render target view format.
@@ -39,6 +39,8 @@ constexpr auto  RTV_FORMAT      = DXGI_FORMAT_R8G8B8A8_UNORM;
 constexpr auto  DSV_FORMAT      = DXGI_FORMAT_D24_UNORM_S8_UINT;
 // Upload buffer size (16 MiB).
 constexpr uint  UPLOAD_BUF_SIZE = 16 * 1024 * 1024;
+// Constant buffer 'Transforms': a float4x4 and a float3x3.
+constexpr uint  XFORM_BUF_SIZE  = 64 + 44;
 // Camera's speed (in meters/sec).
 constexpr float CAM_SPEED       = 500.f;
 // Camera's angular speed (in radians/sec).
