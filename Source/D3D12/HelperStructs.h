@@ -136,8 +136,8 @@ namespace D3D12 {
         static constexpr uint             bufferCount      = N;
         static constexpr uint             commandListCount = L;
     private:
-        ComPtr<ID3D12CommandQueue>        m_commandQueue;
         ComPtr<ID3D12GraphicsCommandList> m_commandLists[L];
+        ComPtr<ID3D12CommandQueue>        m_commandQueue;
         uint                              m_allocatorIndex;
         ComPtr<ID3D12CommandAllocator>    m_commandAllocators[N];
         /* Synchronization objects */
