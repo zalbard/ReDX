@@ -18,11 +18,11 @@ public:
     DirectX::XMMATRIX projectionMatrix() const;
     // Returns the normalized direction along the optical axis.
     DirectX::XMVECTOR computeForwardDir() const;
+    // Returns the view-projection matrix (and, optionally, the view matrix).
+    DirectX::XMMATRIX computeViewProjMatrix(DirectX::XMMATRIX* const viewMat = nullptr) const;
     // Returns the view matrix.
-    DirectX::XMMATRIX computeViewProjMatrix() const;
-    // Moves the camera forward by 'dist' meters.
     DirectX::XMMATRIX computeViewMatrix() const;
-    // Returns the view-projection matrix.
+    // Moves the camera forward by 'dist' meters.
     void moveForward(const float dist);
     // Moves the camera back by 'dist' meters.
     void moveBack(const float dist);

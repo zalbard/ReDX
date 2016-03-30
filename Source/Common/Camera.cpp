@@ -23,8 +23,12 @@ XMVECTOR PerspectiveCamera::computeForwardDir() const {
     return orientMat.r[2];
 }
 
-XMMATRIX PerspectiveCamera::computeViewProjMatrix() const {
-    return computeViewMatrix() * m_projMat;
+XMMATRIX PerspectiveCamera::computeViewProjMatrix(XMMATRIX* const viewMat) const {
+    const XMMATRIX v = computeViewMatrix();
+    if (viewMat) {
+        *viewMat = v;
+    }
+    return v * m_projMat;
 }
 
 XMMATRIX PerspectiveCamera::computeViewMatrix() const {
