@@ -244,8 +244,9 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
             engine.executeCopyCommands();
         }
     }
-    // Move the textures into the array.
-    textures = std::make_unique<D3D12::Texture[]>(textureLib.size());
+    // Move textures into the array.
+    numTextures = static_cast<uint>(textureLib.size());
+    textures    = std::make_unique<D3D12::Texture[]>(numTextures);
     uint i = 0;
     for (auto& entry : textureLib) {
         textures[i++] = std::move(entry.second);
