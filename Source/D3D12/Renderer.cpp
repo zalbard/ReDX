@@ -411,6 +411,7 @@ Texture Renderer::createTexture(const D3D12_RESOURCE_DESC& desc, const uint size
                                 const void* const data) {
 
     assert(!data || size >= 4);
+    assert(D3D12_RESOURCE_DIMENSION_TEXTURE2D == desc.Dimension);
     Texture texture;
     // Allocate the texture on the default heap.
     const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};

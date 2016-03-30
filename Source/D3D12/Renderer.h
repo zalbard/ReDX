@@ -18,6 +18,7 @@ namespace D3D12 {
         // Creates a constant buffer for the data of the specified size in bytes.
         ConstantBuffer createConstantBuffer(const uint size, const void* const data = nullptr);
         // Creates a texture according of the specified size to the description.
+        // Currently, only 2D textures are supported.
         Texture createTexture(const D3D12_RESOURCE_DESC& desc, const uint size,
                               const void* const data = nullptr);
         // Sets the view-projection matrix in the shaders.
