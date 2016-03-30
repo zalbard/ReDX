@@ -25,11 +25,11 @@ PSInput VSMain(VSInput input) {
         viewProj[3][0], viewProj[3][1], 1.f, viewProj[3][3]
     };
     PSInput result;
-    // Transform (and interpolate) the vertex position into homogeneous space.
+    // Transform the vertex position into the homogeneous space.
     result.position = mul(float4(input.position, 1.f), constViewProj);
-    // Transform (and interpolate) the vertex normal into view space.
+    // Transform the vertex normal into the view space.
     result.normal   = mul(input.normal, viewMat);
-    // Interpolate the UV coordinates.
+    // Perform perspective interpolation of the UV coordinates.
     result.uvCoord  = input.uvCoord;
     return result;
 }
