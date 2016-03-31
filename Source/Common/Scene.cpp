@@ -76,6 +76,9 @@ static inline void convertToUtf8(const std::string& str,
     }
 }
 
+// Map where Key = texture name, Value = pair (texture : texture index).
+using TextureMap = std::unordered_map<std::string, std::pair<D3D12::Texture, uint16>>;
+
 Scene::Scene(const char* const path, const char* const objFileName, D3D12::Renderer& engine) {
     assert(path && objFileName);
     const std::string pathStr = path;
@@ -93,19 +96,18 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
         for (const auto& group : object.groups) {
             if (group.faces.empty()) continue;
             // New group -> new object.
-            indexedObjects.push_back(IndexedObject{group.faces[0].material, {}});
+            indexedObjects.emplace_back(IndexedObject{group.faces[0].material, {}});
             IndexedObject* currObject = &indexedObjects.back();
             for (const auto& face : group.faces) {
                 if (face.material != currObject->material) {
                     // New material -> new object.
-                    indexedObjects.push_back(IndexedObject{face.material, {}});
+                    indexedObjects.emplace_back(IndexedObject{face.material, {}});
                     currObject = &indexedObjects.back();
                 }
                 for (int i = 0; i < face.index_count; ++i) {
                     if (indexMap.find(face.indices[i]) == indexMap.end()) {
-                        // Insert a new key-value pair (vertex index : position in vertex buffer).
-                        indexMap.insert(std::make_pair(face.indices[i],
-                                                       static_cast<uint>(indexMap.size())));
+                        // Insert a new Key-Value pair (vertex index : position in vertex buffer).
+                        indexMap.emplace(face.indices[i], static_cast<uint>(indexMap.size()));
                     }
                 }
                 // Create indexed triangle(s).
@@ -123,18 +125,19 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
     // Sort objects by material.
     std::sort(indexedObjects.begin(), indexedObjects.end());
     // Allocate memory.
-    const uint nObj      = static_cast<uint>(indexedObjects.size());
-    numObjects           = nObj;
-    objectVisibilityMask = DynBitSet{nObj};
-    boundingSpheres      = std::make_unique<Sphere[]>(nObj);
-    materialIndices      = std::make_unique<uint16[]>(nObj);
-    indexBuffers         = std::make_unique<D3D12::IndexBuffer[]>(nObj);
+    objCount          = static_cast<uint>(indexedObjects.size());
+    objVisibilityMask = DynBitSet{objCount};
+    boundingSpheres   = std::make_unique<Sphere[]>(objCount);
+    indexBuffers      = std::make_unique<D3D12::IndexBuffer[]>(objCount);
+    materialIndices   = std::make_unique<uint16[]>(objCount);
+    matCount          = static_cast<uint>(objFile.materials.size() - 1);
+    materials         = std::make_unique<Material[]>(matCount);
     // Store material indices
-    for (uint i = 0; i < nObj; ++i) {
+    for (uint i = 0; i < objCount; ++i) {
         materialIndices[i] = static_cast<uint16>(indexedObjects[i].material);
     }
     // Create index buffers
-    for (uint i = 0; i < nObj; ++i) {
+    for (uint i = 0; i < objCount; ++i) {
         const uint count = static_cast<uint>(indexedObjects[i].indices.size());
         indexBuffers[i]  = engine.createIndexBuffer(count, indexedObjects[i].indices.data());
     }
@@ -155,113 +158,110 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
     engine.executeCopyCommands();
     // Compute bounding spheres.
     const XMFLOAT3* const positionArray = positions.data();
-    for (uint i = 0; i < nObj; ++i) {
+    for (uint i = 0; i < objCount; ++i) {
         const IndexedPointIterator begin = {positionArray, indexedObjects[i].indices.data()};
         const IndexedPointIterator end   = {positionArray, indexedObjects[i].indices.data() +
                                                            indexedObjects[i].indices.size()};
         const BoundingSphere sphere{3, begin, end};
         boundingSpheres[i] = Sphere{XMFLOAT3{sphere.center()}, sqrt(sphere.squared_radius())};
     }
-    // Storing textures in a map to avoid duplicates.
-    std::unordered_map<std::string, D3D12::Texture> textureLib;
-    // This function populates the texture library.
-    auto addTextureToLib = [&textureLib, &pathStr, &engine](const std::string& name) {
-        // Currently, only .tga textures are supported.
-        assert(hasTgaExt(name));
-        // Combine the path and the filename.
-        wchar_t tgaFilePath[128];
-        convertToUtf8(pathStr + name, tgaFilePath, 128);
-        // Load the .tga texture.
-        TexMetadata  info;
-        ScratchImage img;
-        CHECK_CALL(LoadFromTGAFile(tgaFilePath, &info, img),
-            "Failed to load the .tga file.");
-        // Perform quick verification.
-        assert(1 == img.GetImageCount());
-        assert(TEX_DIMENSION_TEXTURE2D == info.dimension);
-        // Describe the 2D texture.
-        const DXGI_SAMPLE_DESC sampleDesc = {
-            /* Count */   1,            // No multi-sampling
-            /* Quality */ 0             // Default sampler
-        };
-        const D3D12_RESOURCE_DESC textureDesc = {
-            /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-            /* Alignment */        0,   // Automatic
-            /* Width */            info.width,
-            /* Height */           static_cast<uint>(info.height),
-            /* DepthOrArraySize */ static_cast<uint16>(info.depth),
-            /* MipLevels */        0,   // Automatic
-            /* Format */           info.format,
-            /* SampleDesc */       sampleDesc,
-            /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
-            /* Flags */            D3D12_RESOURCE_FLAG_NONE
-        };
-        // Create the texture.
-        const uint textureSize = static_cast<uint>(img.GetPixelsSize());
-        textureLib.insert(std::make_pair(name, engine.createTexture(textureDesc, textureSize,
-                                                                    img.GetPixels())));
-    };
     // Load the .mtl files referenced in the .obj file.
+    obj::MaterialLib matLib;
     for (const auto& matLibFileName: objFile.mtl_libs) {
         printInfo("Loading a material library from the file: %s", matLibFileName.c_str());
-        obj::MaterialLib matLib;
         if (!load_mtl(pathStr + matLibFileName, matLib)) {
             printError("Failed to load the file: %s", matLibFileName);
             TERMINATE();
         }
-        // Load individual materials.
-        for (const auto& entry : matLib) {
-            const obj::Material& material = entry.second;
-            // Currently, only glossy and specular materials are supported.
-            assert(2 == material.illum);
-            // Load the metallicness map (0 = dielectric, 1 = metal).
-            if (!material.map_ka.empty()) {
-                if (textureLib.find(material.map_ka) == textureLib.end()) {
-                    addTextureToLib(material.map_ka);
-                }
-            }
-            // Load the base color texture 
-            if (!material.map_kd.empty()) {
-                if (textureLib.find(material.map_kd) == textureLib.end()) {
-                    addTextureToLib(material.map_kd);
-                }
-            }
-            // Load the normal map
-            if (!material.map_bump.empty()) {
-                if (textureLib.find(material.map_bump) == textureLib.end()) {
-                    addTextureToLib(material.map_bump);
-                }
-            }
-            // Load the alpha mask
-            if (!material.map_d.empty()) {
-                if (textureLib.find(material.map_d) == textureLib.end()) {
-                    addTextureToLib(material.map_d);
-                }
-            }
-            // Load the roughness map 
-            if (!material.map_ns.empty()) {
-                if (textureLib.find(material.map_ns) == textureLib.end()) {
-                    addTextureToLib(material.map_ns);
-                }
-            }
-            // Copy the textures to the GPU.
-            engine.executeCopyCommands();
+    }
+    // Store textures in a map to avoid duplicates.
+    TextureMap texLib;
+    // Acquires the texture index by either looking it up
+    // in the texture library, or loading it from disk.
+    auto acquireTexureIndex = [&texLib, &pathStr, &engine](const std::string& texName) {
+        if (texName.empty()) return UINT16_MAX;
+        // Currently, only .tga textures are supported.
+        assert(hasTgaExt(texName));
+        // Check whether we have to load the texture.
+        const auto texIt = texLib.find(texName);
+        if (texIt != texLib.end()) {
+            return texIt->second.second;
+        } else {
+            // Combine the path and the filename.
+            wchar_t tgaFilePath[128];
+            convertToUtf8(pathStr + texName, tgaFilePath, 128);
+            // Load the .tga texture.
+            TexMetadata  info;
+            ScratchImage img;
+            CHECK_CALL(LoadFromTGAFile(tgaFilePath, &info, img),
+                       "Failed to load the .tga file.");
+            // Perform quick verification.
+            assert(1 == img.GetImageCount());
+            assert(TEX_DIMENSION_TEXTURE2D == info.dimension);
+            // Describe the 2D texture.
+            const DXGI_SAMPLE_DESC sampleDesc = {
+                /* Count */   1,            // No multi-sampling
+                /* Quality */ 0             // Default sampler
+            };
+            const D3D12_RESOURCE_DESC texDesc = {
+                /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+                /* Alignment */        0,   // Automatic
+                /* Width */            info.width,
+                /* Height */           static_cast<uint>(info.height),
+                /* DepthOrArraySize */ static_cast<uint16>(info.depth),
+                /* MipLevels */        0,   // Automatic
+                /* Format */           info.format,
+                /* SampleDesc */       sampleDesc,
+                /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
+                /* Flags */            D3D12_RESOURCE_FLAG_NONE
+            };
+            // Create the texture.
+            const uint16      texId   = static_cast<uint16>(texLib.size());
+            const uint        texSize = static_cast<uint>(img.GetPixelsSize());
+            const byte* const texData = img.GetPixels();
+            texLib.emplace(texName, std::make_pair(engine.createTexture(texDesc, texSize, texData),
+                                                   texId));
+            return texId;
         }
+    };
+    // Load individual materials.
+    assert(objFile.materials[0].empty());
+    for (uint i = 0; i < matCount; ++i) {
+        // Locate the material within the library.
+        const auto& matName = objFile.materials[i + 1];
+        const auto  matIt   = matLib.find(matName);
+        assert(matLib.end() != matIt);
+        const obj::Material& material = matIt->second;
+        // Currently, only glossy and specular materials are supported.
+        assert(2 == material.illum);
+        // Metallicness map.
+        materials[i].metalTexId  = acquireTexureIndex(material.map_ka);
+        // Base color texture.
+        materials[i].baseTexId   = acquireTexureIndex(material.map_kd);
+        // Normal map.
+        materials[i].normalTexId = acquireTexureIndex(material.map_bump);
+        // Alpha mask.
+        materials[i].maskTexId   = acquireTexureIndex(material.map_d);
+        // Roughness map.
+        materials[i].roughTexId  = acquireTexureIndex(material.map_ns);
+        // Copy the textures to the GPU.
+        engine.executeCopyCommands();
+
     }
     // Move textures into the array.
-    numTextures = static_cast<uint>(textureLib.size());
-    textures    = std::make_unique<D3D12::Texture[]>(numTextures);
-    uint i = 0;
-    for (auto& entry : textureLib) {
-        textures[i++] = std::move(entry.second);
+    texCount = static_cast<uint>(texLib.size());
+    textures = std::make_unique<D3D12::Texture[]>(texCount);
+    for (auto& entry : texLib) {
+        auto& texture = entry.second;
+        textures[texture.second] = std::move(texture.first);
     }
     printInfo("Scene loaded successfully.");
 }
 
 float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
     // Set all objects as visible.
-    objectVisibilityMask.reset(1);
-    uint visObjCnt = numObjects;
+    objVisibilityMask.reset(1);
+    uint visObjCnt = objCount;
     // Compute the transposed equations of the far/left/right/top/bottom frustum planes.
     // See "Fast Extraction of Viewing Frustum Planes from the WorldView-Projection Matrix".
     XMMATRIX tfp;
@@ -294,7 +294,7 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         tfp = XMMatrixTranspose(frustumPlanes);
     }
     // Test each object.
-    for (uint i = 0, n = numObjects; i < n; ++i) {
+    for (uint i = 0, n = objCount; i < n; ++i) {
         const Sphere   boundingSphere  =  boundingSpheres[i];
         const XMVECTOR sphereCenter    =  boundingSphere.center();
         const XMVECTOR negSphereRadius = -boundingSphere.radius();
@@ -309,7 +309,7 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         // Check if at least one of the 'outside' tests passed.
         if (XMVector4NotEqualInt(outsideTests, XMVectorFalseInt())) {
             // Clear the 'object visible' flag.
-            objectVisibilityMask.clearBit(i);
+            objVisibilityMask.clearBit(i);
             --visObjCnt;
         } else {
             // Test whether the object is in front of the camera.
@@ -318,10 +318,10 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
             // Test the distance against the (negated) radius of the bounding sphere.
             if (XMVectorGetIntX(XMVectorLess(distance, negSphereRadius))) {
                 // Clear the 'object visible' flag.
-                objectVisibilityMask.clearBit(i);
+                objVisibilityMask.clearBit(i);
                 --visObjCnt;
             }
         }
     }
-    return static_cast<float>(visObjCnt * 100) / static_cast<float>(numObjects);
+    return static_cast<float>(visObjCnt * 100) / static_cast<float>(objCount);
 }
