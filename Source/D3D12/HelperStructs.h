@@ -72,12 +72,14 @@ namespace D3D12 {
     // Wrapper for a descriptor heap of capacity N.
     template <DescType T, uint N>
     struct DescriptorPool {
+        // Returns the pointer to the underlying descriptor heap.
+        ID3D12DescriptorHeap* descriptorHeap() const;
         // Returns the CPU handle of the descriptor stored at the 'index' position.
-        D3D12_CPU_DESCRIPTOR_HANDLE       getCpuHandle(const uint index);
-        const D3D12_CPU_DESCRIPTOR_HANDLE getCpuHandle(const uint index) const;
+        D3D12_CPU_DESCRIPTOR_HANDLE       cpuHandle(const uint index);
+        const D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle(const uint index) const;
         // Returns the GPU handle of the descriptor stored at the 'index' position.
-        D3D12_GPU_DESCRIPTOR_HANDLE       getGpuHandle(const uint index);
-        const D3D12_GPU_DESCRIPTOR_HANDLE getGpuHandle(const uint index) const;
+        D3D12_GPU_DESCRIPTOR_HANDLE       gpuHandle(const uint index);
+        const D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle(const uint index) const;
     public:
         uint                         size     = 0;   // Current descriptor count
         static constexpr uint        capacity = N;   // Maximal descriptor count

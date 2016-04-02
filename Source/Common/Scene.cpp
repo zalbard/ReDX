@@ -77,7 +77,7 @@ static inline void convertToUtf8(const std::string& str,
 }
 
 // Map where Key = texture name, Value = pair (texture : texture index).
-using TextureMap = std::unordered_map<std::string, std::pair<D3D12::Texture, uint16>>;
+using TextureMap = std::unordered_map<std::string, std::pair<D3D12::Texture, uint>>;
 
 Scene::Scene(const char* const path, const char* const objFileName, D3D12::Renderer& engine) {
     assert(path && objFileName);
@@ -130,13 +130,13 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
     boundingSpheres   = std::make_unique<Sphere[]>(objCount);
     indexBuffers      = std::make_unique<D3D12::IndexBuffer[]>(objCount);
     materialIndices   = std::make_unique<uint16[]>(objCount);
-    matCount          = static_cast<uint>(objFile.materials.size() - 1);
+    matCount          = static_cast<uint>(objFile.materials.size());
     materials         = std::make_unique<Material[]>(matCount);
-    // Store material indices
     for (uint i = 0; i < objCount; ++i) {
+        // Store material indices.
         materialIndices[i] = static_cast<uint16>(indexedObjects[i].material);
     }
-    // Create index buffers
+    // Create index buffers.
     for (uint i = 0; i < objCount; ++i) {
         const uint count = static_cast<uint>(indexedObjects[i].indices.size());
         indexBuffers[i]  = engine.createIndexBuffer(count, indexedObjects[i].indices.data());
@@ -179,7 +179,7 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
     // Acquires the texture index by either looking it up
     // in the texture library, or loading it from disk.
     auto acquireTexureIndex = [&texLib, &pathStr, &engine](const std::string& texName) {
-        if (texName.empty()) return UINT16_MAX;
+        if (texName.empty()) return UINT_MAX;
         // Currently, only .tga textures are supported.
         assert(hasTgaExt(texName));
         // Check whether we have to load the texture.
@@ -192,17 +192,17 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
             convertToUtf8(pathStr + texName, tgaFilePath, 128);
             // Load the .tga texture.
             TexMetadata  info;
-            ScratchImage img;
-            CHECK_CALL(LoadFromTGAFile(tgaFilePath, &info, img),
+            ScratchImage tmp;
+            CHECK_CALL(LoadFromTGAFile(tgaFilePath, &info, tmp),
                        "Failed to load the .tga file.");
             // Perform quick verification.
-            assert(1 == img.GetImageCount());
+            assert(1 == tmp.GetImageCount());
             assert(TEX_DIMENSION_TEXTURE2D == info.dimension);
+            // Flip the image.
+            ScratchImage img;
+            CHECK_CALL(FlipRotate(*tmp.GetImages(), TEX_FR_FLIP_VERTICAL, img),
+                       "Failed to perform a vertical image flip.");
             // Describe the 2D texture.
-            const DXGI_SAMPLE_DESC sampleDesc = {
-                /* Count */   1,            // No multi-sampling
-                /* Quality */ 0             // Default sampler
-            };
             const D3D12_RESOURCE_DESC texDesc = {
                 /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
                 /* Alignment */        0,   // Automatic
@@ -211,43 +211,52 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
                 /* DepthOrArraySize */ static_cast<uint16>(info.depth),
                 /* MipLevels */        0,   // Automatic
                 /* Format */           info.format,
-                /* SampleDesc */       sampleDesc,
+                /* SampleDesc */       defaultSampleDesc,
                 /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
                 /* Flags */            D3D12_RESOURCE_FLAG_NONE
             };
             // Create the texture.
-            const uint16      texId   = static_cast<uint16>(texLib.size());
-            const uint        texSize = static_cast<uint>(img.GetPixelsSize());
-            const byte* const texData = img.GetPixels();
-            texLib.emplace(texName, std::make_pair(engine.createTexture(texDesc, texSize, texData),
-                                                   texId));
-            return texId;
+            const uint  texSize = static_cast<uint>(img.GetPixelsSize());
+            const byte* texData = img.GetPixels();
+            const auto  result  = texLib.emplace(texName,
+                                                 engine.createTexture(texDesc, texSize, texData));
+            // Return the texture index.
+            const auto texIter  = result.first;
+            return texIter->second.second;
         }
     };
     // Load individual materials.
-    assert(objFile.materials[0].empty());
     for (uint i = 0; i < matCount; ++i) {
         // Locate the material within the library.
-        const auto& matName = objFile.materials[i + 1];
+        const auto& matName = objFile.materials[i];
         const auto  matIt   = matLib.find(matName);
-        assert(matLib.end() != matIt);
-        const obj::Material& material = matIt->second;
-        // Currently, only glossy and specular materials are supported.
-        assert(2 == material.illum);
-        // Metallicness map.
-        materials[i].metalTexId  = acquireTexureIndex(material.map_ka);
-        // Base color texture.
-        materials[i].baseTexId   = acquireTexureIndex(material.map_kd);
-        // Normal map.
-        materials[i].normalTexId = acquireTexureIndex(material.map_bump);
-        // Alpha mask.
-        materials[i].maskTexId   = acquireTexureIndex(material.map_d);
-        // Roughness map.
-        materials[i].roughTexId  = acquireTexureIndex(material.map_ns);
-        // Copy the textures to the GPU.
-        engine.executeCopyCommands();
+        if (matIt == matLib.end()) {
+            printWarning("Material '%s' (index %u) not found.", matName.c_str(), i);
+            memset(&materials[i], 0xFF, sizeof(Material));
+        } else {
+            const obj::Material& material = matIt->second;
+            // Currently, only glossy and specular materials are supported.
+            assert(2 == material.illum);
+            // Base color texture.
+            materials[i].baseTexId   = acquireTexureIndex(material.map_kd);
+            /*
+                // Metallicness map.
+                materials[i].metalTexId  = acquireTexureIndex(material.map_ka);
+                // Normal map.
+                materials[i].normalTexId = acquireTexureIndex(material.map_bump);
+                // Alpha mask.
+                materials[i].maskTexId   = acquireTexureIndex(material.map_d);
+                // Roughness map.
+                materials[i].roughTexId  = acquireTexureIndex(material.map_ns);
+            */
+            // Copy textures to the GPU.
+            engine.executeCopyCommands();
+        }
 
     }
+    // Copy materials to the GPU.
+    engine.setMaterials(matCount * sizeof(Material), materials.get());
+    engine.executeCopyCommands();
     // Move textures into the array.
     texCount = static_cast<uint>(texLib.size());
     textures = std::make_unique<D3D12::Texture[]>(texCount);

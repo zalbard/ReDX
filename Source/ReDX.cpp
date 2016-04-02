@@ -115,8 +115,8 @@ int __cdecl main(const int argc, const char* argv[]) {
         });
         scene.performFrustumCulling(pCam);
         engine.startFrame();
-        engine.drawIndexed(scene.vertAttribBuffers, scene.indexBuffers.get(),
-                           scene.objCount, scene.objVisibilityMask);
+        engine.drawIndexed(scene.vertAttribBuffers, scene.indexBuffers.get(), scene.objCount,
+                           scene.materialIndices.get(), scene.objVisibilityMask);
         asyncTask.wait();
         engine.finalizeFrame();
     }

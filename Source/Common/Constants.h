@@ -1,6 +1,6 @@
 #pragma once
 
-#include <dxgiformat.h>
+#include <dxgitype.h>
 #include "Definitions.h"
 
 // Mathematical constants.
@@ -45,3 +45,5 @@ constexpr uint  XFORM_BUF_SIZE  = 64 + 44;
 constexpr float CAM_SPEED       = 500.f;
 // Camera's angular speed (in radians/sec).
 constexpr float CAM_ANG_SPEED   = 2.0f;
+// Default, single sample mode (no multi-sampling).
+constexpr DXGI_SAMPLE_DESC defaultSampleDesc = {1, 0};

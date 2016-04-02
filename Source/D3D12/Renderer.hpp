@@ -41,6 +41,7 @@ namespace D3D12 {
     template <uint N>
     inline void Renderer::drawIndexed(const VertexBuffer (&vbos)[N],
                                       const IndexBuffer* const ibos, const uint iboCount,
+                                      const uint16* const materialIndices,
                                       const DynBitSet& drawMask) {
         D3D12_VERTEX_BUFFER_VIEW vboViews[N];
         for (uint i = 0; i < N; ++i) {
@@ -49,9 +50,17 @@ namespace D3D12 {
         // Record commands into the command list.
         const auto graphicsCommandList = m_graphicsContext.commandList(0);
         graphicsCommandList->IASetVertexBuffers(0, N, vboViews);
+        uint16 matId = UINT16_MAX;
         for (uint i = 0; i < iboCount; ++i) {
             if (drawMask.testBit(i)) {
+                if (matId != materialIndices[i]) {
+                    matId  = materialIndices[i];
+                    // Set the object's material index.
+                    graphicsCommandList->SetGraphicsRoot32BitConstant(0, matId, 0);
+                }
+                // Set the object's index buffer.
                 graphicsCommandList->IASetIndexBuffer(&ibos[i].view);
+                // Draw the object.
                 graphicsCommandList->DrawIndexedInstanced(ibos[i].count(), 1, 0, 0, 0);
             }
         }

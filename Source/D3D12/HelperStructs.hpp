@@ -76,28 +76,34 @@ namespace D3D12 {
     }
 
     template<DescType T, uint N>
-    inline auto DescriptorPool<T, N>::getCpuHandle(const uint index)
+    inline auto DescriptorPool<T, N>::descriptorHeap() const
+    -> ID3D12DescriptorHeap* {
+        return m_heap.Get();
+    }
+
+    template<DescType T, uint N>
+    inline auto DescriptorPool<T, N>::cpuHandle(const uint index)
     -> D3D12_CPU_DESCRIPTOR_HANDLE {
         assert(index < capacity);
         return D3D12_CPU_DESCRIPTOR_HANDLE{index * m_handleIncrSz + m_cpuBegin.ptr};
     }
 
     template<DescType T, uint N>
-    inline auto DescriptorPool<T, N>::getCpuHandle(const uint index) const
+    inline auto DescriptorPool<T, N>::cpuHandle(const uint index) const
         -> const D3D12_CPU_DESCRIPTOR_HANDLE {
         assert(index < capacity);
         return D3D12_CPU_DESCRIPTOR_HANDLE{index * m_handleIncrSz + m_cpuBegin.ptr};
     }
 
     template<DescType T, uint N>
-    inline auto DescriptorPool<T, N>::getGpuHandle(const uint index)
+    inline auto DescriptorPool<T, N>::gpuHandle(const uint index)
     -> D3D12_GPU_DESCRIPTOR_HANDLE {
         assert(index < capacity);
         return D3D12_GPU_DESCRIPTOR_HANDLE{index * m_handleIncrSz + m_gpuBegin.ptr};
     }
 
     template<DescType T, uint N>
-    inline auto DescriptorPool<T, N>::getGpuHandle(const uint index) const
+    inline auto DescriptorPool<T, N>::gpuHandle(const uint index) const
     -> const D3D12_GPU_DESCRIPTOR_HANDLE {
         assert(index < capacity);
         return D3D12_GPU_DESCRIPTOR_HANDLE{index * m_handleIncrSz + m_gpuBegin.ptr};
@@ -185,6 +191,11 @@ namespace D3D12 {
                    "Failed to insert a fence into the command queue.");
         syncThread(UINT64_MAX);
         CloseHandle(m_syncEvent);
+        for (uint i = 0; i < L; ++i) {
+            // Command lists have to be released before the associated
+            // root signatures and pipeline state objects.
+            m_commandLists[i].Reset();
+        }
     }
 
     template<CmdType T, uint N, uint L>

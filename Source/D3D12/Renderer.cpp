@@ -97,18 +97,13 @@ Renderer::Renderer() {
     m_device->createDescriptorPool(&m_texPool);
     // Create a buffer swap chain.
     {
-        // Fill out the multi-sampling parameters.
-        const DXGI_SAMPLE_DESC sampleDesc = {
-            /* Count */   1,    // No multi-sampling
-            /* Quality */ 0     // Default sampler
-        };
         // Fill out the swap chain description.
         const DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {
             /* Width */       width(m_scissorRect),
             /* Height */      height(m_scissorRect),
             /* Format */      RTV_FORMAT,
             /* Stereo */      0,
-            /* SampleDesc */  sampleDesc,
+            /* SampleDesc */  defaultSampleDesc,
             /* BufferUsage */ DXGI_USAGE_RENDER_TARGET_OUTPUT,
             /* BufferCount */ BUF_CNT,
             /* Scaling */     DXGI_SCALING_NONE,
@@ -136,15 +131,11 @@ Renderer::Renderer() {
             CHECK_CALL(m_swapChain->GetBuffer(bufferIdx, IID_PPV_ARGS(&m_renderTargets[bufferIdx])),
                        "Failed to acquire a swap chain buffer.");
             m_device->CreateRenderTargetView(m_renderTargets[bufferIdx].Get(), nullptr,
-                                             m_rtvPool.getCpuHandle(m_rtvPool.size++));
+                                             m_rtvPool.cpuHandle(m_rtvPool.size++));
         }
     }
     // Create a depth-stencil buffer.
     {
-        const DXGI_SAMPLE_DESC sampleDesc = {
-            /* Count */   1,            // No multi-sampling
-            /* Quality */ 0             // Default sampler
-        };
         const D3D12_RESOURCE_DESC bufferDesc = {
             /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
             /* Alignment */        0,   // Automatic
@@ -153,7 +144,7 @@ Renderer::Renderer() {
             /* DepthOrArraySize */ 1,
             /* MipLevels */        0,   // Automatic
             /* Format */           DSV_FORMAT,
-            /* SampleDesc */       sampleDesc,
+            /* SampleDesc */       defaultSampleDesc,
             /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
             /* Flags */            D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
         };
@@ -174,7 +165,7 @@ Renderer::Renderer() {
             /* Texture2D */     {}
         };
         m_device->CreateDepthStencilView(m_depthBuffer.Get(), &dsvDesc,
-                                         m_dsvPool.getCpuHandle(m_dsvPool.size++));
+                                         m_dsvPool.cpuHandle(m_dsvPool.size++));
     }
     // Create a persistently mapped buffer on the upload heap.
     {
@@ -227,10 +218,21 @@ static inline auto loadShaderBytecode(const char* const pathAndFileName)
 void Renderer::configurePipeline() {
     // Create a graphics root signature.
     {
-        CD3DX12_ROOT_PARAMETER vertexCBV;
-        vertexCBV.InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+        CD3DX12_ROOT_PARAMETER params[4];
+        params[0].InitAsConstants(1, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+        params[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+        params[2].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
+        const D3D12_DESCRIPTOR_RANGE srvRange = {
+            /* RangeType */ D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
+        /* NumDescriptors */ D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
+        /* BaseShaderRegister */ 0 ,
+        /* RegisterSpace */ 0 ,
+        /* OffsetInDescriptorsFromTableStart */ D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND
+        };
+        params[3].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
+        const CD3DX12_STATIC_SAMPLER_DESC staticSampler{0, D3D12_FILTER_MIN_MAG_MIP_POINT};
         // Fill out the root signature description.
-        const auto rootSignDesc = D3D12_ROOT_SIGNATURE_DESC{1, &vertexCBV, 0, nullptr,
+        const auto rootSignDesc = D3D12_ROOT_SIGNATURE_DESC{4, params, 1, &staticSampler,
                                   D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT};
         // Serialize a root signature from the description.
         ComPtr<ID3DBlob> signature, error;
@@ -342,7 +344,7 @@ void Renderer::configurePipeline() {
         /* NumRenderTargets */      1,
         /* RTVFormats[8] */         {RTV_FORMAT},
         /* DSVFormat */             DSV_FORMAT,
-        /* SampleDesc */            sampleDesc,
+        /* SampleDesc */            defaultSampleDesc,
         /* NodeMask */              m_device->nodeMask,
         /* CachedPSO */             D3D12_CACHED_PIPELINE_STATE{},
         /* Flags */                 D3D12_PIPELINE_STATE_FLAG_NONE
@@ -355,7 +357,8 @@ void Renderer::configurePipeline() {
     m_copyContext.resetCommandList(0, nullptr);
     m_graphicsContext.resetCommandList(0, m_graphicsPipelineState.Get());
     // Create a constant buffer for transformations.
-    m_constantBuffer = createConstantBuffer(XFORM_BUF_SIZE);
+    m_transformBuffer = createConstantBuffer(XFORM_BUF_SIZE);
+    m_materialBuffer = createConstantBuffer(1024);
 }
 
 IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indices) {
@@ -417,8 +420,8 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* const
     return buffer;
 }
 
-Texture Renderer::createTexture(const D3D12_RESOURCE_DESC& desc, const uint size,
-                                const void* const data) {
+std::pair<Texture, uint> Renderer::createTexture(const D3D12_RESOURCE_DESC& desc, const uint size,
+                                                 const void* const data) {
 
     assert(!data || size >= 4);
     assert(D3D12_RESOURCE_DIMENSION_TEXTURE2D == desc.Dimension);
@@ -461,9 +464,20 @@ Texture Renderer::createTexture(const D3D12_RESOURCE_DESC& desc, const uint size
     srvDesc.Texture2D.PlaneSlice          = 0;
     srvDesc.Texture2D.ResourceMinLODClamp = 0.f;
     // Initialize the shader resource view.
-    texture.view = m_texPool.getCpuHandle(m_texPool.size++);
+    const uint textureId = m_texPool.size++;
+    texture.view = m_texPool.cpuHandle(textureId);
     m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc, texture.view);
-    return texture;
+    return {texture, textureId};
+}
+
+void Renderer::setMaterials(const uint size, const void* const data) {
+    constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    // Copy the data into the upload buffer.
+    const     uint64 offset    = copyToUploadBuffer<alignment>(size, data);
+    // Copy the data from the upload buffer into the video memory buffer.
+    m_copyContext.commandList(0)->CopyBufferRegion(m_materialBuffer.resource.Get(), 0,
+                                                   m_uploadBuffer.resource.Get(), offset,
+                                                   size);
 }
 
 void Renderer::setTransformMatrices(FXMMATRIX viewProj, CXMMATRIX viewMat) {
@@ -478,7 +492,7 @@ void Renderer::setTransformMatrices(FXMMATRIX viewProj, CXMMATRIX viewMat) {
     // Copy the data into the upload buffer.
     const     uint64 offset    = copyToUploadBuffer<alignment>(XFORM_BUF_SIZE, matrices);
     // Copy the data from the upload buffer into the video memory buffer.
-    m_copyContext.commandList(0)->CopyBufferRegion(m_constantBuffer.resource.Get(), 0,
+    m_copyContext.commandList(0)->CopyBufferRegion(m_transformBuffer.resource.Get(), 0,
                                                    m_uploadBuffer.resource.Get(), offset,
                                                    XFORM_BUF_SIZE);
 }
@@ -516,13 +530,18 @@ void Renderer::startFrame() {
     const auto graphicsCommandList = m_graphicsContext.commandList(0);
     graphicsCommandList->ResourceBarrier(1, &barrier);
     // Set the necessary state.
-    graphicsCommandList->SetGraphicsRootSignature(m_graphicsRootSignature.Get());
-    graphicsCommandList->SetGraphicsRootConstantBufferView(0, m_constantBuffer.view);
     graphicsCommandList->RSSetViewports(1, &m_viewport);
     graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
+    ID3D12DescriptorHeap* texHeap = m_texPool.descriptorHeap();
+    graphicsCommandList->SetDescriptorHeaps(1, &texHeap);
+    // Configure the root signature.
+    graphicsCommandList->SetGraphicsRootSignature(m_graphicsRootSignature.Get());
+    graphicsCommandList->SetGraphicsRootConstantBufferView(1, m_transformBuffer.view);
+    graphicsCommandList->SetGraphicsRootConstantBufferView(2, m_materialBuffer.view);
+    graphicsCommandList->SetGraphicsRootDescriptorTable(3, m_texPool.gpuHandle(0));
     // Set the back buffer as the render target.
-    const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvPool.getCpuHandle(m_backBufferIndex);
-    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_dsvPool.getCpuHandle(0);
+    const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvPool.cpuHandle(m_backBufferIndex);
+    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_dsvPool.cpuHandle(0);
     graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
     // Clear the RTV and the DSV.
     constexpr float clearColor[] = {0.f, 0.f, 0.f, 1.f};
@@ -555,6 +574,6 @@ void Renderer::finalizeFrame() {
 }
 
 void Renderer::stop() {
-    m_graphicsContext.destroy();
     m_copyContext.destroy();
+    m_graphicsContext.destroy();
 }

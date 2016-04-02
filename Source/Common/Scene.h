@@ -22,11 +22,12 @@ private:
 
 // Contains texture array indices.
 struct Material {
-    uint16 metalTexId;      // Metallicness map index
-    uint16 baseTexId;       // Base color texture index
-    uint16 normalTexId;     // Normal map index
-    uint16 maskTexId;       // Alpha mask index
-    uint16 roughTexId;      // Roughness map index
+    uint metalTexId;        // Metallicness map index
+    uint baseTexId;         // Base color texture index
+    uint normalTexId;       // Normal map index
+    uint maskTexId;         // Alpha mask index
+    uint roughTexId;        // Roughness map index
+    uint pad0, pad1, pad2;  // Align to 2 * sizeof(float4)
 };
 
 // 3D scene representation.

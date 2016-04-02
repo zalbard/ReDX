@@ -18,10 +18,13 @@ namespace D3D12 {
         // Creates a constant buffer for the data of the specified size in bytes.
         ConstantBuffer createConstantBuffer(const uint size, const void* const data = nullptr);
         // Creates a texture according of the specified size to the description.
+        // Returns the texture itself and its index within the texture pool.
         // Currently, only 2D textures are supported.
-        Texture createTexture(const D3D12_RESOURCE_DESC& desc, const uint size,
-                              const void* const data = nullptr);
-        // Sets the transformation matrices in the shaders.
+        std::pair<Texture, uint> createTexture(const D3D12_RESOURCE_DESC& desc, const uint size,
+                                               const void* const data = nullptr);
+        // Sets materials (represented by texture indices) in shaders.
+        void setMaterials(const uint size, const void* const data);
+        // Sets transformation matrices in shaders.
         void setTransformMatrices(DirectX::FXMMATRIX viewProj, DirectX::CXMMATRIX viewMat);
         // Submits all pending copy commands for execution, and begins a new segment
         // of the upload buffer. As a result, the previous segment of the buffer becomes
@@ -32,10 +35,12 @@ namespace D3D12 {
         // Initializes the frame rendering process.
         void startFrame();
         template <uint N>
-        // Draws geometry using 'N' vertex attribute buffers and 'iboCount' index buffers
+        // Draws geometry using 'N' vertex attribute buffers and 'iboCount' index buffers.
+        // 'materialIndices' associates index buffers with material indices.
         // 'drawMask' indicates whether geometry (within 'ibos') should be drawn.
         void drawIndexed(const VertexBuffer (&vbos)[N],
                          const IndexBuffer* const ibos, const uint iboCount,
+                         const uint16* const materialIndices,
                          const DynBitSet& drawMask);
         // Finalizes the frame rendering process.
         void finalizeFrame();
@@ -49,7 +54,6 @@ namespace D3D12 {
         template<uint64 alignment>
         uint64 copyToUploadBuffer(const uint size, const void* const data);
     private:
-        /* Rendering parameters */
         ComPtr<ID3D12DeviceEx>        m_device;
         D3D12_VIEWPORT                m_viewport;
         D3D12_RECT                    m_scissorRect;
@@ -64,7 +68,8 @@ namespace D3D12 {
         HANDLE                        m_swapChainWaitableObject;
         CopyContext<2, 1>             m_copyContext;
         UploadRingBuffer              m_uploadBuffer;
-        ConstantBuffer                m_constantBuffer;
+        ConstantBuffer                m_transformBuffer;
+        ConstantBuffer                m_materialBuffer;
         /* Pipeline objects */
         ComPtr<ID3D12RootSignature>   m_graphicsRootSignature;
         ComPtr<ID3D12PipelineState>   m_graphicsPipelineState;
