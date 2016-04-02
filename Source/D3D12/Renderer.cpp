@@ -58,7 +58,7 @@ Renderer::Renderer() {
     // Configure the scissor rectangle used for clipping.
     m_scissorRect = D3D12_RECT{
         /* left */   0,
-        /* top */    0, 
+        /* top */    0,
         /* right */  resX,
         /* bottom */ resY
     };
