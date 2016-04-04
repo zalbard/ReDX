@@ -7,7 +7,7 @@
 
 using namespace DirectX;
 
-// Key press status: 1 if pressed, 0 otherwise .
+// Key press status: 1 if pressed, 0 otherwise.
 struct KeyPressStatus {
     uint w : 1;
     uint s : 1;
