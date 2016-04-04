@@ -173,6 +173,22 @@ namespace D3D12 {
     }
 
     template<CmdType T, uint N, uint L>
+    inline auto CommandContext<T, N, L>::getTime() const
+    -> std::pair<uint64, uint64> {
+        // Query the frequencies (ticks/second).
+        uint64 cpuFrequency, gpuFrequency;
+        QueryPerformanceFrequency(reinterpret_cast<LARGE_INTEGER*>(&cpuFrequency));
+        m_commandQueue->GetTimestampFrequency(&gpuFrequency);
+        // Sample the time stamp counters.
+        uint64 cpuTimeStamp, gpuTimeStamp;
+        m_commandQueue->GetClockCalibration(&gpuTimeStamp, &cpuTimeStamp);
+        // Use the frequencies to perform conversions to microseconds.
+        const uint64 cpuTime = (cpuTimeStamp * 1000000) / cpuFrequency;
+        const uint64 gpuTime = (gpuTimeStamp * 1000000) / gpuFrequency;
+        return {cpuTime, gpuTime};
+    }
+
+    template<CmdType T, uint N, uint L>
     inline auto CommandContext<T, N, L>::createSwapChain(IDXGIFactory4* const factory,
                                                          const HWND hWnd,
                                                          const DXGI_SWAP_CHAIN_DESC1& swapChainDesc)

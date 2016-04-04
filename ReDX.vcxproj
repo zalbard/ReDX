@@ -107,7 +107,6 @@
     <ClCompile Include="Source\Common\Camera.cpp" />
     <ClCompile Include="Source\Common\DynBitSet.cpp" />
     <ClCompile Include="Source\Common\Scene.cpp" />
-    <ClCompile Include="Source\Common\Timer.cpp" />
     <ClCompile Include="Source\D3D12\Renderer.cpp" />
     <ClCompile Include="Source\ReDX.cpp" />
     <ClCompile Include="Source\ThirdParty\load_obj.cpp" />
@@ -120,7 +119,6 @@
     <ClInclude Include="Source\Common\DynBitSet.h" />
     <ClInclude Include="Source\Common\Math.h" />
     <ClInclude Include="Source\Common\Scene.h" />
-    <ClInclude Include="Source\Common\Timer.h" />
     <ClInclude Include="Source\Common\Utility.h" />
     <ClInclude Include="Source\D3D12\HelperStructs.h" />
     <ClInclude Include="Source\D3D12\HelperStructs.hpp" />

@@ -32,6 +32,8 @@ namespace D3D12 {
         // current segment are also completed during this call (at the cost of blocking
         // the thread), therefore making the entire buffer free and available for writing.
         void executeCopyCommands(const bool immediateCopy = false);
+        // Returns the current time of the CPU thread and the GPU queue in microseconds.
+        std::pair<uint64, uint64> getTime() const;
         // Initializes the frame rendering process.
         void startFrame();
         template <uint N>

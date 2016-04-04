@@ -39,7 +39,7 @@ public:
     explicit Scene(const char* const path, const char* const objFileName,
                    D3D12::Renderer& engine);
     // Performs culling of scene objects against the camera's frustum.
-    // Returns the percentage of the visible objects.
+    // Returns the fraction of objects visible on screen.
     float performFrustumCulling(const PerspectiveCamera& pCam);
 public:
     uint                                  objCount;             // Number of objects

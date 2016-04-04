@@ -17,8 +17,11 @@ public:
    static long height();
    // Returns the width/height ratio of the drawable window area.
    static float aspectRatio();
-   // Displays the frame time (in milliseconds) in the title bar.
-   static void displayFrameTime(const float deltaTime);
+   // Displays information (in milliseconds) in the title bar:
+   // 'fracObjVis' - the fraction of objects visible on screen;
+   // 'cpuFrameTime', 'gpuFrameTime' - the frame times (in milliseconds) of CPU/GPU timelines. 
+   static void displayInfo(const float fracObjVis, const float cpuFrameTime,
+                           const float gpuFrameTime);
 private:
    static HWND m_hwnd;      // Handle
    static RECT m_rect;      // Screen-space rectangle

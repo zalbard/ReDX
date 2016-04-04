@@ -332,5 +332,5 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
             }
         }
     }
-    return static_cast<float>(visObjCnt * 100) / static_cast<float>(objCount);
+    return static_cast<float>(visObjCnt) / static_cast<float>(objCount);
 }

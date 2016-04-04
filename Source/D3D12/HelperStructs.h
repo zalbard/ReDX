@@ -125,6 +125,8 @@ namespace D3D12 {
         // Resets the command list with the specified index to the specified state.
         // Since it opens the command list, avoid calling it right before resetCommandAllocator().
         void resetCommandList(const uint index, ID3D12PipelineState* const state);
+        // Returns the current time of the CPU thread and the GPU queue in microseconds.
+        std::pair<uint64, uint64> getTime() const;
         // Creates a swap chain for the window handle 'wHnd' according to the specified description.
         // Wraps around IDXGIFactory2::CreateSwapChainForHwnd().
         ComPtr<IDXGISwapChain3> createSwapChain(IDXGIFactory4* const factory, const HWND hWnd,

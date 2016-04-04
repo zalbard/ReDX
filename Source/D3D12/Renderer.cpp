@@ -88,6 +88,9 @@ Renderer::Renderer() {
         // Use hardware acceleration.
         m_device = createHardwareDevice(factory.Get());
     }
+    // Make sure the GPU time stamp counter does not stop ticking during idle periods.
+    CHECK_CALL(m_device->SetStablePowerState(true),
+               "Failed to enable the stable GPU power state.");
     // Create command contexts.
     m_device->createCommandContext(&m_copyContext);
     m_device->createCommandContext(&m_graphicsContext);
@@ -519,6 +522,10 @@ void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
     // Begin a new segment of the upload buffer.
     m_uploadBuffer.prevSegStart = immediateCopy ? UINT_MAX : m_uploadBuffer.currSegStart;
     m_uploadBuffer.currSegStart = m_uploadBuffer.offset;
+}
+
+std::pair<uint64, uint64> Renderer::getTime() const {
+    return m_graphicsContext.getTime();
 }
 
 void Renderer::startFrame() {

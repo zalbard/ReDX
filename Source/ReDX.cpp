@@ -1,7 +1,6 @@
 #include <future>
 #include "Common\Camera.h"
 #include "Common\Scene.h"
-#include "Common\Timer.h"
 #include "Common\Utility.h"
 #include "D3D12\Renderer.hpp"
 #include "UI\Window.h"
@@ -44,17 +43,13 @@ int __cdecl main(const int argc, const char* argv[]) {
                            /* up  */ {0.f, 1.f, 0.f}};
     // Initialize the input status (no pressed keys).
     KeyPressStatus keyPressStatus{};
-    // Start the timer to compute the frame time deltaT.
-    uint64 prevFrameTime = HighResTimer::microseconds();
+    // Initialize the timings.
+    float  timeDelta = 0.f;
+    uint64 cpuTime0, gpuTime0;
+    std::tie(cpuTime0, gpuTime0) = engine.getTime();
     // Main loop.
     while (true) {
-        // Update the timers as we start a new frame.
-        const uint64 currFrameTime = HighResTimer::microseconds();
-        const float  deltaMillisec = 1e-3f * (currFrameTime - prevFrameTime);
-        const float  deltaSeconds  = static_cast<float>(1e-6 * (currFrameTime - prevFrameTime));
-        prevFrameTime = currFrameTime;
-        Window::displayFrameTime(deltaMillisec);
-        // If the queue is not empty, retrieve a message.
+        // Drain the message queue.
         MSG msg;
         while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
             // Forward the message to the window.
@@ -94,30 +89,46 @@ int __cdecl main(const int argc, const char* argv[]) {
                     return static_cast<int>(msg.wParam);
             }
         }
-        // The message queue is now empty; process keyboard input.
-        const float unitDist  = deltaSeconds * CAM_SPEED;
-        const float unitAngle = deltaSeconds * CAM_ANG_SPEED;
-        float dist  = 0.f;
-        float pitch = 0.f;
-        float yaw   = 0.f;
-        if (keyPressStatus.w) dist  += unitDist;
-        if (keyPressStatus.s) dist  -= unitDist;
-        if (keyPressStatus.q) pitch += unitAngle;
-        if (keyPressStatus.e) pitch -= unitAngle;
-        if (keyPressStatus.d) yaw   += unitAngle;
-        if (keyPressStatus.a) yaw   -= unitAngle;
-        pCam.rotateAndMoveForward(pitch, yaw, dist);
+        // Compute the camera movement parameters.
+        {
+            const float dist  = CAM_SPEED     * timeDelta;
+            const float angle = CAM_ANG_SPEED * timeDelta;
+            float totalDist   = 0.f;
+            float totalPitch  = 0.f;
+            float totalYaw    = 0.f;
+            // Process keyboard input.
+            if (keyPressStatus.w) totalDist  += dist;
+            if (keyPressStatus.s) totalDist  -= dist;
+            if (keyPressStatus.q) totalPitch += angle;
+            if (keyPressStatus.e) totalPitch -= angle;
+            if (keyPressStatus.d) totalYaw   += angle;
+            if (keyPressStatus.a) totalYaw   -= angle;
+            pCam.rotateAndMoveForward(totalPitch, totalYaw, totalDist);
+        }
         // Execute engine code.
         const auto asyncTask = std::async(std::launch::async, [&engine, &pCam]() {
             XMMATRIX viewMat;
             engine.setTransformMatrices(pCam.computeViewProjMatrix(&viewMat), viewMat);
             engine.executeCopyCommands();
         });
-        scene.performFrustumCulling(pCam);
+        const float fracObjVis = scene.performFrustumCulling(pCam);
         engine.startFrame();
         engine.drawIndexed(scene.vertAttribBuffers, scene.indexBuffers.get(), scene.objCount,
                            scene.materialIndices.get(), scene.objVisibilityMask);
         asyncTask.wait();
         engine.finalizeFrame();
+        // Update the timings.
+        {
+            uint64 cpuTime1, gpuTime1;
+            std::tie(cpuTime1, gpuTime1) = engine.getTime();
+            const uint64 cpuFrameTime    = cpuTime1 - cpuTime0;
+            const uint64 gpuFrameTime    = gpuTime1 - gpuTime0;
+            // Convert the frame times from microseconds to milliseconds.
+            Window::displayInfo(fracObjVis, cpuFrameTime * 1e-3f, gpuFrameTime * 1e-3f);
+            // Convert the frame time from microseconds to seconds.
+            timeDelta = static_cast<float>(cpuFrameTime * 1e-6);
+            cpuTime0  = cpuTime1;
+            gpuTime0  = gpuTime1;
+        }
     }
 }
