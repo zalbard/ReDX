@@ -374,8 +374,9 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data)
     return buffer;
 }
 
-std::pair<Texture, uint> Renderer::createTexture(const D3D12_RESOURCE_DESC& desc, const uint size,
-                                                 const void* data) {
+std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_RESOURCE_DESC& desc,
+                                                   const D3D12_TEX2D_SRV& srv,
+                                                   const uint size, const void* data) {
 
     assert(!data || size >= 4);
     assert(D3D12_RESOURCE_DIMENSION_TEXTURE2D == desc.Dimension);
@@ -410,13 +411,10 @@ std::pair<Texture, uint> Renderer::createTexture(const D3D12_RESOURCE_DESC& desc
     }
     // Describe the shader resource view.
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-    srvDesc.Format                        = desc.Format;
-    srvDesc.ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Shader4ComponentMapping       = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Texture2D.MostDetailedMip     = 0;
-    srvDesc.Texture2D.MipLevels           = 1;
-    srvDesc.Texture2D.PlaneSlice          = 0;
-    srvDesc.Texture2D.ResourceMinLODClamp = 0.f;
+    srvDesc.Format                  = desc.Format;
+    srvDesc.ViewDimension           = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Texture2D               = srv;
     // Initialize the shader resource view.
     const uint textureId = m_texPool.size++;
     texture.view = m_texPool.cpuHandle(textureId);

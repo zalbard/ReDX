@@ -17,11 +17,12 @@ namespace D3D12 {
         IndexBuffer createIndexBuffer(const uint count, const uint* indices);
         // Creates a constant buffer for the data of the specified size in bytes.
         ConstantBuffer createConstantBuffer(const uint size, const void* data = nullptr);
-        // Creates a texture according of the specified size to the description.
+        // Creates a 2D texture according of the specified size to the description.
         // Returns the texture itself and its index within the texture pool.
-        // Currently, only 2D textures are supported.
-        std::pair<Texture, uint> createTexture(const D3D12_RESOURCE_DESC& desc, const uint size,
-                                               const void* data = nullptr);
+        // Multi-sample textures are not supported.
+        std::pair<Texture, uint> createTexture2D(const D3D12_RESOURCE_DESC& desc,
+                                                 const D3D12_TEX2D_SRV& srv,
+                                                 const uint size, const void* data = nullptr);
         // Sets materials (represented by texture indices) in shaders.
         void setMaterials(const uint size, const void* data);
         // Sets transformation matrices in shaders.

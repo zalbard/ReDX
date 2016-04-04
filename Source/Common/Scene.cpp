@@ -205,23 +205,30 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
             // Describe the 2D texture.
             const D3D12_RESOURCE_DESC texDesc = {
                 /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-                /* Alignment */        0,   // Automatic
+                /* Alignment */        D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
                 /* Width */            info.width,
                 /* Height */           static_cast<uint>(info.height),
                 /* DepthOrArraySize */ static_cast<uint16>(info.depth),
-                /* MipLevels */        0,   // Automatic
+                /* MipLevels */        static_cast<uint16>(info.mipLevels),
                 /* Format */           info.format,
                 /* SampleDesc */       defaultSampleDesc,
                 /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
                 /* Flags */            D3D12_RESOURCE_FLAG_NONE
             };
+            // Describe the SRV.
+            const D3D12_TEX2D_SRV srv = {
+                /* MostDetailedMip*/      0,
+                /* MipLevels */           static_cast<uint>(info.mipLevels),
+                /* PlaneSlice */          0,
+                /* ResourceMinLODClamp */ 0.f
+            };
             // Create the texture.
             const uint  texSize = static_cast<uint>(img.GetPixelsSize());
             const byte* texData = img.GetPixels();
-            const auto  result  = texLib.emplace(texName,
-                                                 engine.createTexture(texDesc, texSize, texData));
+            const auto  result  = texLib.emplace(texName, engine.createTexture2D(texDesc, srv,
+                                                                                 texSize, texData));
             // Return the texture index.
-            const auto texIter  = result.first;
+            const auto texIter = result.first;
             return texIter->second.second;
         }
     };
