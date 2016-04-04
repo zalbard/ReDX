@@ -65,8 +65,8 @@ static inline auto hasTgaExt(const std::string& str)
 }
 
 // Converts the string 'str' to a UTF-8 character string 'wideStr' of length up to 'wideStrLen'.
-static inline void convertToUtf8(const std::string& str,
-                                 wchar_t* const wideStr, const uint wideStrLen) {
+static inline void convertToUtf8(const std::string& str, const uint wideStrLen,
+                                 wchar_t* wideStr) {
     if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
                              str.c_str(), static_cast<int>(str.length() + 1),
                              wideStr, wideStrLen)) {
@@ -79,7 +79,7 @@ static inline void convertToUtf8(const std::string& str,
 // Map where Key = texture name, Value = pair (texture : texture index).
 using TextureMap = std::unordered_map<std::string, std::pair<D3D12::Texture, uint>>;
 
-Scene::Scene(const char* const path, const char* const objFileName, D3D12::Renderer& engine) {
+Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine) {
     assert(path && objFileName);
     const std::string pathStr = path;
     // Load the .obj file.
@@ -157,7 +157,7 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
     // Copy the scene geometry to the GPU.
     engine.executeCopyCommands();
     // Compute bounding spheres.
-    const XMFLOAT3* const positionArray = positions.data();
+    const XMFLOAT3* positionArray = positions.data();
     for (uint i = 0; i < objCount; ++i) {
         const IndexedPointIterator begin = {positionArray, indexedObjects[i].indices.data()};
         const IndexedPointIterator end   = {positionArray, indexedObjects[i].indices.data() +
@@ -189,7 +189,7 @@ Scene::Scene(const char* const path, const char* const objFileName, D3D12::Rende
         } else {
             // Combine the path and the filename.
             wchar_t tgaFilePath[128];
-            convertToUtf8(pathStr + texName, tgaFilePath, 128);
+            convertToUtf8(pathStr + texName, 128, tgaFilePath);
             // Load the .tga texture.
             TexMetadata  info;
             ScratchImage tmp;

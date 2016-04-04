@@ -8,7 +8,7 @@
 
 // Aligns the memory address to the next multiple of alignment.
 template <uint64 alignment>
-static inline auto align(const void* const address)
+static inline auto align(const void* address)
 -> byte* {
     // Make sure that the alignment is non-zero, and is a power of 2.
     static_assert((0 != alignment) && (0 == (alignment & (alignment - 1))), "Invalid alignment.");
@@ -17,8 +17,8 @@ static inline auto align(const void* const address)
 }
 
 // For internal use only!
-static inline void printInternal(FILE* const stream, const char* const prefix,
-                                 const char* const fmt, const va_list& args) {
+static inline void printInternal(FILE* stream, const char* prefix, const char* fmt,
+                                 const va_list args) {
     // Print the time stamp.
     time_t rawTime;
     time(&rawTime);
@@ -34,7 +34,7 @@ static inline void printInternal(FILE* const stream, const char* const prefix,
 }
 
 // Prints information to stdout (printf syntax) and appends a newline at the end.
-static inline void printInfo(const char* const fmt, ...) {
+static inline void printInfo(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     printInternal(stdout, nullptr, fmt, args);
@@ -43,7 +43,7 @@ static inline void printInfo(const char* const fmt, ...) {
 }
 
 // Prints warnings to stdout (printf syntax) and appends a newline at the end.
-static inline void printWarning(const char* const fmt, ...) {
+static inline void printWarning(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     printInternal(stdout, "Warning:", fmt, args);
@@ -52,7 +52,7 @@ static inline void printWarning(const char* const fmt, ...) {
 }
 
 // Prints fatal errors to stderr (printf syntax) and appends a newline at the end.
-static inline void printError(const char* const fmt, ...) {
+static inline void printError(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     printInternal(stderr, "Error:", fmt, args);
@@ -61,7 +61,7 @@ static inline void printError(const char* const fmt, ...) {
 }
 
 // For internal use only!
-[[noreturn]] static inline void panic(const char* const file, const int line) {
+[[noreturn]] static inline void panic(const char* file, const int line) {
     fprintf(stderr, "Error location: %s : %i\n", file, line);
     abort();
 }

@@ -120,17 +120,17 @@ namespace D3D12 {
         void syncThread(const uint64 fenceValue);
         // Stalls the execution of the command queue until
         // the fence with the specified value is reached.
-        void syncCommandQueue(ID3D12Fence* const fence, const uint64 fenceValue);
+        void syncCommandQueue(ID3D12Fence* fence, const uint64 fenceValue);
         // Resets the command list allocator. This function should be called once per frame.
         void resetCommandAllocator();
         // Resets the command list with the specified index to the specified state.
         // Since it opens the command list, avoid calling it right before resetCommandAllocator().
-        void resetCommandList(const uint index, ID3D12PipelineState* const state);
+        void resetCommandList(const uint index, ID3D12PipelineState* state);
         // Returns the current time of the CPU thread and the GPU queue in microseconds.
         std::pair<uint64, uint64> getTime() const;
         // Creates a swap chain for the window handle 'wHnd' according to the specified description.
         // Wraps around IDXGIFactory2::CreateSwapChainForHwnd().
-        ComPtr<IDXGISwapChain3> createSwapChain(IDXGIFactory4* const factory, const HWND hWnd,
+        ComPtr<IDXGISwapChain3> createSwapChain(IDXGIFactory4* factory, const HWND hWnd,
                                                 const DXGI_SWAP_CHAIN_DESC1& swapChainDesc);
         // Waits for all command queue operations to complete, and stops synchronization.
         void destroy();
@@ -166,13 +166,13 @@ namespace D3D12 {
         // Creates a command context of the specified type.
         // Optionally, the priority can be set to 'high', and the GPU timeout can be disabled.
         template <CmdType T, uint N, uint L>
-        void createCommandContext(CommandContext<T, N, L>* const commandContext, 
+        void createCommandContext(CommandContext<T, N, L>* commandContext, 
                                   const bool isHighPriority    = false, 
                                   const bool disableGpuTimeout = false);
 
         // Creates a descriptor pool of type T and size (descriptor count) N.
         template <DescType T, uint N>
-        void createDescriptorPool(DescriptorPool<T, N>* const descriptorPool);
+        void createDescriptorPool(DescriptorPool<T, N>* descriptorPool);
         // Multi-GPU-adapter mask. Rendering is performed on a single GPU.
         static constexpr uint nodeMask = 0;
     };

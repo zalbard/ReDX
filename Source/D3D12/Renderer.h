@@ -12,18 +12,18 @@ namespace D3D12 {
         Renderer();
         // Creates a vertex attribute buffer for the vertex array of 'count' elements.
         template <typename T>
-        VertexBuffer createVertexBuffer(const uint count, const T* const elements);
+        VertexBuffer createVertexBuffer(const uint count, const T* elements);
         // Creates an index buffer for the index array with the specified number of indices.
-        IndexBuffer createIndexBuffer(const uint count, const uint* const indices);
+        IndexBuffer createIndexBuffer(const uint count, const uint* indices);
         // Creates a constant buffer for the data of the specified size in bytes.
-        ConstantBuffer createConstantBuffer(const uint size, const void* const data = nullptr);
+        ConstantBuffer createConstantBuffer(const uint size, const void* data = nullptr);
         // Creates a texture according of the specified size to the description.
         // Returns the texture itself and its index within the texture pool.
         // Currently, only 2D textures are supported.
         std::pair<Texture, uint> createTexture(const D3D12_RESOURCE_DESC& desc, const uint size,
-                                               const void* const data = nullptr);
+                                               const void* data = nullptr);
         // Sets materials (represented by texture indices) in shaders.
-        void setMaterials(const uint size, const void* const data);
+        void setMaterials(const uint size, const void* data);
         // Sets transformation matrices in shaders.
         void setTransformMatrices(DirectX::FXMMATRIX viewProj, DirectX::CXMMATRIX viewMat);
         // Submits all pending copy commands for execution, and begins a new segment
@@ -41,8 +41,8 @@ namespace D3D12 {
         // 'materialIndices' associates index buffers with material indices.
         // 'drawMask' indicates whether geometry (within 'ibos') should be drawn.
         void drawIndexed(const VertexBuffer (&vbos)[N],
-                         const IndexBuffer* const ibos, const uint iboCount,
-                         const uint16* const materialIndices,
+                         const IndexBuffer* ibos, const uint iboCount,
+                         const uint16* materialIndices,
                          const DynBitSet& drawMask);
         // Finalizes the frame rendering process.
         void finalizeFrame();
@@ -54,7 +54,7 @@ namespace D3D12 {
         // Copies the data of the specified size in bytes and alignment into the upload buffer.
         // Returns the offset into the upload buffer which corresponds to the location of the data.
         template<uint64 alignment>
-        uint64 copyToUploadBuffer(const uint size, const void* const data);
+        uint64 copyToUploadBuffer(const uint size, const void* data);
     private:
         ComPtr<ID3D12DeviceEx>        m_device;
         D3D12_VIEWPORT                m_viewport;

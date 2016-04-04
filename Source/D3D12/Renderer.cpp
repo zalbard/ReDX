@@ -10,7 +10,7 @@
 using namespace D3D12;
 using namespace DirectX;
 
-static inline auto createWarpDevice(IDXGIFactory4* const factory)
+static inline auto createWarpDevice(IDXGIFactory4* factory)
 -> ComPtr<ID3D12DeviceEx> {
     ComPtr<IDXGIAdapter> adapter;
     CHECK_CALL(factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter)),
@@ -21,7 +21,7 @@ static inline auto createWarpDevice(IDXGIFactory4* const factory)
     return device;
 }
 
-static inline auto createHardwareDevice(IDXGIFactory4* const factory)
+static inline auto createHardwareDevice(IDXGIFactory4* factory)
 -> ComPtr<ID3D12DeviceEx> {
     for (uint adapterIndex = 0; ; ++adapterIndex) {
         ComPtr<IDXGIAdapter1> adapter;
@@ -315,7 +315,7 @@ void Renderer::configurePipeline() {
     m_materialBuffer = createConstantBuffer(1024);
 }
 
-IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indices) {
+IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
     assert(indices && count >= 3);
     IndexBuffer buffer;
     const uint size = count * sizeof(uint);
@@ -345,7 +345,7 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* const indi
     return buffer;
 }
 
-ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* const data) {
+ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data) {
     assert(!data || size >= 4);
     ConstantBuffer buffer;
     // Allocate the buffer on the default heap.
@@ -375,7 +375,7 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* const
 }
 
 std::pair<Texture, uint> Renderer::createTexture(const D3D12_RESOURCE_DESC& desc, const uint size,
-                                                 const void* const data) {
+                                                 const void* data) {
 
     assert(!data || size >= 4);
     assert(D3D12_RESOURCE_DIMENSION_TEXTURE2D == desc.Dimension);
@@ -424,7 +424,7 @@ std::pair<Texture, uint> Renderer::createTexture(const D3D12_RESOURCE_DESC& desc
     return {texture, textureId};
 }
 
-void Renderer::setMaterials(const uint size, const void* const data) {
+void Renderer::setMaterials(const uint size, const void* data) {
     constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     // Copy the data into the upload buffer.
     const     uint64 offset    = copyToUploadBuffer<alignment>(size, data);

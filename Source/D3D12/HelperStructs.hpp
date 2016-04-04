@@ -116,13 +116,13 @@ namespace D3D12 {
         // Close the command list.
         CHECK_CALL(m_commandLists[index]->Close(), "Failed to close the command list.");
         // Submit the command list for execution.
-        ID3D12CommandList* const cmdList = m_commandLists[index].Get();
+        ID3D12CommandList* cmdList = m_commandLists[index].Get();
         m_commandQueue->ExecuteCommandLists(1, &cmdList);
         // Insert a fence (with the updated value) into the command queue.
         // Once we reach the fence in the queue, a signal will go off,
         // which will set the internal value of the fence object to 'value'.
-        ID3D12Fence* const fence = m_fence.Get();
-        const uint64       value = ++m_fenceValue;
+        ID3D12Fence* fence = m_fence.Get();
+        const uint64 value = ++m_fenceValue;
         CHECK_CALL(m_commandQueue->Signal(fence, value),
                    "Failed to insert a fence into the command queue.");
         return {fence, value};
@@ -141,7 +141,7 @@ namespace D3D12 {
     }
 
     template<CmdType T, uint N, uint L>
-    inline void CommandContext<T, N, L>::syncCommandQueue(ID3D12Fence* const fence,
+    inline void CommandContext<T, N, L>::syncCommandQueue(ID3D12Fence* fence,
                                                           const uint64 fenceValue) {
         CHECK_CALL(m_commandQueue->Wait(fence, fenceValue),
                    "Failed to start waiting for the fence.");
@@ -164,7 +164,7 @@ namespace D3D12 {
 
     template<CmdType T, uint N, uint L>
     inline void CommandContext<T, N, L>::resetCommandList(const uint index,
-                                                          ID3D12PipelineState* const state) {
+                                                          ID3D12PipelineState* state) {
         assert(index < L);
         // After a command list has been executed, it can be then
         // reset at any time (and must be before re-recording).
@@ -189,8 +189,7 @@ namespace D3D12 {
     }
 
     template<CmdType T, uint N, uint L>
-    inline auto CommandContext<T, N, L>::createSwapChain(IDXGIFactory4* const factory,
-                                                         const HWND hWnd,
+    inline auto CommandContext<T, N, L>::createSwapChain(IDXGIFactory4* factory, const HWND hWnd,
                                                          const DXGI_SWAP_CHAIN_DESC1& swapChainDesc)
     -> ComPtr<IDXGISwapChain3> {
         ComPtr<IDXGISwapChain3> swapChain;
@@ -229,7 +228,7 @@ namespace D3D12 {
     }
 
     template<CmdType T, uint N, uint L>
-    inline void ID3D12DeviceEx::createCommandContext(CommandContext<T, N, L>* const commandContext,
+    inline void ID3D12DeviceEx::createCommandContext(CommandContext<T, N, L>* commandContext,
                                                      const bool isHighPriority,
                                                      const bool disableGpuTimeout) {
         static_assert(N > 0 && L > 0, "Invalid command context parameters.");
@@ -281,7 +280,7 @@ namespace D3D12 {
     }
 
     template<DescType T, uint N>
-    inline void ID3D12DeviceEx::createDescriptorPool(DescriptorPool<T, N>* const descriptorPool) {
+    inline void ID3D12DeviceEx::createDescriptorPool(DescriptorPool<T, N>* descriptorPool) {
         static_assert(N > 0, "Invalid descriptor pool capacity.");
         assert(descriptorPool);
         constexpr auto nativeType      = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);

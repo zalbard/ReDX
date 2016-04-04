@@ -6,7 +6,7 @@
 
 namespace D3D12 {
     template <typename T>
-    inline auto Renderer::createVertexBuffer(const uint count, const T* const elements)
+    inline auto Renderer::createVertexBuffer(const uint count, const T* elements)
     -> VertexBuffer {
         assert(elements && count >= 3);
         VertexBuffer buffer;
@@ -40,8 +40,8 @@ namespace D3D12 {
 
     template <uint N>
     inline void Renderer::drawIndexed(const VertexBuffer (&vbos)[N],
-                                      const IndexBuffer* const ibos, const uint iboCount,
-                                      const uint16* const materialIndices,
+                                      const IndexBuffer* ibos, const uint iboCount,
+                                      const uint16* materialIndices,
                                       const DynBitSet& drawMask) {
         D3D12_VERTEX_BUFFER_VIEW vboViews[N];
         for (uint i = 0; i < N; ++i) {
@@ -67,7 +67,7 @@ namespace D3D12 {
     }
 
     template<uint64 alignment>
-    inline auto Renderer::copyToUploadBuffer(const uint size, const void* const data)
+    inline auto Renderer::copyToUploadBuffer(const uint size, const void* data)
     -> uint64 {
         assert(data && size > 0);
         // Compute the address within the upload buffer which we will copy the data to.
