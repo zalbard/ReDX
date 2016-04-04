@@ -193,39 +193,16 @@ Renderer::Renderer() {
 }
 
 void Renderer::configurePipeline() {
-    // Create a graphics root signature.
-    {
-        CD3DX12_ROOT_PARAMETER params[4];
-        params[0].InitAsConstants(1, 0, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-        params[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_VERTEX);
-        params[2].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_PIXEL);
-        const D3D12_DESCRIPTOR_RANGE srvRange = {
-            /* RangeType */ D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-        /* NumDescriptors */ D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
-        /* BaseShaderRegister */ 0 ,
-        /* RegisterSpace */ 0 ,
-        /* OffsetInDescriptorsFromTableStart */ D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND
-        };
-        params[3].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
-        const CD3DX12_STATIC_SAMPLER_DESC staticSampler{0, D3D12_FILTER_MIN_MAG_MIP_POINT};
-        // Fill out the root signature description.
-        const auto rootSignDesc = D3D12_ROOT_SIGNATURE_DESC{4, params, 1, &staticSampler,
-                                  D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT};
-        // Serialize a root signature from the description.
-        ComPtr<ID3DBlob> signature, error;
-        CHECK_CALL(D3D12SerializeRootSignature(&rootSignDesc, D3D_ROOT_SIGNATURE_VERSION_1,
-                                               &signature, &error),
-                   "Failed to serialize a root signature.");
-        // Create a root signature layout using the serialized signature.
-        CHECK_CALL(m_device->CreateRootSignature(m_device->nodeMask,
-                                                 signature->GetBufferPointer(),
-                                                 signature->GetBufferSize(),
-                                                 IID_PPV_ARGS(&m_graphicsRootSignature)),
-                   "Failed to create a graphics root signature.");
-    }
-    // Import the vertex and pixel shaders.
+    // Import the bytecode of the graphics root signature and the shaders.
+    const Buffer rsByteCode{"Shaders\\DrawRS.cso"};
     const Buffer vsByteCode("Shaders\\DrawVS.cso");
     const Buffer psByteCode("Shaders\\DrawPS.cso");
+    // Create a graphics root signature.
+    CHECK_CALL(m_device->CreateRootSignature(m_device->nodeMask,
+                                             rsByteCode.data(),
+                                             rsByteCode.size,
+                                             IID_PPV_ARGS(&m_graphicsRootSignature)),
+               "Failed to create a graphics root signature.");
     // Configure the way depth and stencil tests affect stencil values.
     const D3D12_DEPTH_STENCILOP_DESC depthStencilOpDesc = {
         /* StencilFailOp */      D3D12_STENCIL_OP_KEEP,

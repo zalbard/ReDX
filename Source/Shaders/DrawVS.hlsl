@@ -1,3 +1,5 @@
+#include "DrawRS.hlsl"
+
 cbuffer Transforms : register(b1) {
     float4x4 viewProj;
     float3x3 viewMat;
@@ -15,6 +17,7 @@ struct InputPS {
     float2 uvCoords : TEXCOORD1;
 };
 
+[RootSignature(RootSig)]
 InputPS main(InputVS input) {
     // Hint the compiler about the structure of the matrix
     // to help with constant propagation (save 3 VALU).

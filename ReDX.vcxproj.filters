@@ -128,6 +128,9 @@
     <FxCompile Include="Source\Shaders\DrawVS.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Source\Shaders\DrawRS.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="GPLv3.txt">

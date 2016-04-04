@@ -1,3 +1,5 @@
+#include "DrawRS.hlsl"
+
 cbuffer RootConsts : register(b0) {
     uint matId;
 }
@@ -26,6 +28,7 @@ struct InputPS {
     float2 uvCoords : TEXCOORD1;
 };
 
+[RootSignature(RootSig)]
 float4 main(InputPS input) : SV_TARGET {
     const uint baseTexId = materials[matId].baseTexId;
     if (baseTexId < 0xFFFFFFFF) {
