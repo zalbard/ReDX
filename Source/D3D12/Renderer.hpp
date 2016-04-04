@@ -58,9 +58,8 @@ namespace D3D12 {
                     // Set the object's material index.
                     graphicsCommandList->SetGraphicsRoot32BitConstant(0, matId, 0);
                 }
-                // Set the object's index buffer.
-                graphicsCommandList->IASetIndexBuffer(&ibos[i].view);
                 // Draw the object.
+                graphicsCommandList->IASetIndexBuffer(&ibos[i].view);
                 graphicsCommandList->DrawIndexedInstanced(ibos[i].count(), 1, 0, 0, 0);
             }
         }
