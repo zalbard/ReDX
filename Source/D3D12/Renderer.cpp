@@ -286,8 +286,7 @@ void Renderer::configurePipeline() {
             /* pShaderBytecode */       psByteCode.data(),
             /* BytecodeLength  */       psByteCode.size
                                     },
-        /* DS, HS, GS */            {}, {}, {},
-        /* StreamOutput */          D3D12_STREAM_OUTPUT_DESC{},
+        /* DS, HS, GS, SO */        {}, {}, {}, {},
         /* BlendState */            CD3DX12_BLEND_DESC{D3D12_DEFAULT},
         /* SampleMask */            UINT_MAX,
         /* RasterizerState */       rasterizerDesc,
