@@ -62,24 +62,12 @@ int __cdecl main(const int argc, const char* argv[]) {
                     {
                         const uint status = msg.message ^ 0x1;
                         switch (msg.wParam) {
-                            case 0x57:
-                                keyPressStatus.w = status;
-                                break;
-                            case 0x53:
-                                keyPressStatus.s = status;
-                                break;
-                            case 0x41:
-                                keyPressStatus.a = status;
-                                break;
-                            case 0x44:
-                                keyPressStatus.d = status;
-                                break;
-                            case 0x45:
-                                keyPressStatus.e = status;
-                                break;
-                            case 0x51:
-                                keyPressStatus.q = status;
-                                break;
+                            case 0x57: keyPressStatus.w = status; break;
+                            case 0x53: keyPressStatus.s = status; break;
+                            case 0x41: keyPressStatus.a = status; break;
+                            case 0x44: keyPressStatus.d = status; break;
+                            case 0x45: keyPressStatus.e = status; break;
+                            case 0x51: keyPressStatus.q = status; break;
                         }
                     }
                     break;
