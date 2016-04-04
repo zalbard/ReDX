@@ -11,7 +11,7 @@ struct Buffer {
     byte*       data();
     const byte* data() const;
 public:
+    std::unique_ptr<byte[]> ptr;        // Storage array
     uint                    size;       // Bytes currently used
     uint                    capacity;   // Bytes available in total
-    std::unique_ptr<byte[]> ptr;        // Storage array
 };
