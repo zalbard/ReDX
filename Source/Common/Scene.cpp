@@ -191,41 +191,35 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
             wchar_t tgaFilePath[128];
             convertToUtf8(pathStr + texName, 128, tgaFilePath);
             // Load the .tga texture.
-            TexMetadata  info;
             ScratchImage tmp;
-            CHECK_CALL(LoadFromTGAFile(tgaFilePath, &info, tmp),
+            CHECK_CALL(LoadFromTGAFile(tgaFilePath, nullptr, tmp),
                        "Failed to load the .tga file.");
             // Perform quick verification.
             assert(1 == tmp.GetImageCount());
-            assert(TEX_DIMENSION_TEXTURE2D == info.dimension);
+            assert(TEX_DIMENSION_TEXTURE2D == tmp.GetMetadata().dimension);
             // Flip the image.
             ScratchImage img;
             CHECK_CALL(FlipRotate(*tmp.GetImages(), TEX_FR_FLIP_VERTICAL, img),
                        "Failed to perform a vertical image flip.");
+            // Generate MIP maps.
+            ScratchImage mipChain;
+            CHECK_CALL(GenerateMipMaps(*img.GetImages(), TEX_FILTER_DEFAULT, 0, mipChain),
+                       "Failed to generate MIP maps.");
             // Describe the 2D texture.
-            const D3D12_RESOURCE_DESC texDesc = {
-                /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-                /* Alignment */        D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-                /* Width */            info.width,
-                /* Height */           static_cast<uint>(info.height),
-                /* DepthOrArraySize */ static_cast<uint16>(info.depth),
-                /* MipLevels */        static_cast<uint16>(info.mipLevels),
-                /* Format */           info.format,
-                /* SampleDesc */       defaultSampleDesc,
-                /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
-                /* Flags */            D3D12_RESOURCE_FLAG_NONE
-            };
-            const D3D12_TEX2D_SRV texInfo = {
-                /* MostDetailedMip*/      0,
-                /* MipLevels */           texDesc.MipLevels,
-                /* PlaneSlice */          0,
-                /* ResourceMinLODClamp */ 0.f
+            const TexMetadata& info = mipChain.GetMetadata();
+            const D3D12_SUBRESOURCE_FOOTPRINT footprint = {
+                /* Format */   info.format,
+                /* Width */    static_cast<uint>(info.width),
+                /* Height */   static_cast<uint>(info.height),
+                /* Depth */    static_cast<uint>(info.depth),
+                /* RowPitch */ static_cast<uint>(mipChain.GetImages()->rowPitch)
             };
             // Create the texture.
-            const uint  texSize = static_cast<uint>(img.GetPixelsSize());
-            const byte* texData = img.GetPixels();
-            const auto  result  = texLib.emplace(texName, engine.createTexture2D(texDesc, texInfo,
-                                                                                 texSize, texData));
+            const uint  mipCount = static_cast<uint>(info.mipLevels);
+            const byte* texData  = mipChain.GetPixels();
+            const auto  result   = texLib.emplace(texName, engine.createTexture2D(footprint,
+                                                                                  mipCount,
+                                                                                  texData));
             // Return the texture index.
             const auto texIter = result.first;
             return texIter->second.second;

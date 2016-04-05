@@ -374,17 +374,26 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data)
     return buffer;
 }
 
-std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_RESOURCE_DESC& desc,
-                                                   const D3D12_TEX2D_SRV& texInfo,
-                                                   const uint size, const void* data) {
+std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTPRINT& footprint,
+                                                   const uint mipCount, const void* data) {
 
-    assert(!data || size >= 4);
-    assert(D3D12_RESOURCE_DIMENSION_TEXTURE2D == desc.Dimension);
     Texture texture;
     // Allocate the texture on the default heap.
+    const D3D12_RESOURCE_DESC resourceDesc = {
+        /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+        /* Alignment */        D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+        /* Width */            footprint.Width,
+        /* Height */           footprint.Height,
+        /* DepthOrArraySize */ static_cast<uint16>(footprint.Depth),
+        /* MipLevels */        static_cast<uint16>(mipCount),
+        /* Format */           footprint.Format,
+        /* SampleDesc */       defaultSampleDesc,
+        /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
+        /* Flags */            D3D12_RESOURCE_FLAG_NONE
+    };
     const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &desc, D3D12_RESOURCE_STATE_COMMON,
+                                                 &resourceDesc, D3D12_RESOURCE_STATE_COMMON,
                                                  nullptr, IID_PPV_ARGS(&texture.resource)),
                "Failed to allocate a texture.");
     // Transition the buffer state for the graphics/compute command queue type class.
@@ -393,28 +402,48 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_RESOURCE_DESC& de
                                                    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
-        constexpr uint64 alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
-        // Copy the data into the upload buffer.
-        const     uint64 offset    = copyToUploadBuffer<alignment>(size, data);
-        // Copy the data from the upload buffer into the video memory texture.
-        const D3D12_SUBRESOURCE_FOOTPRINT footprint = {
-            /* Format */   desc.Format,
-            /* Width */    static_cast<uint>(desc.Width),
-            /* Height */   desc.Height,
-            /* Depth */    desc.DepthOrArraySize,
-            /* RowPitch */ size / desc.Height
-        };
-        assert(0 == footprint.RowPitch % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
-        const CD3DX12_TEXTURE_COPY_LOCATION src{m_uploadBuffer.resource.Get(), {offset, footprint}};
-        const CD3DX12_TEXTURE_COPY_LOCATION dst{texture.resource.Get(), 0};
-        m_copyContext.commandList(0)->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+        constexpr uint64 pitchAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
+        constexpr uint64 placeAlignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+        assert(0 == footprint.RowPitch % pitchAlignment);
+        // Upload MIP levels one by one.
+        for (uint i = 0; i < mipCount; ++i) {
+            const uint rowPitch   = footprint.RowPitch >> i;
+            const uint levelPitch = align<pitchAlignment>(rowPitch);
+            const uint levelSize  = levelPitch * footprint.Height >> i;
+            uint offset;
+            // Check whether pitched copying is required.
+            if (rowPitch == levelPitch) {
+                // Copy the entire MIP level at once.
+                offset = copyToUploadBuffer<placeAlignment>(levelSize, data);
+                // Advance the data pointer to the next MIP level.
+                data = static_cast<const byte*>(data) + levelSize;
+            } else {
+                // Reserve a chunk of memory for the entire MIP level.
+                byte* address;
+                std::tie(address, offset) = reserveChunkOfUploadBuffer<placeAlignment>(levelSize);
+                // Copy the MIP level one row at a time.
+                for (uint row = 0, height = footprint.Height >> i; row < height; ++row) {
+                    memcpy(address, data, rowPitch);
+                    address += levelPitch;
+                    data     = static_cast<const byte*>(data) + rowPitch;
+                }
+            }
+            // Copy the data from the upload buffer into the video memory texture.
+            const D3D12_PLACED_SUBRESOURCE_FOOTPRINT levelFootprint = {
+                /* Offset */   offset,
+                /* Format */   footprint.Format,
+                /* Width */    footprint.Width >> i,
+                /* Height */   footprint.Height >> i,
+                /* Depth */    footprint.Depth,
+                /* RowPitch */ levelPitch
+            };
+            const CD3DX12_TEXTURE_COPY_LOCATION src{m_uploadBuffer.resource.Get(), levelFootprint};
+            const CD3DX12_TEXTURE_COPY_LOCATION dst{texture.resource.Get(), i};
+            m_copyContext.commandList(0)->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+        }
     }
     // Describe the shader resource view.
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-    srvDesc.Format                  = desc.Format;
-    srvDesc.ViewDimension           = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Texture2D               = texInfo;
+    const CD3DX12_TEX2D_SRV_DESC srvDesc{footprint.Format, mipCount};
     // Initialize the shader resource view.
     const uint textureId = m_texPool.size++;
     texture.view = m_texPool.cpuHandle(textureId);

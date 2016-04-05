@@ -32,7 +32,7 @@ struct InputPS {
 float4 main(InputPS input) : SV_TARGET {
     const uint baseTexId = materials[matId].baseTexId;
     if (baseTexId < 0xFFFFFFFF) {
-        return textures[baseTexId].SampleLevel(samp, input.uvCoords, 0.f);
+        return textures[baseTexId].Sample(samp, input.uvCoords);
     } else {
         return float4(1.f, 0.f, 0.f, 1.f);
     }

@@ -6,4 +6,5 @@
     "DescriptorTable("                                                                          \
         "SRV(t0, numDescriptors = unbounded), "                                                 \
         "visibility = SHADER_VISIBILITY_PIXEL), "                                               \
-    "StaticSampler(s0, filter = FILTER_MIN_MAG_MIP_POINT, visibility = SHADER_VISIBILITY_PIXEL)"
+    "StaticSampler(s0, filter = FILTER_ANISOTROPIC, maxAnisotropy = 4, "                        \
+                  "visibility = SHADER_VISIBILITY_PIXEL)"
