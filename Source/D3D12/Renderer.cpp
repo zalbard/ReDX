@@ -139,7 +139,7 @@ Renderer::Renderer() {
     }
     // Create a depth-stencil buffer.
     {
-        const D3D12_RESOURCE_DESC bufferDesc = {
+        const D3D12_RESOURCE_DESC resourceDesc = {
             /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
             /* Alignment */        0,   // Automatic
             /* Width */            width(m_scissorRect),
@@ -158,8 +158,9 @@ Renderer::Renderer() {
         };
         const CD3DX12_HEAP_PROPERTIES heapProperties{D3D12_HEAP_TYPE_DEFAULT};
         CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                     &bufferDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE,
-                                                     &clearValue, IID_PPV_ARGS(&m_depthBuffer)),
+                                                     &resourceDesc,
+                                                     D3D12_RESOURCE_STATE_DEPTH_WRITE, &clearValue,
+                                                     IID_PPV_ARGS(&m_depthBuffer)),
                    "Failed to allocate a depth buffer.");
         const D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {
             /* Format */        DSV_FORMAT,
@@ -175,9 +176,9 @@ Renderer::Renderer() {
         m_uploadBuffer.capacity   = UPLOAD_BUF_SIZE;
         // Allocate the buffer on the upload heap.
         const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
-        const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(m_uploadBuffer.capacity);
+        const auto resourceDesc     = CD3DX12_RESOURCE_DESC::Buffer(m_uploadBuffer.capacity);
         CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, 
-                                                     &bufferDesc,
+                                                     &resourceDesc,
                                                      D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
                                                      IID_PPV_ARGS(&m_uploadBuffer.resource)),
                    "Failed to allocate an upload buffer.");
@@ -320,9 +321,9 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
     const uint size = count * sizeof(uint);
     // Allocate the buffer on the default heap.
     const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
-    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
+    const auto resourceDesc   = CD3DX12_RESOURCE_DESC::Buffer(size);
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &bufferDesc, D3D12_RESOURCE_STATE_COMMON,
+                                                 &resourceDesc, D3D12_RESOURCE_STATE_COMMON,
                                                  nullptr, IID_PPV_ARGS(&buffer.resource)),
                "Failed to allocate an index buffer.");
     // Transition the buffer state for the graphics/compute command queue type class.
@@ -332,7 +333,7 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
     // Max. alignment requirement for indices is 4 bytes.
     constexpr uint64 alignment = 4;
     // Copy indices into the upload buffer.
-    const     uint64 offset    = copyToUploadBuffer<alignment>(size, indices);
+    const uint offset = copyToUploadBuffer<alignment>(size, indices);
     // Copy the data from the upload buffer into the video memory buffer.
     m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
                                                    m_uploadBuffer.resource.Get(), offset,
@@ -349,9 +350,9 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data)
     ConstantBuffer buffer;
     // Allocate the buffer on the default heap.
     const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
-    const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
+    const auto resourceDesc   = CD3DX12_RESOURCE_DESC::Buffer(size);
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &bufferDesc, D3D12_RESOURCE_STATE_COMMON,
+                                                 &resourceDesc, D3D12_RESOURCE_STATE_COMMON,
                                                  nullptr, IID_PPV_ARGS(&buffer.resource)),
                "Failed to allocate a constant buffer.");
     // Transition the buffer state for the graphics/compute command queue type class.
@@ -362,7 +363,7 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data)
     if (data) {
         constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
         // Copy the data into the upload buffer.
-        const     uint64 offset    = copyToUploadBuffer<alignment>(size, data);
+        const uint offset = copyToUploadBuffer<alignment>(size, data);
         // Copy the data from the upload buffer into the video memory buffer.
         m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
                                                        m_uploadBuffer.resource.Get(), offset,
@@ -424,7 +425,7 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_RESOURCE_DESC& de
 void Renderer::setMaterials(const uint size, const void* data) {
     constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     // Copy the data into the upload buffer.
-    const     uint64 offset    = copyToUploadBuffer<alignment>(size, data);
+    const uint offset = copyToUploadBuffer<alignment>(size, data);
     // Copy the data from the upload buffer into the video memory buffer.
     m_copyContext.commandList(0)->CopyBufferRegion(m_materialBuffer.resource.Get(), 0,
                                                    m_uploadBuffer.resource.Get(), offset,
@@ -441,7 +442,7 @@ void Renderer::setTransformMatrices(FXMMATRIX viewProj, CXMMATRIX viewMat) {
     }
     constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     // Copy the data into the upload buffer.
-    const     uint64 offset    = copyToUploadBuffer<alignment>(XFORM_BUF_SIZE, matrices);
+    const uint offset = copyToUploadBuffer<alignment>(XFORM_BUF_SIZE, matrices);
     // Copy the data from the upload buffer into the video memory buffer.
     m_copyContext.commandList(0)->CopyBufferRegion(m_transformBuffer.resource.Get(), 0,
                                                    m_uploadBuffer.resource.Get(), offset,
