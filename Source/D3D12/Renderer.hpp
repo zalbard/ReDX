@@ -13,9 +13,9 @@ namespace D3D12 {
         const uint size = count * sizeof(T);
         // Allocate the buffer on the default heap.
         const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
-        const auto bufferDesc     = CD3DX12_RESOURCE_DESC::Buffer(size);
+        const auto resourceDesc   = CD3DX12_RESOURCE_DESC::Buffer(size);
         CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                     &bufferDesc, D3D12_RESOURCE_STATE_COMMON,
+                                                     &resourceDesc, D3D12_RESOURCE_STATE_COMMON,
                                                      nullptr, IID_PPV_ARGS(&buffer.resource)),
                    "Failed to allocate a vertex buffer.");
         // Transition the buffer state for the graphics/compute command queue type class.
@@ -26,7 +26,7 @@ namespace D3D12 {
         // Max. alignment requirement for vertex data is 4 bytes.
         constexpr uint64 alignment = 4;
         // Copy vertices into the upload buffer.
-        const     uint64 offset    = copyToUploadBuffer<alignment>(size, elements);
+        const     uint   offset    = copyToUploadBuffer<alignment>(size, elements);
         // Copy the data from the upload buffer into the video memory buffer.
         m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
                                                        m_uploadBuffer.resource.Get(), offset,
@@ -65,10 +65,24 @@ namespace D3D12 {
         }
     }
 
-    template<uint64 alignment>
+    template <uint64 alignment>
     inline auto Renderer::copyToUploadBuffer(const uint size, const void* data)
-    -> uint64 {
-        assert(data && size > 0);
+    -> uint {
+        assert(data);
+        uint offset;
+        // Compute the address within the upload buffer which we will copy the data to.
+        byte* address;
+        std::tie(address, offset) = reserveChunkOfUploadBuffer<alignment>(size);
+        // Load the data into the upload buffer.
+        memcpy(address, data, size);
+        // Return the offset to the beginning of the data.
+        return offset;
+    }
+
+    template <uint64 alignment>
+    inline auto Renderer::reserveChunkOfUploadBuffer(const uint size)
+    -> std::pair<byte*, uint> {
+        assert(size > 0);
         // Compute the address within the upload buffer which we will copy the data to.
         byte*  alignedAddress = align<alignment>(m_uploadBuffer.begin + m_uploadBuffer.offset);
         uint64 alignedOffset  = alignedAddress - m_uploadBuffer.begin;
@@ -129,9 +143,7 @@ namespace D3D12 {
         }
         // Move the offset to the end of the data.
         m_uploadBuffer.offset = alignedEnd;
-        // Load the data into the upload buffer.
-        memcpy(alignedAddress, data, size);
-        // Return the offset to the beginning of the data.
-        return alignedOffset;
+        // Return the address of and the offset to the beginning of the data.
+        return {alignedAddress, static_cast<uint>(alignedOffset)};
     }
 } // namespace D3D12

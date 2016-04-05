@@ -55,7 +55,12 @@ namespace D3D12 {
         // Copies the data of the specified size in bytes and alignment into the upload buffer.
         // Returns the offset into the upload buffer which corresponds to the location of the data.
         template<uint64 alignment>
-        uint64 copyToUploadBuffer(const uint size, const void* data);
+        uint copyToUploadBuffer(const uint size, const void* data);
+        // Reserves a contiguous chunk of memory of the specified size within the upload buffer.
+        // The reservation is guaranteed to be valid only until any other member function call.
+        // Returns the address of and the offset to the beginning of the chunk of the upload buffer.
+        template<uint64 alignment>
+        std::pair<byte*, uint> reserveChunkOfUploadBuffer(const uint size);
     private:
         ComPtr<ID3D12DeviceEx>        m_device;
         D3D12_VIEWPORT                m_viewport;
