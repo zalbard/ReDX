@@ -215,17 +215,16 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
                 /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
                 /* Flags */            D3D12_RESOURCE_FLAG_NONE
             };
-            // Describe the SRV.
-            const D3D12_TEX2D_SRV srv = {
+            const D3D12_TEX2D_SRV texInfo = {
                 /* MostDetailedMip*/      0,
-                /* MipLevels */           static_cast<uint>(info.mipLevels),
+                /* MipLevels */           texDesc.MipLevels,
                 /* PlaneSlice */          0,
                 /* ResourceMinLODClamp */ 0.f
             };
             // Create the texture.
             const uint  texSize = static_cast<uint>(img.GetPixelsSize());
             const byte* texData = img.GetPixels();
-            const auto  result  = texLib.emplace(texName, engine.createTexture2D(texDesc, srv,
+            const auto  result  = texLib.emplace(texName, engine.createTexture2D(texDesc, texInfo,
                                                                                  texSize, texData));
             // Return the texture index.
             const auto texIter = result.first;
