@@ -11,6 +11,15 @@
 namespace D3D12 {
     using Microsoft::WRL::ComPtr;
 
+    struct CD3DX12_TEX2D_SRV_DESC: public D3D12_SHADER_RESOURCE_VIEW_DESC {
+        CD3DX12_TEX2D_SRV_DESC() = default;
+        explicit CD3DX12_TEX2D_SRV_DESC(const DXGI_FORMAT format, const uint mipCount,
+            const uint  mostDetailedMip         = 0,
+            const uint  planeSlice              = 0,
+            const float resourceMinLODClamp     = 0.f,
+            const uint  shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING);
+    };
+
     struct UploadRingBuffer {
         RULE_OF_FIVE_MOVE_ONLY(UploadRingBuffer);
         UploadRingBuffer();

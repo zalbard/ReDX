@@ -15,6 +15,21 @@ namespace D3D12 {
         return static_cast<uint>(rect.bottom - rect.top);
     }
 
+    inline CD3DX12_TEX2D_SRV_DESC::CD3DX12_TEX2D_SRV_DESC(const DXGI_FORMAT format,
+                                                          const uint  mipCount,
+                                                          const uint  mostDetailedMip,
+                                                          const uint  planeSlice,
+                                                          const float resourceMinLODClamp,
+                                                          const uint  shader4ComponentMapping) {
+        Format                        = format;
+        ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
+        Shader4ComponentMapping       = shader4ComponentMapping;
+        Texture2D.MostDetailedMip     = mostDetailedMip;
+        Texture2D.MipLevels           = mipCount;
+        Texture2D.PlaneSlice          = planeSlice;
+        Texture2D.ResourceMinLODClamp = resourceMinLODClamp;
+    }
+
     inline UploadRingBuffer::UploadRingBuffer()
         : resource{nullptr}
         , begin{nullptr}
