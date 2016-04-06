@@ -485,7 +485,8 @@ void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
     } else {
         // For single- and double-buffered copy contexts, resetCommandAllocator() will
         // take care of waiting until the previous copy command list has completed execution.
-        static_assert(m_copyContext.bufferCount <= 2, "Unsupported copy context buffering mode.");
+        static_assert(decltype(m_copyContext)::bufferCount <= 2,
+                      "Unsupported copy context buffering mode.");
     }
     // Reset the command list allocator.
     m_copyContext.resetCommandAllocator();
