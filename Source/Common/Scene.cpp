@@ -128,10 +128,11 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
     objects.count           = static_cast<uint>(indexedObjects.size());
     objects.visibilityBits  = DynBitSet{objects.count};
     objects.boundingSpheres = std::make_unique<Sphere[]>(objects.count);
-    objects.indexBuffers.allocate(objects.count);
     objects.materialIndices = std::make_unique<uint16[]>(objects.count);
-    matCount                = static_cast<uint>(objFile.materials.size());
-    materials               = std::make_unique<Material[]>(matCount);
+    objects.vertexAttrBuffers.allocate(3);
+    objects.indexBuffers.allocate(objects.count);
+    matCount  = static_cast<uint>(objFile.materials.size());
+    materials = std::make_unique<Material[]>(matCount);
     for (uint i = 0; i < objects.count; ++i) {
         // Store material indices.
         objects.materialIndices[i] = static_cast<uint16>(indexedObjects[i].material);

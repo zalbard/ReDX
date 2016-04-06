@@ -72,20 +72,6 @@ namespace D3D12 {
         }
     }
 
-    template<typename T, uint N>
-    inline void ResourceViewSoA_N<T, N>::assign(const uint index, const T& object) {
-        assert(index < N);
-        resources[index] = object.resource;
-        views[index]     = object.view;
-    }
-
-    template<typename T, uint N>
-    inline void ResourceViewSoA_N<T, N>::assign(const uint index, T&& object) {
-        assert(index < N);
-        resources[index] = std::move(object.resource);
-        views[index]     = std::move(object.view);
-    }
-
     template<typename T>
     inline void ResourceViewSoA<T>::allocate(const uint count) {
         assert(!resources && !views);

@@ -530,7 +530,7 @@ void Renderer::startFrame() {
 void Renderer::drawIndexed(const Scene::Objects& objects) {
     // Record commands into the command list.
     const auto graphicsCommandList = m_graphicsContext.commandList(0);
-    graphicsCommandList->IASetVertexBuffers(0, 3, objects.vertexAttrBuffers.views);
+    graphicsCommandList->IASetVertexBuffers(0, 3, objects.vertexAttrBuffers.views.get());
     uint16 matId = UINT16_MAX;
     for (uint i = 0; i < objects.count; ++i) {
         if (objects.visibilityBits.testBit(i)) {

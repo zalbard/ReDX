@@ -45,7 +45,7 @@ public:
         uint                                  count;                // Number of objects
         DynBitSet                             visibilityBits;
         std::unique_ptr<Sphere[]>             boundingSpheres;
-        D3D12::VertexBufferSoA<3>             vertexAttrBuffers;    // Positions, normals, UVs
+        D3D12::VertexBufferSoA                vertexAttrBuffers;    // Positions, normals, UVs
         D3D12::IndexBufferSoA                 indexBuffers;
         std::unique_ptr<uint16[]>             materialIndices;
     }                                         objects;
