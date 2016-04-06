@@ -125,21 +125,21 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
     // Sort objects by material.
     std::sort(indexedObjects.begin(), indexedObjects.end());
     // Allocate memory.
-    objCount          = static_cast<uint>(indexedObjects.size());
-    objVisibilityMask = DynBitSet{objCount};
-    boundingSpheres   = std::make_unique<Sphere[]>(objCount);
-    indexBuffers      = std::make_unique<D3D12::IndexBuffer[]>(objCount);
-    materialIndices   = std::make_unique<uint16[]>(objCount);
-    matCount          = static_cast<uint>(objFile.materials.size());
-    materials         = std::make_unique<Material[]>(matCount);
-    for (uint i = 0; i < objCount; ++i) {
+    objects.count           = static_cast<uint>(indexedObjects.size());
+    objects.visibilityFlags = DynBitSet{objects.count};
+    objects.boundingSpheres = std::make_unique<Sphere[]>(objects.count);
+    objects.indexBuffers    = std::make_unique<D3D12::IndexBuffer[]>(objects.count);
+    objects.materialIndices = std::make_unique<uint16[]>(objects.count);
+    matCount                = static_cast<uint>(objFile.materials.size());
+    materials               = std::make_unique<Material[]>(matCount);
+    for (uint i = 0; i < objects.count; ++i) {
         // Store material indices.
-        materialIndices[i] = static_cast<uint16>(indexedObjects[i].material);
+        objects.materialIndices[i] = static_cast<uint16>(indexedObjects[i].material);
     }
     // Create index buffers.
-    for (uint i = 0; i < objCount; ++i) {
+    for (uint i = 0; i < objects.count; ++i) {
         const uint count = static_cast<uint>(indexedObjects[i].indices.size());
-        indexBuffers[i]  = engine.createIndexBuffer(count, indexedObjects[i].indices.data());
+        objects.indexBuffers[i] = engine.createIndexBuffer(count, indexedObjects[i].indices.data());
     }
     // Create vertex attribute buffers.
     const uint numVertices = static_cast<uint>(indexMap.size());
@@ -151,19 +151,20 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
         normals[entry.second]   = objFile.normals[entry.first.n];
         uvCoords[entry.second]  = objFile.texcoords[entry.first.t];
     }
-    vertAttribBuffers[0] = engine.createVertexBuffer(numVertices, positions.data());
-    vertAttribBuffers[1] = engine.createVertexBuffer(numVertices, normals.data());
-    vertAttribBuffers[2] = engine.createVertexBuffer(numVertices, uvCoords.data());
+    objects.vertexAttrBuffers[0] = engine.createVertexBuffer(numVertices, positions.data());
+    objects.vertexAttrBuffers[1] = engine.createVertexBuffer(numVertices, normals.data());
+    objects.vertexAttrBuffers[2] = engine.createVertexBuffer(numVertices, uvCoords.data());
     // Copy the scene geometry to the GPU.
     engine.executeCopyCommands();
     // Compute bounding spheres.
     const XMFLOAT3* positionArray = positions.data();
-    for (uint i = 0; i < objCount; ++i) {
+    for (uint i = 0; i < objects.count; ++i) {
         const IndexedPointIterator begin = {positionArray, indexedObjects[i].indices.data()};
         const IndexedPointIterator end   = {positionArray, indexedObjects[i].indices.data() +
                                                            indexedObjects[i].indices.size()};
         const BoundingSphere sphere{3, begin, end};
-        boundingSpheres[i] = Sphere{XMFLOAT3{sphere.center()}, sqrt(sphere.squared_radius())};
+        objects.boundingSpheres[i] = Sphere{XMFLOAT3{sphere.center()},
+                                            sqrt(sphere.squared_radius())};
     }
     // Load the .mtl files referenced in the .obj file.
     obj::MaterialLib matLib;
@@ -269,8 +270,8 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
 
 float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
     // Set all objects as visible.
-    objVisibilityMask.reset(1);
-    uint visObjCnt = objCount;
+    objects.visibilityFlags.reset(1);
+    uint visObjCnt = objects.count;
     // Compute the transposed equations of the far/left/right/top/bottom frustum planes.
     // See "Fast Extraction of Viewing Frustum Planes from the WorldView-Projection Matrix".
     XMMATRIX tfp;
@@ -303,8 +304,8 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         tfp = XMMatrixTranspose(frustumPlanes);
     }
     // Test each object.
-    for (uint i = 0, n = objCount; i < n; ++i) {
-        const Sphere   boundingSphere  =  boundingSpheres[i];
+    for (uint i = 0, n = objects.count; i < n; ++i) {
+        const Sphere   boundingSphere  =  objects.boundingSpheres[i];
         const XMVECTOR sphereCenter    =  boundingSphere.center();
         const XMVECTOR negSphereRadius = -boundingSphere.radius();
         // Compute the distances to the left/right/top/bottom frustum planes.
@@ -318,7 +319,7 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         // Check if at least one of the 'outside' tests passed.
         if (XMVector4NotEqualInt(outsideTests, XMVectorFalseInt())) {
             // Clear the 'object visible' flag.
-            objVisibilityMask.clearBit(i);
+            objects.visibilityFlags.clearBit(i);
             --visObjCnt;
         } else {
             // Test whether the object is in front of the camera.
@@ -327,10 +328,10 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
             // Test the distance against the (negated) radius of the bounding sphere.
             if (XMVectorGetIntX(XMVectorLess(distance, negSphereRadius))) {
                 // Clear the 'object visible' flag.
-                objVisibilityMask.clearBit(i);
+                objects.visibilityFlags.clearBit(i);
                 --visObjCnt;
             }
         }
     }
-    return static_cast<float>(visObjCnt) / static_cast<float>(objCount);
+    return static_cast<float>(visObjCnt) / static_cast<float>(objects.count);
 }

@@ -41,14 +41,16 @@ public:
     // Returns the fraction of objects visible on screen.
     float performFrustumCulling(const PerspectiveCamera& pCam);
 public:
-    uint                                  objCount;             // Number of objects
-    DynBitSet                             objVisibilityMask;    // Per-object visibility bit flags
-    std::unique_ptr<Sphere[]>             boundingSpheres;      // Per-object bounding spheres
-    D3D12::VertexBuffer                   vertAttribBuffers[3]; // Shared positions, normals, UVs
-    std::unique_ptr<D3D12::IndexBuffer[]> indexBuffers;         // Per-object index buffers
-    std::unique_ptr<uint16[]>             materialIndices;      // Per-object material indices
-    uint                                  matCount;             // Number of materials
-    std::unique_ptr<Material[]>           materials;            // Shared index-based materials
-    uint                                  texCount;             // Number of textures
-    std::unique_ptr<D3D12::Texture[]>     textures;             // Shared maps/masks/textures
+    struct Objects {
+        uint                                  count;                // Number of objects
+        DynBitSet                             visibilityFlags;      // Visibility bit flags
+        std::unique_ptr<Sphere[]>             boundingSpheres;      // Tight bounding spheres
+        D3D12::VertexBuffer                   vertexAttrBuffers[3]; // Positions, normals, UVs
+        std::unique_ptr<D3D12::IndexBuffer[]> indexBuffers;         // Index buffers
+        std::unique_ptr<uint16[]>             materialIndices;      // Material indices
+    }                                         objects;
+    uint                                      matCount;             // Number of materials
+    std::unique_ptr<Material[]>               materials;            // Shared index-based materials
+    uint                                      texCount;             // Number of textures
+    std::unique_ptr<D3D12::Texture[]>         textures;             // Shared maps/masks/textures
 };

@@ -527,6 +527,30 @@ void Renderer::startFrame() {
     graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
+void Renderer::drawIndexed(const Scene::Objects& objects) {
+    D3D12_VERTEX_BUFFER_VIEW vboViews[3];
+    for (uint i = 0; i < 3; ++i) {
+        vboViews[i] = objects.vertexAttrBuffers[i].view;
+    }
+    // Record commands into the command list.
+    const auto graphicsCommandList = m_graphicsContext.commandList(0);
+    graphicsCommandList->IASetVertexBuffers(0, 3, vboViews);
+    uint16 matId = UINT16_MAX;
+    for (uint i = 0; i < objects.count; ++i) {
+        if (objects.visibilityFlags.testBit(i)) {
+            if (matId != objects.materialIndices[i]) {
+                matId  = objects.materialIndices[i];
+                // Set the object's material index.
+                graphicsCommandList->SetGraphicsRoot32BitConstant(0, matId, 0);
+            }
+            // Draw the object.
+            const IndexBuffer& ibo = objects.indexBuffers[i];
+            graphicsCommandList->IASetIndexBuffer(&ibo.view);
+            graphicsCommandList->DrawIndexedInstanced(ibo.count(), 1, 0, 0, 0);
+        }
+    }
+}
+
 void Renderer::finalizeFrame() {
     // Transition the back buffer state: Render Target -> Presenting.
     const auto backBuffer = m_renderTargets[m_backBufferIndex].Get();

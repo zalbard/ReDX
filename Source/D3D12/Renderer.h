@@ -2,6 +2,7 @@
 
 #include <DirectXMathSSE4.h>
 #include "HelperStructs.h"
+#include "..\Common\Scene.h"
 #include "..\Common\Constants.h"
 #include "..\Common\DynBitSet.h"
 
@@ -36,14 +37,8 @@ namespace D3D12 {
         std::pair<uint64, uint64> getTime() const;
         // Initializes the frame rendering process.
         void startFrame();
-        template <uint N>
-        // Draws geometry using 'N' vertex attribute buffers and 'iboCount' index buffers.
-        // 'materialIndices' associates index buffers with material indices.
-        // 'drawMask' indicates whether geometry (within 'ibos') should be drawn.
-        void drawIndexed(const VertexBuffer (&vbos)[N],
-                         const IndexBuffer* ibos, const uint iboCount,
-                         const uint16* materialIndices,
-                         const DynBitSet& drawMask);
+        // Draws visible scene objects.
+        void drawIndexed(const Scene::Objects& objects);
         // Finalizes the frame rendering process.
         void finalizeFrame();
         // Terminates the rendering process.

@@ -100,8 +100,7 @@ int __cdecl main(const int argc, const char* argv[]) {
         });
         const float fracObjVis = scene.performFrustumCulling(pCam);
         engine.startFrame();
-        engine.drawIndexed(scene.vertAttribBuffers, scene.indexBuffers.get(), scene.objCount,
-                           scene.materialIndices.get(), scene.objVisibilityMask);
+        engine.drawIndexed(scene.objects);
         asyncTask.wait();
         engine.finalizeFrame();
         // Update the timings.
