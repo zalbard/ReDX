@@ -42,15 +42,15 @@ public:
     float performFrustumCulling(const PerspectiveCamera& pCam);
 public:
     struct Objects {
-        uint                                  count;                // Number of objects
-        DynBitSet                             visibilityBits;
-        std::unique_ptr<Sphere[]>             boundingSpheres;
-        D3D12::VertexBufferSoA                vertexAttrBuffers;    // Positions, normals, UVs
-        D3D12::IndexBufferSoA                 indexBuffers;
-        std::unique_ptr<uint16[]>             materialIndices;
-    }                                         objects;
-    uint                                      matCount;             // Number of materials
-    std::unique_ptr<Material[]>               materials;
-    uint                                      texCount;             // Number of textures
-    D3D12::TextureSoA                         textures;
+        uint                      count;                // Number of objects
+        DynBitSet                 visibilityBits;
+        std::unique_ptr<Sphere[]> boundingSpheres;
+        D3D12::VertexBufferSoA    vertexAttrBuffers;    // Positions, normals, UVs
+        D3D12::IndexBufferSoA     indexBuffers;
+        std::unique_ptr<uint16[]> materialIndices;
+    }                             objects;
+    uint                          matCount;             // Number of materials
+    std::unique_ptr<Material[]>   materials;
+    uint                          texCount;             // Number of textures
+    D3D12::TextureSoA             textures;
 };
