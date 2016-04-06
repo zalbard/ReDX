@@ -39,7 +39,6 @@ namespace D3D12 {
     struct IndexBuffer {
         ComPtr<ID3D12Resource>      resource;        // Memory buffer
         D3D12_INDEX_BUFFER_VIEW     view;            // Descriptor
-        uint                        count() const;   // Returns the number of elements
     };
 
     struct ConstantBuffer {
@@ -52,23 +51,44 @@ namespace D3D12 {
         D3D12_CPU_DESCRIPTOR_HANDLE view;            // Descriptor handle (Shader Resource View)
     };
 
-    // Stores objects of type T in the SoA layout.
+    // Stores objects of type T in the SoA layout on the stack.
+    // T must be composed of 2 members: 'resource' and 'view'.
+    template <typename T, uint N>
+    struct ResourceViewSoA_N {
+        // Copies the object to the position denoted by 'index'.
+        void assign(const uint index, const T& object);
+        // Moves the object to the position denoted by 'index'.
+        void assign(const uint index, T&& object);
+        // Typedefs.
+        using Resource = decltype(T::resource);
+        using View     = decltype(T::view);
+    public:
+        Resource                    resources[N];    // Memory buffer array
+        View                        views[N];        // Descriptor [handle] array
+    };
+
+    template <uint N> using VertexBufferSoA = ResourceViewSoA_N<VertexBuffer, N>;
+
+    // Stores objects of type T in the SoA layout on the heap.
     // T must be composed of 2 members: 'resource' and 'view'.
     template <typename T>
     struct ResourceViewSoA {
         // Allocates an SoA for 'count' elements.
         void allocate(const uint count);
-        // Stores the object at the position denoted by 'index'.
+        // Copies the object to the position denoted by 'index'.
+        void assign(const uint index, const T& object);
+        // Moves the object to the position denoted by 'index'.
         void assign(const uint index, T&& object);
         // Typedefs.
-        using R = decltype(T::resource);
-        using V = decltype(T::view);
+        using Resource = decltype(T::resource);
+        using View     = decltype(T::view);
     public:
-        std::unique_ptr<R[]>        resources;       // Memory buffer array
-        std::unique_ptr<V[]>        views;           // Descriptor [handle] array
+        std::unique_ptr<Resource[]> resources;       // Memory buffer array
+        std::unique_ptr<View[]>     views;           // Descriptor [handle] array
     };
 
     using IndexBufferSoA = ResourceViewSoA<IndexBuffer>;
+    using TextureSoA     = ResourceViewSoA<Texture>;
 
     // Corresponds to Direct3D descriptor types.
     enum class DescType {

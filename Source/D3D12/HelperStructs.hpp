@@ -72,22 +72,39 @@ namespace D3D12 {
         }
     }
 
-    inline uint IndexBuffer::count() const {
-        return view.SizeInBytes / sizeof(uint);
+    template<typename T, uint N>
+    inline void ResourceViewSoA_N<T, N>::assign(const uint index, const T& object) {
+        assert(index < N);
+        resources[index] = object.resource;
+        views[index]     = object.view;
+    }
+
+    template<typename T, uint N>
+    inline void ResourceViewSoA_N<T, N>::assign(const uint index, T&& object) {
+        assert(index < N);
+        resources[index] = std::move(object.resource);
+        views[index]     = std::move(object.view);
     }
 
     template<typename T>
     inline void ResourceViewSoA<T>::allocate(const uint count) {
         assert(!resources && !views);
-        resources = std::make_unique<R[]>(count);
-        views     = std::make_unique<V[]>(count);
+        resources = std::make_unique<Resource[]>(count);
+        views     = std::make_unique<View[]>(count);
+    }
+
+    template<typename T>
+    inline void ResourceViewSoA<T>::assign(const uint index, const T& object) {
+        assert(resources && views);
+        resources[index] = object.resource;
+        views[index]     = object.view;
     }
 
     template<typename T>
     inline void ResourceViewSoA<T>::assign(const uint index, T&& object) {
         assert(resources && views);
-        resources[index] = std::forward<R>(object.resource);
-        views[index]     = std::forward<V>(object.view);
+        resources[index] = std::move(object.resource);
+        views[index]     = std::move(object.view);
     }
 
     template<DescType T, uint N>

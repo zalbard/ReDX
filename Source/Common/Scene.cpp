@@ -126,9 +126,9 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
     std::sort(indexedObjects.begin(), indexedObjects.end());
     // Allocate memory.
     objects.count           = static_cast<uint>(indexedObjects.size());
-    objects.visibilityFlags = DynBitSet{objects.count};
+    objects.visibilityBits  = DynBitSet{objects.count};
     objects.boundingSpheres = std::make_unique<Sphere[]>(objects.count);
-    objects.indexBuffers    = std::make_unique<D3D12::IndexBuffer[]>(objects.count);
+    objects.indexBuffers.allocate(objects.count);
     objects.materialIndices = std::make_unique<uint16[]>(objects.count);
     matCount                = static_cast<uint>(objFile.materials.size());
     materials               = std::make_unique<Material[]>(matCount);
@@ -138,8 +138,9 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
     }
     // Create index buffers.
     for (uint i = 0; i < objects.count; ++i) {
-        const uint count = static_cast<uint>(indexedObjects[i].indices.size());
-        objects.indexBuffers[i] = engine.createIndexBuffer(count, indexedObjects[i].indices.data());
+        const auto& indices = indexedObjects[i].indices;
+        objects.indexBuffers.assign(i, engine.createIndexBuffer(static_cast<uint>(indices.size()),
+                                                                indices.data()));
     }
     // Create vertex attribute buffers.
     const uint numVertices = static_cast<uint>(indexMap.size());
@@ -151,9 +152,9 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
         normals[entry.second]   = objFile.normals[entry.first.n];
         uvCoords[entry.second]  = objFile.texcoords[entry.first.t];
     }
-    objects.vertexAttrBuffers[0] = engine.createVertexBuffer(numVertices, positions.data());
-    objects.vertexAttrBuffers[1] = engine.createVertexBuffer(numVertices, normals.data());
-    objects.vertexAttrBuffers[2] = engine.createVertexBuffer(numVertices, uvCoords.data());
+    objects.vertexAttrBuffers.assign(0, engine.createVertexBuffer(numVertices, positions.data()));
+    objects.vertexAttrBuffers.assign(1, engine.createVertexBuffer(numVertices, normals.data()));
+    objects.vertexAttrBuffers.assign(2, engine.createVertexBuffer(numVertices, uvCoords.data()));
     // Copy the scene geometry to the GPU.
     engine.executeCopyCommands();
     // Compute bounding spheres.
@@ -260,17 +261,17 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
     engine.executeCopyCommands();
     // Move textures into the array.
     texCount = static_cast<uint>(texLib.size());
-    textures = std::make_unique<D3D12::Texture[]>(texCount);
+    textures.allocate(texCount);
     for (auto& entry : texLib) {
         auto& texture = entry.second;
-        textures[texture.second] = std::move(texture.first);
+        textures.assign(texture.second, std::move(texture.first));
     }
     printInfo("Scene loaded successfully.");
 }
 
 float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
     // Set all objects as visible.
-    objects.visibilityFlags.reset(1);
+    objects.visibilityBits.reset(1);
     uint visObjCnt = objects.count;
     // Compute the transposed equations of the far/left/right/top/bottom frustum planes.
     // See "Fast Extraction of Viewing Frustum Planes from the WorldView-Projection Matrix".
@@ -319,7 +320,7 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
         // Check if at least one of the 'outside' tests passed.
         if (XMVector4NotEqualInt(outsideTests, XMVectorFalseInt())) {
             // Clear the 'object visible' flag.
-            objects.visibilityFlags.clearBit(i);
+            objects.visibilityBits.clearBit(i);
             --visObjCnt;
         } else {
             // Test whether the object is in front of the camera.
@@ -328,7 +329,7 @@ float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
             // Test the distance against the (negated) radius of the bounding sphere.
             if (XMVectorGetIntX(XMVectorLess(distance, negSphereRadius))) {
                 // Clear the 'object visible' flag.
-                objects.visibilityFlags.clearBit(i);
+                objects.visibilityBits.clearBit(i);
                 --visObjCnt;
             }
         }

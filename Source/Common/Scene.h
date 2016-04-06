@@ -43,14 +43,14 @@ public:
 public:
     struct Objects {
         uint                                  count;                // Number of objects
-        DynBitSet                             visibilityFlags;      // Visibility bit flags
-        std::unique_ptr<Sphere[]>             boundingSpheres;      // Tight bounding spheres
-        D3D12::VertexBuffer                   vertexAttrBuffers[3]; // Positions, normals, UVs
-        std::unique_ptr<D3D12::IndexBuffer[]> indexBuffers;         // Index buffers
-        std::unique_ptr<uint16[]>             materialIndices;      // Material indices
+        DynBitSet                             visibilityBits;
+        std::unique_ptr<Sphere[]>             boundingSpheres;
+        D3D12::VertexBufferSoA<3>             vertexAttrBuffers;    // Positions, normals, UVs
+        D3D12::IndexBufferSoA                 indexBuffers;
+        std::unique_ptr<uint16[]>             materialIndices;
     }                                         objects;
     uint                                      matCount;             // Number of materials
-    std::unique_ptr<Material[]>               materials;            // Shared index-based materials
+    std::unique_ptr<Material[]>               materials;
     uint                                      texCount;             // Number of textures
-    std::unique_ptr<D3D12::Texture[]>         textures;             // Shared maps/masks/textures
+    D3D12::TextureSoA                         textures;
 };
