@@ -15,7 +15,7 @@ namespace D3D12 {
         VertexBuffer createVertexBuffer(const uint count, const T* elements);
         // Creates an index buffer for the index array with the specified number of indices.
         IndexBuffer createIndexBuffer(const uint count, const uint* indices);
-        // Creates a constant buffer for the data of the specified size in bytes.
+        // Creates a constant buffer for the data of the specified size (in bytes).
         ConstantBuffer createConstantBuffer(const uint size, const void* data = nullptr);
         // Creates a 2D texture according to the provided description of the base MIP image.
         // Returns the texture itself and its index within the texture pool.
@@ -51,7 +51,7 @@ namespace D3D12 {
     private:
         // Configures the rendering pipeline, including the shaders.
         void configurePipeline();
-        // Copies the data of the specified size in bytes and alignment into the upload buffer.
+        // Copies the data of the specified size (in bytes) and alignment into the upload buffer.
         // Returns the offset into the upload buffer which corresponds to the location of the data.
         template<uint64 alignment>
         uint copyToUploadBuffer(const uint size, const void* data);

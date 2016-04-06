@@ -7,13 +7,13 @@
 class Window {
 public:
    STATIC_CLASS(Window);
-   // Creates a window; takes the window dimensions (in pixels) as input.
+   // Creates a window; takes the client (drawable) area dimensions (in pixels) as input.
    static void open(const long width, const long height);
    // Returns the handle of the window.
    static HWND handle();
-   // Returns the width (in pixels) of the drawable window area.
+   // Returns the client (drawable) area width (in pixels).
    static long width();
-   // Returns the height (in pixels) of the drawable window area.
+   // Returns the client (drawable) area height (in pixels).
    static long height();
    // Returns the width/height ratio of the drawable window area.
    static float aspectRatio();
@@ -23,6 +23,7 @@ public:
    static void displayInfo(const float fracObjVis, const float cpuFrameTime,
                            const float gpuFrameTime);
 private:
-   static HWND m_hwnd;      // Handle
-   static RECT m_rect;      // Screen-space rectangle
+   static HWND m_hwnd;              // Handle
+   static long m_width, m_height;   // Client area dimensions
+   static RECT m_rect;              // Screen-space rectangle
 };

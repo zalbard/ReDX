@@ -25,7 +25,7 @@ namespace D3D12 {
         UploadRingBuffer();
         ComPtr<ID3D12Resource>      resource;        // Memory buffer
         byte*                       begin;           // CPU virtual memory-mapped address
-        uint                        capacity;        // Buffer size in bytes
+        uint                        capacity;        // Buffer size (in bytes)
         uint                        offset;          // Offset from the beginning of the buffer
         uint                        prevSegStart;    // Offset to the beginning of the prev. segment
         uint                        currSegStart;    // Offset to the beginning of the curr. segment

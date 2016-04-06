@@ -5,8 +5,10 @@
 #include "Window.h"
 
 // Perform static member initialization.
-HWND Window::m_hwnd = nullptr;
-RECT Window::m_rect = {};
+HWND Window::m_hwnd   = nullptr;
+long Window::m_width  = 0;
+long Window::m_height = 0;
+RECT Window::m_rect   = {};
 
 // Main message handler.
 LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
@@ -24,6 +26,8 @@ LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
 }
 
 void Window::open(const long width, const long height) {
+    m_width  = width;
+    m_height = height;
     // Set up the rectangle position and dimensions.
     m_rect = {0, 0, width, height};
     AdjustWindowRect(&m_rect, WS_OVERLAPPEDWINDOW, FALSE);
@@ -37,16 +41,15 @@ void Window::open(const long width, const long height) {
     wndClass.lpszClassName = L"ReDXWindowClass";
     RegisterClassEx(&wndClass);
     // Create a window and store its handle.
-    m_hwnd = CreateWindow(wndClass.lpszClassName,
-                          L"ReDX",
+    m_hwnd = CreateWindow(wndClass.lpszClassName, L"ReDX",
                           WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,  // Disable resizing
                           CW_USEDEFAULT, CW_USEDEFAULT,
-                          Window::width(), Window::height(),
+                          m_rect.right - m_rect.left,
+                          m_rect.bottom - m_rect.top,
                           nullptr, nullptr,                         // No parent window, no menus
-                          GetModuleHandle(nullptr),
-                          nullptr);
+                          GetModuleHandle(nullptr), nullptr);
     // Make the window visible.
-    ShowWindow(Window::handle(), SW_SHOWNORMAL);
+    ShowWindow(m_hwnd, SW_SHOWNORMAL);
 }
 
 HWND Window::handle() {
@@ -55,11 +58,11 @@ HWND Window::handle() {
 }
 
 long Window::width() {
-    return m_rect.right - m_rect.left;
+    return m_width;
 }
 
 long Window::height() {
-    return m_rect.bottom - m_rect.top;
+    return m_height;
 }
 
 float Window::aspectRatio() {

@@ -31,7 +31,7 @@ int __cdecl main(const int argc, const char* argv[]) {
         return -1;
     }
     // Create a window for rendering output.
-    Window::open(WND_WIDTH, WND_HEIGHT);
+    Window::open(RES_X, RES_Y);
     // Initialize the renderer (internally uses the Window).
     D3D12::Renderer engine;
     // Provide the scene description.
