@@ -19,7 +19,7 @@ cbuffer Materials : register(b2) {
     Material materials[26];
 }
 
-SamplerState samp       : register(s0);
+SamplerState af4Sampler : register(s0);
 Texture2D    textures[] : register(t0);
 
 struct InputPS {
@@ -32,7 +32,7 @@ struct InputPS {
 float4 main(InputPS input) : SV_TARGET {
     const uint baseTexId = materials[matId].baseTexId;
     if (baseTexId < 0xFFFFFFFF) {
-        return textures[baseTexId].Sample(samp, input.uvCoords);
+        return textures[baseTexId].Sample(af4Sampler, input.uvCoords);
     } else {
         return float4(1.f, 0.f, 0.f, 1.f);
     }
