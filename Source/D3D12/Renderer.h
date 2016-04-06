@@ -65,18 +65,22 @@ namespace D3D12 {
         D3D12_VIEWPORT                m_viewport;
         D3D12_RECT                    m_scissorRect;
         GraphicsContext<FRAME_CNT, 1> m_graphicsContext;
-        ComPtr<ID3D12Resource>        m_renderTargets[BUF_CNT];
+        uint                          m_frameIndex;
         uint                          m_backBufferIndex;
-        ComPtr<ID3D12Resource>        m_depthBuffer;
+        ComPtr<ID3D12Resource>        m_renderTargets[BUF_CNT];
         RtvPool<BUF_CNT>              m_rtvPool;
-        DsvPool<1>                    m_dsvPool;
+        DsvPool<FRAME_CNT>            m_dsvPool;
         CbvSrvUavPool<TEX_CNT>        m_texPool;
         ComPtr<IDXGISwapChain3>       m_swapChain;
         HANDLE                        m_swapChainWaitableObject;
         CopyContext<2, 1>             m_copyContext;
         UploadRingBuffer              m_uploadBuffer;
-        ConstantBuffer                m_transformBuffer;
         ConstantBuffer                m_materialBuffer;
+        /* Frame resources */
+        struct {
+            ComPtr<ID3D12Resource>    depthBuffer;
+            ConstantBuffer            transformBuffer;
+        }                             m_frameResouces[FRAME_CNT];
         /* Pipeline objects */
         ComPtr<ID3D12RootSignature>   m_graphicsRootSignature;
         ComPtr<ID3D12PipelineState>   m_graphicsPipelineState;

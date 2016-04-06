@@ -130,8 +130,8 @@ namespace D3D12 {
         // Stalls the execution of the command queue until
         // the fence with the specified value is reached.
         void syncCommandQueue(ID3D12Fence* fence, const uint64 fenceValue);
-        // Resets the command list allocator. This function should be called once per frame.
-        void resetCommandAllocator();
+        // Resets the command list allocator, and returns the index of the new allocator.
+        uint resetCommandAllocator();
         // Resets the command list with the specified index to the specified state.
         // Since it opens the command list, avoid calling it right before resetCommandAllocator().
         void resetCommandList(const uint index, ID3D12PipelineState* state);

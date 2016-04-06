@@ -163,7 +163,8 @@ namespace D3D12 {
     }
 
     template<CmdType T, uint N, uint L>
-    inline void CommandContext<T, N, L>::resetCommandAllocator() {
+    inline auto CommandContext<T, N, L>::resetCommandAllocator()
+    -> uint {
         // Update the value of the last inserted fence for the current allocator.
         m_lastFenceValues[m_allocatorIndex] = m_fenceValue;
         // Switch to the next command list allocator.
@@ -175,6 +176,7 @@ namespace D3D12 {
         // It's now safe to reset the command allocator.
         CHECK_CALL(m_commandAllocators[newAllocatorIndex]->Reset(),
                    "Failed to reset the command list allocator.");
+        return newAllocatorIndex;
     }
 
     template<CmdType T, uint N, uint L>
@@ -298,11 +300,11 @@ namespace D3D12 {
     inline void ID3D12DeviceEx::createDescriptorPool(DescriptorPool<T, N>* descriptorPool) {
         static_assert(N > 0, "Invalid descriptor pool capacity.");
         assert(descriptorPool);
-        constexpr auto nativeType      = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);
+        constexpr auto type            = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);
         constexpr bool isShaderVisible = DescType::CBV_SRV_UAV == T || DescType::SAMPLER == T;
         // Fill out the descriptor heap description.
         const D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {
-            /* Type */           nativeType,
+            /* Type */           type,
             /* NumDescriptors */ N,
             /* Flags */          isShaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
                                                  : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
@@ -314,6 +316,6 @@ namespace D3D12 {
         // Query and store the heap properties.
         descriptorPool->m_cpuBegin = descriptorPool->m_heap->GetCPUDescriptorHandleForHeapStart();
         descriptorPool->m_gpuBegin = descriptorPool->m_heap->GetGPUDescriptorHandleForHeapStart();
-        descriptorPool->m_handleIncrSz = GetDescriptorHandleIncrementSize(nativeType);
+        descriptorPool->m_handleIncrSz = GetDescriptorHandleIncrementSize(type);
     }
 } // namespace D3D12

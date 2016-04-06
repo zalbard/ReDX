@@ -43,24 +43,23 @@ static inline auto createHardwareDevice(IDXGIFactory4* factory)
     }
 }
 
-Renderer::Renderer() {
-    const long resX = Window::width();
-    const long resY = Window::height();
-    // Configure the viewport.
-    m_viewport = D3D12_VIEWPORT{
-        /* TopLeftX */ 0.f,
-        /* TopLeftY */ 0.f,
-        /* Width */    static_cast<float>(resX),
-        /* Height */   static_cast<float>(resY),
-        /* MinDepth */ 0.f,
-        /* MaxDepth */ 1.f
-    };
+Renderer::Renderer()
+    : m_frameIndex{0} {
     // Configure the scissor rectangle used for clipping.
     m_scissorRect = D3D12_RECT{
         /* left */   0,
         /* top */    0,
-        /* right */  resX,
-        /* bottom */ resY
+        /* right */  Window::width(),
+        /* bottom */ Window::height()
+    };
+    // Configure the viewport.
+    m_viewport = D3D12_VIEWPORT{
+        /* TopLeftX */ 0.f,
+        /* TopLeftY */ 0.f,
+        /* Width */    static_cast<float>(width(m_scissorRect)),
+        /* Height */   static_cast<float>(height(m_scissorRect)),
+        /* MinDepth */ 0.f,
+        /* MaxDepth */ 1.f
     };
     // Enable the Direct3D debug layer.
     #ifdef _DEBUG
@@ -127,18 +126,15 @@ Renderer::Renderer() {
         // Update the index of the frame buffer used for rendering.
         m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
     }
-    // Create render target views (RTVs).
-    {
-        // Create an RTV for each frame buffer.
-        for (uint bufferIdx = 0; bufferIdx < BUF_CNT; ++bufferIdx) {
-            CHECK_CALL(m_swapChain->GetBuffer(bufferIdx, IID_PPV_ARGS(&m_renderTargets[bufferIdx])),
-                       "Failed to acquire a swap chain buffer.");
-            m_device->CreateRenderTargetView(m_renderTargets[bufferIdx].Get(), nullptr,
-                                             m_rtvPool.cpuHandle(m_rtvPool.size++));
-        }
+    // Create a render target view (RTV) for each frame buffer.
+    for (uint i = 0; i < BUF_CNT; ++i) {
+        CHECK_CALL(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])),
+                   "Failed to acquire a swap chain buffer.");
+        m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr,
+                                         m_rtvPool.cpuHandle(m_rtvPool.size++));
     }
-    // Create a depth-stencil buffer.
-    {
+    // Create a depth-stencil view (DSV) for each frame.
+    for (uint i = 0; i < FRAME_CNT; ++i) {
         const D3D12_RESOURCE_DESC resourceDesc = {
             /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
             /* Alignment */        0,   // Automatic
@@ -160,15 +156,15 @@ Renderer::Renderer() {
         CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
                                                      &resourceDesc,
                                                      D3D12_RESOURCE_STATE_DEPTH_WRITE, &clearValue,
-                                                     IID_PPV_ARGS(&m_depthBuffer)),
-                   "Failed to allocate a depth buffer.");
+                                                     IID_PPV_ARGS(&m_frameResouces[i].depthBuffer)),
+                                                     "Failed to allocate a depth buffer.");
         const D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {
             /* Format */        DSV_FORMAT,
             /* ViewDimension */ D3D12_DSV_DIMENSION_TEXTURE2D,
             /* Flags */         D3D12_DSV_FLAG_NONE,
             /* Texture2D */     {}
         };
-        m_device->CreateDepthStencilView(m_depthBuffer.Get(), &dsvDesc,
+        m_device->CreateDepthStencilView(m_frameResouces[i].depthBuffer.Get(), &dsvDesc,
                                          m_dsvPool.cpuHandle(m_dsvPool.size++));
     }
     // Create a persistently mapped buffer on the upload heap.
@@ -176,7 +172,7 @@ Renderer::Renderer() {
         m_uploadBuffer.capacity   = UPLOAD_BUF_SIZE;
         // Allocate the buffer on the upload heap.
         const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
-        const auto resourceDesc     = CD3DX12_RESOURCE_DESC::Buffer(m_uploadBuffer.capacity);
+        const auto resourceDesc   = CD3DX12_RESOURCE_DESC::Buffer(m_uploadBuffer.capacity);
         CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, 
                                                      &resourceDesc,
                                                      D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
@@ -257,11 +253,6 @@ void Renderer::configurePipeline() {
         /* pInputElementDescs */ inputElementDescs,
         /* NumElements */        _countof(inputElementDescs)
     };
-    // Fill out the multi-sampling parameters.
-    const DXGI_SAMPLE_DESC sampleDesc = {
-        /* Count */   1,    // No multi-sampling
-        /* Quality */ 0     // Default sampler
-    };
     // Configure the rasterizer state.
     const D3D12_RASTERIZER_DESC rasterizerDesc = {
         /* FillMode */              D3D12_FILL_MODE_SOLID,
@@ -310,9 +301,12 @@ void Renderer::configurePipeline() {
     // Set the command list states.
     m_copyContext.resetCommandList(0, nullptr);
     m_graphicsContext.resetCommandList(0, m_graphicsPipelineState.Get());
-    // Create a constant buffer for transformations.
-    m_transformBuffer = createConstantBuffer(XFORM_BUF_SIZE);
+    // Create a constant buffer for material indices.
     m_materialBuffer = createConstantBuffer(1024);
+    // Create constant buffers for transformation matrices.
+    for (uint i = 0; i < FRAME_CNT; ++i) {
+        m_frameResouces[i].transformBuffer = createConstantBuffer(XFORM_BUF_SIZE);
+    }
 }
 
 IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
@@ -473,7 +467,8 @@ void Renderer::setTransformMatrices(FXMMATRIX viewProj, CXMMATRIX viewMat) {
     // Copy the data into the upload buffer.
     const uint offset = copyToUploadBuffer<alignment>(XFORM_BUF_SIZE, matrices);
     // Copy the data from the upload buffer into the video memory buffer.
-    m_copyContext.commandList(0)->CopyBufferRegion(m_transformBuffer.resource.Get(), 0,
+    const ConstantBuffer& transformBuffer = m_frameResouces[m_frameIndex].transformBuffer;
+    m_copyContext.commandList(0)->CopyBufferRegion(transformBuffer.resource.Get(), 0,
                                                    m_uploadBuffer.resource.Get(), offset,
                                                    XFORM_BUF_SIZE);
 }
@@ -512,7 +507,7 @@ void Renderer::startFrame() {
     const auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
                                                       D3D12_RESOURCE_STATE_PRESENT,
                                                       D3D12_RESOURCE_STATE_RENDER_TARGET);
-    const auto graphicsCommandList = m_graphicsContext.commandList(0);
+    ID3D12GraphicsCommandList* graphicsCommandList = m_graphicsContext.commandList(0);
     graphicsCommandList->ResourceBarrier(1, &barrier);
     // Set the necessary state.
     graphicsCommandList->RSSetViewports(1, &m_viewport);
@@ -521,12 +516,13 @@ void Renderer::startFrame() {
     graphicsCommandList->SetDescriptorHeaps(1, &texHeap);
     // Configure the root signature.
     graphicsCommandList->SetGraphicsRootSignature(m_graphicsRootSignature.Get());
-    graphicsCommandList->SetGraphicsRootConstantBufferView(1, m_transformBuffer.view);
+    const ConstantBuffer& transformBuffer = m_frameResouces[m_frameIndex].transformBuffer;
+    graphicsCommandList->SetGraphicsRootConstantBufferView(1, transformBuffer.view);
     graphicsCommandList->SetGraphicsRootConstantBufferView(2, m_materialBuffer.view);
     graphicsCommandList->SetGraphicsRootDescriptorTable(3, m_texPool.gpuHandle(0));
     // Set the back buffer as the render target.
     const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvPool.cpuHandle(m_backBufferIndex);
-    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_dsvPool.cpuHandle(0);
+    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_dsvPool.cpuHandle(m_frameIndex);
     graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
     // Clear the RTV and the DSV.
     constexpr float clearColor[] = {0.f, 0.f, 0.f, 1.f};
@@ -546,11 +542,11 @@ void Renderer::finalizeFrame() {
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     // Finalize and execute the command list.
     m_graphicsContext.executeCommandList(0);
-    // Present the frame, and update the index of the frame buffer used for rendering.
+    // Present the frame, and update the index of the render (back) buffer.
     CHECK_CALL(m_swapChain->Present(VSYNC_INTERVAL, 0), "Failed to display the frame buffer.");
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
-    // Reset the command list allocator.
-    m_graphicsContext.resetCommandAllocator();
+    // Reset the graphics command (frame) allocator, and update the frame index.
+    m_frameIndex = m_graphicsContext.resetCommandAllocator();
     // Reset the command list to its initial state.
     m_graphicsContext.resetCommandList(0, m_graphicsPipelineState.Get());
     // Block the thread until the swap chain is ready accept a new frame.
