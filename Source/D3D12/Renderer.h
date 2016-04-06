@@ -24,8 +24,8 @@ namespace D3D12 {
                                                  const uint mipCount, const void* data = nullptr);
         // Sets materials (represented by texture indices) in shaders.
         void setMaterials(const uint size, const void* data);
-        // Sets transformation matrices in shaders.
-        void setTransformMatrices(DirectX::FXMMATRIX viewProj, DirectX::CXMMATRIX viewMat);
+        // Sets the view-projection matrix in shaders.
+        void setViewProjMatrix(DirectX::FXMMATRIX viewProj);
         // Submits all pending copy commands for execution, and begins a new segment
         // of the upload buffer. As a result, the previous segment of the buffer becomes
         // available for writing. 'immediateCopy' flag ensures that all copies from the

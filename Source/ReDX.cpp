@@ -95,8 +95,7 @@ int __cdecl main(const int argc, const char* argv[]) {
         }
         // Execute engine code.
         const auto asyncTask = std::async(std::launch::async, [&engine, &pCam]() {
-            XMMATRIX viewMat;
-            engine.setTransformMatrices(pCam.computeViewProjMatrix(&viewMat), viewMat);
+            engine.setViewProjMatrix(pCam.computeViewProjMatrix());
             engine.executeCopyCommands();
         });
         const float fracObjVis = scene.performFrustumCulling(pCam);

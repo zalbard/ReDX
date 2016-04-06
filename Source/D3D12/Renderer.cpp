@@ -305,7 +305,7 @@ void Renderer::configurePipeline() {
     m_materialBuffer = createConstantBuffer(1024);
     // Create constant buffers for transformation matrices.
     for (uint i = 0; i < FRAME_CNT; ++i) {
-        m_frameResouces[i].transformBuffer = createConstantBuffer(XFORM_BUF_SIZE);
+        m_frameResouces[i].transformBuffer = createConstantBuffer(sizeof(XMMATRIX));
     }
 }
 
@@ -454,22 +454,16 @@ void Renderer::setMaterials(const uint size, const void* data) {
                                                    size);
 }
 
-void Renderer::setTransformMatrices(FXMMATRIX viewProj, CXMMATRIX viewMat) {
-    // Format the data.
-    XMFLOAT4X4A matrices[2];
-    XMStoreFloat4x4A(&matrices[0], XMMatrixTranspose(viewProj));
-    const XMMATRIX tViewMat = XMMatrixTranspose(viewMat);
-    for (uint i = 0; i < 3; ++i) {
-        XMStoreFloat4A(reinterpret_cast<XMFLOAT4A*>(&matrices[1]) + i, tViewMat.r[i]);
-    }
+void Renderer::setViewProjMatrix(FXMMATRIX viewProj) {
+    const XMMATRIX tViewProj = XMMatrixTranspose(viewProj);
     constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     // Copy the data into the upload buffer.
-    const uint offset = copyToUploadBuffer<alignment>(XFORM_BUF_SIZE, matrices);
+    const uint offset = copyToUploadBuffer<alignment>(sizeof(tViewProj), &tViewProj);
     // Copy the data from the upload buffer into the video memory buffer.
     const ConstantBuffer& transformBuffer = m_frameResouces[m_frameIndex].transformBuffer;
     m_copyContext.commandList(0)->CopyBufferRegion(transformBuffer.resource.Get(), 0,
                                                    m_uploadBuffer.resource.Get(), offset,
-                                                   XFORM_BUF_SIZE);
+                                                   sizeof(tViewProj));
 }
 
 void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {

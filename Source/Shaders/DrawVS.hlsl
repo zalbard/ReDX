@@ -2,7 +2,6 @@
 
 cbuffer Transforms : register(b1) {
     float4x4 viewProj;
-    float3x3 viewMat;
 };
 
 struct InputVS {
@@ -28,11 +27,10 @@ InputPS main(InputVS input) {
         viewProj[3][0], viewProj[3][1], 1.f, viewProj[3][3]
     };
     InputPS result;
-    // Transform the vertex position into the homogeneous space.
+    // Transform the vertex position into homogeneous coordinates.
     result.position = mul(float4(input.position, 1.f), constViewProj);
-    // Transform the vertex normal into the view space.
-    result.normal   = mul(input.normal, viewMat);
-    // Perform perspective interpolation of the UV coordinates.
+    // Perform perspective interpolation of the vertex normal and the UV coordinates.
+    result.normal   = input.normal;
     result.uvCoords = input.uvCoords;
     return result;
 }
