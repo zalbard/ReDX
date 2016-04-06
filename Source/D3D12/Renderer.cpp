@@ -370,7 +370,6 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data)
 
 std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTPRINT& footprint,
                                                    const uint mipCount, const void* data) {
-
     Texture texture;
     // Allocate the texture on the default heap.
     const D3D12_RESOURCE_DESC resourceDesc = {
