@@ -25,10 +25,10 @@ DynBitSet& DynBitSet::operator=(const DynBitSet& other) {
     if (this != &other) {
         m_bitCount = other.m_bitCount;
         if (m_dwordCount >= other.m_dwordCount) {
-            // Reuse the currently allocated buffer
-            // The size exposed to the user will be identical to 'other'
+            // Reuse the currently allocated buffer.
+            // The size exposed to the user will be identical to 'other'.
         } else {
-            // Allocate a bigger buffer
+            // Allocate a bigger buffer.
             m_bits = std::make_unique<uint[]>(other.m_dwordCount);
         }
         m_dwordCount = other.m_dwordCount;

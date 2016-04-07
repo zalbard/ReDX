@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include "DynBitSet.h"
 #include "..\D3D12\HelperStructs.h"
 
@@ -11,30 +10,47 @@ class Sphere {
 public:
     RULE_OF_ZERO(Sphere);
     Sphere() = default;
-    // Ctor; takes the center and the radius as input
+    // Ctor; takes the center and the radius as input.
     explicit Sphere(const DirectX::XMFLOAT3& center, const float radius);
-    // Returns the center of the sphere in the XYZ part; W = radius
+    // Returns the center of the sphere in the XYZ part; W = radius.
     DirectX::XMVECTOR center() const;
-    // Returns the radius of the sphere in every component
+    // Returns the radius of the sphere in every component.
     DirectX::XMVECTOR radius() const;
 private:
     DirectX::XMVECTOR m_data;
 };
 
-// 3D scene representation
+// Contains texture array indices.
+struct Material {
+    uint metalTexId;        // Metallicness map index
+    uint baseTexId;         // Base color texture index
+    uint normalTexId;       // Normal map index
+    uint maskTexId;         // Alpha mask index
+    uint roughTexId;        // Roughness map index
+    uint pad0, pad1, pad2;  // Align to 2 * sizeof(float4)
+};
+
+// 3D scene representation.
 class Scene {
 public:
     RULE_OF_ZERO(Scene);
-    // Ctor; takes the .obj file name with the path as input
-    // The renderer performs Direct3D resource initialization
-    explicit Scene(const char* const objFilePath, D3D12::Renderer& engine);
-    // Performs culling of scene objects against the camera's frustum
-    // Returns the percentage of the visible objects
+    // Ctor; takes the path and the .obj file name as input.
+    // The renderer performs Direct3D resource initialization.
+    explicit Scene(const char* path, const char* objFileName, D3D12::Renderer& engine);
+    // Performs culling of scene objects against the camera's frustum.
+    // Returns the fraction of objects visible on screen.
     float performFrustumCulling(const PerspectiveCamera& pCam);
 public:
-    uint                                  numObjects;
-    std::unique_ptr<Sphere[]>             boundingSpheres;
-    DynBitSet                             objectVisibilityMask;  
-    std::unique_ptr<D3D12::IndexBuffer[]> indexBuffers;
-    D3D12::VertexBuffer                   vertAttribBuffers[2]; // Positions, normals
+    struct Objects {
+        uint                      count;                // Number of objects
+        DynBitSet                 visibilityBits;
+        std::unique_ptr<Sphere[]> boundingSpheres;
+        D3D12::VertexBufferSoA    vertexAttrBuffers;    // Positions, normals, UVs
+        D3D12::IndexBufferSoA     indexBuffers;
+        std::unique_ptr<uint16[]> materialIndices;
+    }                             objects;
+    uint                          matCount;             // Number of materials
+    std::unique_ptr<Material[]>   materials;
+    uint                          texCount;             // Number of textures
+    D3D12::TextureSoA             textures;
 };

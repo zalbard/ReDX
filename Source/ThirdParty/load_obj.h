@@ -114,6 +114,7 @@ struct Material {
     std::string map_ke;
     std::string map_bump;
     std::string map_d;
+    std::string map_ns;
 };
 
 struct File {

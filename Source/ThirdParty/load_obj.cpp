@@ -342,8 +342,12 @@ static bool parse_mtl(std::istream& stream, obj::MaterialLib& mtl_lib) {
         } else if (!std::strncmp(ptr, "map_d", 5) && std::isspace(ptr[5])) {
             auto& mat = current_material();
             mat.map_d = std::string(strip_spaces(ptr + 6));
+        } else if ((!std::strncmp(ptr, "map_Ns", 6) ||
+                    !std::strncmp(ptr, "map_NS", 6)) && std::isspace(ptr[6])) {
+            auto& mat = current_material();
+            mat.map_ns = std::string(strip_spaces(ptr + 6));
         } else {
-            error("unknown command", ptr);
+            error("unknown command ", ptr);
             err_count++;
         }
     }

@@ -35,9 +35,6 @@
     <ClCompile Include="Source\UI\Window.cpp">
       <Filter>Source Files\UI</Filter>
     </ClCompile>
-    <ClCompile Include="Source\Common\Timer.cpp">
-      <Filter>Source Files\Common</Filter>
-    </ClCompile>
     <ClCompile Include="Source\Common\Scene.cpp">
       <Filter>Source Files\Common</Filter>
     </ClCompile>
@@ -48,6 +45,9 @@
       <Filter>Source Files\Common</Filter>
     </ClCompile>
     <ClCompile Include="Source\Common\DynBitSet.cpp">
+      <Filter>Source Files\Common</Filter>
+    </ClCompile>
+    <ClCompile Include="Source\Common\Buffer.cpp">
       <Filter>Source Files\Common</Filter>
     </ClCompile>
   </ItemGroup>
@@ -69,12 +69,6 @@
     </ClInclude>
     <ClInclude Include="Source\D3D12\HelperStructs.hpp">
       <Filter>Source Files\D3D12</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\Common\Timer.h">
-      <Filter>Source Files\Common</Filter>
-    </ClInclude>
-    <ClInclude Include="Source\ThirdParty\stb_image.h">
-      <Filter>Source Files\ThirdParty</Filter>
     </ClInclude>
     <ClInclude Include="Source\ThirdParty\d3dx12.h">
       <Filter>Source Files\ThirdParty</Filter>
@@ -106,6 +100,12 @@
     <ClInclude Include="Source\ThirdParty\DirectXMathSSE4.h">
       <Filter>Source Files\ThirdParty</Filter>
     </ClInclude>
+    <ClInclude Include="Source\ThirdParty\DirectXTex\DirectXTex.h">
+      <Filter>Source Files\ThirdParty</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Common\Buffer.h">
+      <Filter>Source Files\Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore">
@@ -117,6 +117,9 @@
     <None Include="LICENSE">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="Source\ThirdParty\DirectXTex\DirectXTex.inl">
+      <Filter>Source Files\ThirdParty</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Source\Shaders\DrawPS.hlsl">
@@ -125,5 +128,13 @@
     <FxCompile Include="Source\Shaders\DrawVS.hlsl">
       <Filter>Source Files\Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Source\Shaders\DrawRS.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="GPLv3.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
 </Project>

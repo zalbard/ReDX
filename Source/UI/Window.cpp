@@ -4,11 +4,13 @@
 #include <Windows.h>
 #include "Window.h"
 
-// Static member initialization
-HWND Window::m_hwnd = nullptr;
-RECT Window::m_rect = {};
+// Perform static member initialization.
+HWND Window::m_hwnd   = nullptr;
+long Window::m_width  = 0;
+long Window::m_height = 0;
+RECT Window::m_rect   = {};
 
-// Main message handler
+// Main message handler.
 LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
                             const WPARAM wParam, const LPARAM lParam) {
     switch (message) {
@@ -24,10 +26,12 @@ LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
 }
 
 void Window::open(const long width, const long height) {
-    // Set up the rectangle position and dimensions
+    m_width  = width;
+    m_height = height;
+    // Set up the rectangle position and dimensions.
     m_rect = {0, 0, width, height};
     AdjustWindowRect(&m_rect, WS_OVERLAPPEDWINDOW, FALSE);
-    // Set up the window class
+    // Set up the window class.
     WNDCLASSEX wndClass    = {};
     wndClass.cbSize        = sizeof(WNDCLASSEX);
     wndClass.style         = CS_HREDRAW | CS_VREDRAW;
@@ -36,17 +40,16 @@ void Window::open(const long width, const long height) {
     wndClass.hCursor       = LoadCursor(nullptr, IDC_ARROW);
     wndClass.lpszClassName = L"ReDXWindowClass";
     RegisterClassEx(&wndClass);
-    // Create a window and store its handle
-    m_hwnd = CreateWindow(wndClass.lpszClassName,
-                          L"ReDX",
+    // Create a window and store its handle.
+    m_hwnd = CreateWindow(wndClass.lpszClassName, L"ReDX",
                           WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,  // Disable resizing
                           CW_USEDEFAULT, CW_USEDEFAULT,
-                          Window::width(), Window::height(),
+                          m_rect.right - m_rect.left,
+                          m_rect.bottom - m_rect.top,
                           nullptr, nullptr,                         // No parent window, no menus
-                          GetModuleHandle(nullptr),
-                          nullptr);
-    // Make the window visible
-    ShowWindow(Window::handle(), SW_SHOWNORMAL);
+                          GetModuleHandle(nullptr), nullptr);
+    // Make the window visible.
+    ShowWindow(m_hwnd, SW_SHOWNORMAL);
 }
 
 HWND Window::handle() {
@@ -55,20 +58,21 @@ HWND Window::handle() {
 }
 
 long Window::width() {
-    return m_rect.right - m_rect.left;
+    return m_width;
 }
 
 long Window::height() {
-    return m_rect.bottom - m_rect.top;
+    return m_height;
 }
 
 float Window::aspectRatio() {
     return static_cast<float>(width())/static_cast<float>(height());
 }
 
-void Window::displayFrameTime(const float deltaTime) {
-    // Only print up to 4 digits (plus the separator)
-    wchar_t title[] = L"ReDX : 00.00 ms";
-    swprintf(title + 7, 9, L"%5.2f ms", std::min(99.99f, deltaTime));
+void Window::displayInfo(const float fracObjVis, const float cpuFrameTime,
+                         const float gpuFrameTime) {
+    static wchar_t title[] = L"ReDX | 0.00 | CPU: 00.00 ms, GPU: 00.00 ms";
+    swprintf(title + 7, 36, L"%4.2f | CPU: %5.2f ms, GPU: %5.2f ms",
+             fracObjVis, std::min(cpuFrameTime, 99.99f), std::min(gpuFrameTime, 99.99f));
     SetWindowText(m_hwnd, title);
 }
