@@ -81,14 +81,12 @@ namespace D3D12 {
 
     template<typename T>
     inline void ResourceViewSoA<T>::assign(const uint index, const T& object) {
-        assert(resources && views);
         resources[index] = object.resource;
         views[index]     = object.view;
     }
 
     template<typename T>
     inline void ResourceViewSoA<T>::assign(const uint index, T&& object) {
-        assert(resources && views);
         resources[index] = std::move(object.resource);
         views[index]     = std::move(object.view);
     }
