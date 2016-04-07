@@ -302,9 +302,10 @@ void Renderer::configurePipeline() {
     m_copyContext.resetCommandList(0, nullptr);
     m_graphicsContext.resetCommandList(0, m_graphicsPipelineState.Get());
     // Create a constant buffer for material indices.
-    m_materialBuffer = createConstantBuffer(1024);
-    // Create constant buffers for transformation matrices.
+    m_materialBuffer = createConstantBuffer(MAT_CNT * sizeof(Material));
+    // Create additional frame resources.
     for (uint i = 0; i < FRAME_CNT; ++i) {
+        // Create a constant buffer for transformation matrices.
         m_frameResouces[i].transformBuffer = createConstantBuffer(sizeof(XMMATRIX));
     }
 }
@@ -444,10 +445,12 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
     return {texture, textureId};
 }
 
-void Renderer::setMaterials(const uint size, const void* data) {
+void Renderer::setMaterials(const uint count, const Material* materials) {
+    assert(count <= MAT_CNT);
     constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     // Copy the data into the upload buffer.
-    const uint offset = copyToUploadBuffer<alignment>(size, data);
+    const uint size   = count * sizeof(Material);
+    const uint offset = copyToUploadBuffer<alignment>(size, materials);
     // Copy the data from the upload buffer into the video memory buffer.
     m_copyContext.commandList(0)->CopyBufferRegion(m_materialBuffer.resource.Get(), 0,
                                                    m_uploadBuffer.resource.Get(), offset,

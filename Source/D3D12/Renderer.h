@@ -24,7 +24,7 @@ namespace D3D12 {
         std::pair<Texture, uint> createTexture2D(const D3D12_SUBRESOURCE_FOOTPRINT& footprint,
                                                  const uint mipCount, const void* data = nullptr);
         // Sets materials (represented by texture indices) in shaders.
-        void setMaterials(const uint size, const void* data);
+        void setMaterials(const uint count, const Material* materials);
         // Sets the view-projection matrix in shaders.
         void setViewProjMatrix(DirectX::FXMMATRIX viewProj);
         // Submits all pending copy commands for execution, and begins a new segment

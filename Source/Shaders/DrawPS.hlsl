@@ -14,9 +14,10 @@ struct Material {
     uint pad0, pad1, pad2;  // Align to 2 * sizeof(float4)
 };
 
+#define MAT_CNT 32          // Maximal number of materials
+
 cbuffer Materials : register(b2) {
-    /* TODO: remove constant */
-    Material materials[26];
+    Material materials[MAT_CNT];
 }
 
 SamplerState af4Sampler : register(s0);

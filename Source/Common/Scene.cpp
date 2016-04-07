@@ -258,14 +258,22 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
 
     }
     // Copy materials to the GPU.
-    engine.setMaterials(matCount * sizeof(Material), materials.get());
+    engine.setMaterials(matCount, materials.get());
     engine.executeCopyCommands();
+    // Find the offset (the minimal texture SRV index).
+    uint offset = UINT_MAX;
+    for (const auto& entry : texLib) {
+        const auto& texture = entry.second;
+        offset = std::min(offset, texture.second);
+    }
     // Move textures into the array.
     texCount = static_cast<uint>(texLib.size());
     textures.allocate(texCount);
     for (auto& entry : texLib) {
-        auto& texture = entry.second;
-        textures.assign(texture.second, std::move(texture.first));
+        auto&      texture = entry.second;
+        const uint index   = texture.second;
+        assert(index - offset < texCount);
+        textures.assign(index - offset, std::move(texture.first));
     }
     printInfo("Scene loaded successfully.");
 }

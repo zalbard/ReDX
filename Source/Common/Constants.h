@@ -25,6 +25,8 @@ constexpr long  RES_Y           = 720;
 constexpr float VERTICAL_FOV    = M_PI / 3.f;
 // Maximal texture count.
 constexpr uint  TEX_CNT         = 256;
+// Maximal number of materials.
+constexpr uint  MAT_CNT         = 32;
 // Double/triple buffering.
 constexpr uint  BUF_CNT         = 3;
 // Maximal rendering queue depth (determines the frame latency).
