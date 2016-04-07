@@ -200,23 +200,37 @@ void Renderer::configurePipeline() {
                                              rsByteCode.size,
                                              IID_PPV_ARGS(&m_graphicsRootSignature)),
                "Failed to create a graphics root signature.");
+    // Configure the rasterizer state.
+    const D3D12_RASTERIZER_DESC rasterizerDesc = {
+        /* FillMode */              D3D12_FILL_MODE_SOLID,
+        /* CullMode */              D3D12_CULL_MODE_BACK,
+        /* FrontCounterClockwise */ FALSE,
+        /* DepthBias */             D3D12_DEFAULT_DEPTH_BIAS,
+        /* DepthBiasClamp */        D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+        /* SlopeScaledDepthBias */  D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+        /* DepthClipEnable */       TRUE,
+        /* MultisampleEnable */     FALSE,
+        /* AntialiasedLineEnable */ FALSE,
+        /* ForcedSampleCount */     0,
+        /* ConservativeRaster */    D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
+    };
     // Configure the way depth and stencil tests affect stencil values.
     const D3D12_DEPTH_STENCILOP_DESC depthStencilOpDesc = {
-        /* StencilFailOp */      D3D12_STENCIL_OP_KEEP,
-        /* StencilDepthFailOp */ D3D12_STENCIL_OP_KEEP,
-        /* StencilPassOp  */     D3D12_STENCIL_OP_KEEP,
-        /* StencilFunc */        D3D12_COMPARISON_FUNC_ALWAYS
+        /* StencilFailOp */         D3D12_STENCIL_OP_KEEP,
+        /* StencilDepthFailOp */    D3D12_STENCIL_OP_KEEP,
+        /* StencilPassOp  */        D3D12_STENCIL_OP_KEEP,
+        /* StencilFunc */           D3D12_COMPARISON_FUNC_ALWAYS
     };
     // Fill out the depth stencil description.
     const D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {
-        /* DepthEnable */      TRUE,
-        /* DepthWriteMask */   D3D12_DEPTH_WRITE_MASK_ALL,
-        /* DepthFunc */        D3D12_COMPARISON_FUNC_GREATER,
-        /* StencilEnable */    FALSE,
-        /* StencilReadMask */  D3D12_DEFAULT_STENCIL_READ_MASK,
-        /* StencilWriteMask */ D3D12_DEFAULT_STENCIL_WRITE_MASK,
-        /* FrontFace */        depthStencilOpDesc,
-        /* BackFace */         depthStencilOpDesc
+        /* DepthEnable */           TRUE,
+        /* DepthWriteMask */        D3D12_DEPTH_WRITE_MASK_ALL,
+        /* DepthFunc */             D3D12_COMPARISON_FUNC_GREATER,
+        /* StencilEnable */         FALSE,
+        /* StencilReadMask */       D3D12_DEFAULT_STENCIL_READ_MASK,
+        /* StencilWriteMask */      D3D12_DEFAULT_STENCIL_WRITE_MASK,
+        /* FrontFace */             depthStencilOpDesc,
+        /* BackFace */              depthStencilOpDesc
     };
     // Define the vertex input layout.
     const D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
@@ -252,20 +266,6 @@ void Renderer::configurePipeline() {
     const D3D12_INPUT_LAYOUT_DESC inputLayoutDesc = {
         /* pInputElementDescs */ inputElementDescs,
         /* NumElements */        _countof(inputElementDescs)
-    };
-    // Configure the rasterizer state.
-    const D3D12_RASTERIZER_DESC rasterizerDesc = {
-        /* FillMode */              D3D12_FILL_MODE_SOLID,
-        /* CullMode */              D3D12_CULL_MODE_BACK,
-        /* FrontCounterClockwise */ FALSE,
-        /* DepthBias */             D3D12_DEFAULT_DEPTH_BIAS,
-        /* DepthBiasClamp */        D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
-        /* SlopeScaledDepthBias */  D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
-        /* DepthClipEnable */       TRUE,
-        /* MultisampleEnable */     FALSE,
-        /* AntialiasedLineEnable */ FALSE,
-        /* ForcedSampleCount */     0,
-        /* ConservativeRaster */    D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
     };
     // Fill out the pipeline state object description.
     const D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {
