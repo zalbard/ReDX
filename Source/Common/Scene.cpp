@@ -49,6 +49,9 @@ struct IndexedObject {
     bool operator<(const IndexedObject& other) const {
         return material < other.material;
     }
+    bool operator>(const IndexedObject& other) const {
+        return material > other.material;
+    }
 public:
     int               material;
     std::vector<uint> indices;
@@ -122,8 +125,9 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
             }
         }
     }
+    /* TODO: implement mesh decimation. */
     // Sort objects by material.
-    std::sort(indexedObjects.begin(), indexedObjects.end());
+    std::sort(indexedObjects.begin(), indexedObjects.end(), std::greater<IndexedObject>());
     // Allocate memory.
     objects.count           = static_cast<uint>(indexedObjects.size());
     objects.visibilityBits  = DynBitSet{objects.count};
@@ -217,14 +221,12 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
                 /* Depth */    static_cast<uint>(info.depth),
                 /* RowPitch */ static_cast<uint>(mipChain.GetImages()->rowPitch)
             };
-            // Create the texture.
-            const uint  mipCount = static_cast<uint>(info.mipLevels);
-            const byte* texData  = mipChain.GetPixels();
-            const auto  result   = texLib.emplace(texName, engine.createTexture2D(footprint,
-                                                                                  mipCount,
-                                                                                  texData));
+            // Create a texture.
+            const uint mipCount = static_cast<uint>(info.mipLevels);
+            const auto result   = texLib.emplace(texName, engine.createTexture2D(footprint,
+                                                                 mipCount, mipChain.GetPixels()));
             // Return the texture index.
-            const auto texIter = result.first;
+            const auto texIter  = result.first;
             return texIter->second.second;
         }
     };
@@ -260,25 +262,19 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
     // Copy materials to the GPU.
     engine.setMaterials(matCount, materials.get());
     engine.executeCopyCommands();
-    // Find the offset (the minimal texture SRV index).
-    uint offset = UINT_MAX;
-    for (const auto& entry : texLib) {
-        const auto& texture = entry.second;
-        offset = std::min(offset, texture.second);
-    }
     // Move textures into the array.
     texCount = static_cast<uint>(texLib.size());
     textures.allocate(texCount);
+    uint i = 0;
     for (auto& entry : texLib) {
-        auto&      texture = entry.second;
-        const uint index   = texture.second;
-        assert(index - offset < texCount);
-        textures.assign(index - offset, std::move(texture.first));
+        auto& texture = entry.second;
+        textures.assign(i++, std::move(texture.first));
     }
     printInfo("Scene loaded successfully.");
 }
 
 float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
+    /* TODO: switch to AABBs and implement front-to-back sorting. */
     // Set all objects as visible.
     objects.visibilityBits.reset(1);
     uint visObjCnt = objects.count;

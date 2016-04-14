@@ -5,22 +5,35 @@
 #include "..\Common\Utility.h"
 
 namespace D3D12 {
-    static inline auto width(const D3D12_RECT& rect)
-    -> uint {
-        return static_cast<uint>(rect.right - rect.left);
+    static inline auto getResourceFormat(const DXGI_FORMAT depthFormat)
+    -> DXGI_FORMAT {
+        DXGI_FORMAT format;
+        switch (depthFormat) {
+        case DXGI_FORMAT_D16_UNORM:
+            format = DXGI_FORMAT_R16_TYPELESS;
+            break;
+        case DXGI_FORMAT_D24_UNORM_S8_UINT:
+            format = DXGI_FORMAT_X24_TYPELESS_G8_UINT;
+            break;
+        case DXGI_FORMAT_D32_FLOAT:
+            format = DXGI_FORMAT_R32_TYPELESS;
+            break;
+        case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+            format = DXGI_FORMAT_X32_TYPELESS_G8X24_UINT;
+            break;
+        default:
+            printError("Invalid depth resource format.");
+            TERMINATE();
+        }
+        return format;
     }
 
-    static inline auto height(const D3D12_RECT& rect)
-    -> uint {
-        return static_cast<uint>(rect.bottom - rect.top);
-    }
-
-    inline CD3DX12_TEX2D_SRV_DESC::CD3DX12_TEX2D_SRV_DESC(const DXGI_FORMAT format,
-                                                          const uint  mipCount,
-                                                          const uint  mostDetailedMip,
-                                                          const uint  planeSlice,
-                                                          const float resourceMinLODClamp,
-                                                          const uint  shader4ComponentMapping) {
+    inline D3D12_TEX2D_SRV_DESC::D3D12_TEX2D_SRV_DESC(const DXGI_FORMAT format,
+                                                      const uint  mipCount,
+                                                      const uint  mostDetailedMip,
+                                                      const uint  planeSlice,
+                                                      const float resourceMinLODClamp,
+                                                      const uint  shader4ComponentMapping) {
         Format                        = format;
         ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
         Shader4ComponentMapping       = shader4ComponentMapping;
@@ -28,6 +41,18 @@ namespace D3D12 {
         Texture2D.MipLevels           = mipCount;
         Texture2D.PlaneSlice          = planeSlice;
         Texture2D.ResourceMinLODClamp = resourceMinLODClamp;
+    }
+
+    inline D3D12_TRANSITION_BARRIER::D3D12_TRANSITION_BARRIER(ID3D12Resource* resource,
+                                     const D3D12_RESOURCE_STATES before,
+                                     const D3D12_RESOURCE_STATES after,
+                                     const D3D12_RESOURCE_BARRIER_FLAGS flag) {
+        Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        Flags                  = flag;
+        Transition.pResource   = resource;
+        Transition.StateBefore = before;
+        Transition.StateAfter  = after;
+        Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
     }
 
     inline UploadRingBuffer::UploadRingBuffer()
@@ -92,7 +117,7 @@ namespace D3D12 {
     }
 
     template<DescType T, uint N>
-    inline auto DescriptorPool<T, N>::descriptorHeap() const
+    inline auto DescriptorPool<T, N>::descriptorHeap()
     -> ID3D12DescriptorHeap* {
         return m_heap.Get();
     }
@@ -125,6 +150,18 @@ namespace D3D12 {
         return D3D12_GPU_DESCRIPTOR_HANDLE{index * m_handleIncrSz + m_gpuBegin.ptr};
     }
 
+    template<DescType T, uint N>
+    inline auto DescriptorPool<T, N>::computeIndex(const D3D12_CPU_DESCRIPTOR_HANDLE handle) const
+    -> uint {
+        return static_cast<uint>((handle.ptr - m_cpuBegin.ptr) / m_handleIncrSz);
+    }
+
+    template<DescType T, uint N>
+    inline auto DescriptorPool<T, N>::computeIndex(const D3D12_GPU_DESCRIPTOR_HANDLE handle) const
+    -> uint {
+        return static_cast<uint>((handle.ptr - m_gpuBegin.ptr) / m_handleIncrSz);
+    }
+
     template<CmdType T, uint N, uint L>
     inline auto CommandContext<T, N, L>::executeCommandList(const uint index)
     -> std::pair<ID3D12Fence*, uint64> {
@@ -141,7 +178,7 @@ namespace D3D12 {
         const uint64 value = ++m_fenceValue;
         CHECK_CALL(m_commandQueue->Signal(fence, value),
                    "Failed to insert a fence into the command queue.");
-        return {fence, value};
+        return std::make_pair(fence, value);
     }
 
     template<CmdType T, uint N, uint L>
@@ -203,7 +240,7 @@ namespace D3D12 {
         // Use the frequencies to perform conversions to microseconds.
         const uint64 cpuTime = (cpuTimeStamp * 1000000) / cpuFrequency;
         const uint64 gpuTime = (gpuTimeStamp * 1000000) / gpuFrequency;
-        return {cpuTime, gpuTime};
+        return std::make_pair(cpuTime, gpuTime);
     }
 
     template<CmdType T, uint N, uint L>

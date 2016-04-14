@@ -9,8 +9,8 @@ namespace D3D12 {
     inline auto Renderer::createVertexBuffer(const uint count, const T* elements)
     -> VertexBuffer {
         assert(elements && count >= 3);
-        VertexBuffer buffer;
         const uint size = count * sizeof(T);
+        VertexBuffer buffer;
         // Allocate the buffer on the default heap.
         const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
         const auto resourceDesc   = CD3DX12_RESOURCE_DESC::Buffer(size);
@@ -18,7 +18,7 @@ namespace D3D12 {
                                                      &resourceDesc, D3D12_RESOURCE_STATE_COMMON,
                                                      nullptr, IID_PPV_ARGS(&buffer.resource)),
                    "Failed to allocate a vertex buffer.");
-        // Transition the buffer state for the graphics/compute command queue type class.
+        // Transition the state of the buffer for the graphics/compute command queue type class.
         const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
                                                    D3D12_RESOURCE_STATE_COMMON,
                                                    D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
@@ -67,7 +67,7 @@ namespace D3D12 {
             alignedAddress = align<alignment>(m_uploadBuffer.begin);
             alignedOffset  = alignedAddress - m_uploadBuffer.begin;
             // Make sure the upload buffer is sufficiently large.
-            #ifdef _DEBUG
+            #ifndef NDEBUG
             {
                 const int64 alignedCapacity = m_uploadBuffer.capacity - alignedOffset;
                 if (alignedCapacity < size) {
@@ -117,6 +117,6 @@ namespace D3D12 {
         // Move the offset to the end of the data.
         m_uploadBuffer.offset = alignedEnd;
         // Return the address of and the offset to the beginning of the data.
-        return {alignedAddress, static_cast<uint>(alignedOffset)};
+        return std::make_pair(alignedAddress, static_cast<uint>(alignedOffset));
     }
 } // namespace D3D12
