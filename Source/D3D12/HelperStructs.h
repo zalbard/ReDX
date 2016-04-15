@@ -26,11 +26,11 @@ namespace D3D12 {
                                           const D3D12_RESOURCE_STATES after,
                                           const D3D12_RESOURCE_BARRIER_FLAGS flag =
                                           D3D12_RESOURCE_BARRIER_FLAG_NONE);
-
+        // Performs the state transition with the 'BEGIN_ONLY' flag.
         static D3D12_TRANSITION_BARRIER Begin(ID3D12Resource* resource,
                                               const D3D12_RESOURCE_STATES before,
                                               const D3D12_RESOURCE_STATES after);
-
+        // Performs the state transition with the 'END_ONLY' flag.
         static D3D12_TRANSITION_BARRIER End(ID3D12Resource* resource,
                                             const D3D12_RESOURCE_STATES before,
                                             const D3D12_RESOURCE_STATES after);
