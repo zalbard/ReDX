@@ -13,17 +13,27 @@ namespace D3D12 {
 
     struct D3D12_TEX2D_SRV_DESC: public D3D12_SHADER_RESOURCE_VIEW_DESC {
         explicit D3D12_TEX2D_SRV_DESC(const DXGI_FORMAT format, const uint mipCount,
-                 const uint  mostDetailedMip         = 0,
-                 const uint  planeSlice              = 0,
-                 const float resourceMinLODClamp     = 0.f,
-                 const uint  shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING);
+                                      const uint  mostDetailedMip         = 0,
+                                      const uint  planeSlice              = 0,
+                                      const float resourceMinLODClamp     = 0.f,
+                                      const uint  shader4ComponentMapping =
+                                      D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING);
     };
 
     struct D3D12_TRANSITION_BARRIER: public D3D12_RESOURCE_BARRIER {
         explicit D3D12_TRANSITION_BARRIER(ID3D12Resource* resource,
                                           const D3D12_RESOURCE_STATES before,
                                           const D3D12_RESOURCE_STATES after,
-                                          const D3D12_RESOURCE_BARRIER_FLAGS flag);
+                                          const D3D12_RESOURCE_BARRIER_FLAGS flag =
+                                          D3D12_RESOURCE_BARRIER_FLAG_NONE);
+
+        static D3D12_TRANSITION_BARRIER Begin(ID3D12Resource* resource,
+                                              const D3D12_RESOURCE_STATES before,
+                                              const D3D12_RESOURCE_STATES after);
+
+        static D3D12_TRANSITION_BARRIER End(ID3D12Resource* resource,
+                                            const D3D12_RESOURCE_STATES before,
+                                            const D3D12_RESOURCE_STATES after);
     };
 
     struct UploadRingBuffer {

@@ -19,9 +19,9 @@ namespace D3D12 {
                                                      nullptr, IID_PPV_ARGS(&buffer.resource)),
                    "Failed to allocate a vertex buffer.");
         // Transition the state of the buffer for the graphics/compute command queue type class.
-        const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
-                                                   D3D12_RESOURCE_STATE_COMMON,
-                                                   D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+        const D3D12_TRANSITION_BARRIER barrier{buffer.resource.Get(),
+                                               D3D12_RESOURCE_STATE_COMMON,
+                                               D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER};
         m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
         // Max. alignment requirement for vertex data is 4 bytes.
         constexpr uint64 alignment = 4;

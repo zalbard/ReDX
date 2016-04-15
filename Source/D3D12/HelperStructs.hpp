@@ -5,8 +5,7 @@
 #include "..\Common\Utility.h"
 
 namespace D3D12 {
-    static inline auto getResourceFormat(const DXGI_FORMAT depthFormat)
-    -> DXGI_FORMAT {
+    static inline DXGI_FORMAT getResourceFormat(const DXGI_FORMAT depthFormat) {
         DXGI_FORMAT format;
         switch (depthFormat) {
         case DXGI_FORMAT_D16_UNORM:
@@ -46,13 +45,31 @@ namespace D3D12 {
     inline D3D12_TRANSITION_BARRIER::D3D12_TRANSITION_BARRIER(ID3D12Resource* resource,
                                      const D3D12_RESOURCE_STATES before,
                                      const D3D12_RESOURCE_STATES after,
-                                     const D3D12_RESOURCE_BARRIER_FLAGS flag) {
-        Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-        Flags                  = flag;
-        Transition.pResource   = resource;
-        Transition.StateBefore = before;
-        Transition.StateAfter  = after;
-        Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+                                     const D3D12_RESOURCE_BARRIER_FLAGS flag)
+        : D3D12_RESOURCE_BARRIER{
+            /* Type */        D3D12_RESOURCE_BARRIER_TYPE_TRANSITION,
+            /* Flags */       flag,
+            /* pResource */   resource,
+            /* Subresource */ D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
+            /* StateBefore */ before,
+            /* StateAfter */  after
+        }
+    {}
+
+    inline auto D3D12_TRANSITION_BARRIER::Begin(ID3D12Resource* resource,
+                                                const D3D12_RESOURCE_STATES before,
+                                                const D3D12_RESOURCE_STATES after)
+    -> D3D12_TRANSITION_BARRIER {
+        return D3D12_TRANSITION_BARRIER{resource, before, after,
+                                        D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY};
+    }
+
+    inline auto D3D12_TRANSITION_BARRIER::End(ID3D12Resource* resource,
+                                              const D3D12_RESOURCE_STATES before,
+                                              const D3D12_RESOURCE_STATES after)
+    -> D3D12_TRANSITION_BARRIER {
+        return D3D12_TRANSITION_BARRIER{resource, before, after,
+                                        D3D12_RESOURCE_BARRIER_FLAG_END_ONLY};
     }
 
     inline UploadRingBuffer::UploadRingBuffer()

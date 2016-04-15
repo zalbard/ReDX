@@ -448,9 +448,9 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
                                                  nullptr, IID_PPV_ARGS(&texture.resource)),
                "Failed to allocate a texture.");
     // Transition the state of the texture for the graphics/compute command queue type class.
-    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(texture.resource.Get(),
-                                                   D3D12_RESOURCE_STATE_COMMON,
-                                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    const D3D12_TRANSITION_BARRIER barrier{texture.resource.Get(),
+                                           D3D12_RESOURCE_STATE_COMMON,
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
         constexpr uint64 pitchAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
@@ -514,9 +514,10 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
                                                  nullptr, IID_PPV_ARGS(&buffer.resource)),
                "Failed to allocate an index buffer.");
     // Transition the state of the buffer for the graphics/compute command queue type class.
-    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
-                                                   D3D12_RESOURCE_STATE_COMMON,
-                                                   D3D12_RESOURCE_STATE_INDEX_BUFFER);
+    const D3D12_TRANSITION_BARRIER barrier{buffer.resource.Get(),
+                                           D3D12_RESOURCE_STATE_COMMON,
+                                           D3D12_RESOURCE_STATE_INDEX_BUFFER};
+    m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     // Max. alignment requirement for indices is 4 bytes.
     constexpr uint64 alignment = 4;
     // Copy indices into the upload buffer.
@@ -543,9 +544,9 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data)
                                                  nullptr, IID_PPV_ARGS(&buffer.resource)),
                "Failed to allocate a constant buffer.");
     // Transition the state of the buffer for the graphics/compute command queue type class.
-    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
-                                                   D3D12_RESOURCE_STATE_COMMON,
-                                                   D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    const D3D12_TRANSITION_BARRIER barrier{buffer.resource.Get(),
+                                           D3D12_RESOURCE_STATE_COMMON,
+                                           D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
         constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
@@ -653,10 +654,8 @@ void Renderer::performGBufferPass(FXMMATRIX viewProj, const Scene::Objects& obje
     frameRes.getTransitionBarriersToWritableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
     // Start the transition of the back buffer state: Presenting -> Render Target.
     ID3D12Resource* backBuffer = m_renderTargets[m_backBufferIndex].Get();
-    barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer,
-                                           D3D12_RESOURCE_STATE_PRESENT,
-                                           D3D12_RESOURCE_STATE_RENDER_TARGET,
-                                           D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY};
+    barriers[5] = D3D12_TRANSITION_BARRIER::Begin(backBuffer, D3D12_RESOURCE_STATE_PRESENT,
+                                                              D3D12_RESOURCE_STATE_RENDER_TARGET);
     graphicsCommandList->ResourceBarrier(6, barriers);
     // Dump the columns 0, 1 and 3 of the view-projection matrix.
     const XMMATRIX tViewProj = XMMatrixTranspose(viewProj);
@@ -720,10 +719,8 @@ void Renderer::performShadingPass() {
     frameRes.getTransitionBarriersToReadableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_NONE);
     // Finish the transition of the back buffer state: Presenting -> Render Target.
     ID3D12Resource* backBuffer = m_renderTargets[m_backBufferIndex].Get();
-    barriers[5]  = D3D12_TRANSITION_BARRIER{backBuffer,
-                                            D3D12_RESOURCE_STATE_PRESENT,
-                                            D3D12_RESOURCE_STATE_RENDER_TARGET,
-                                            D3D12_RESOURCE_BARRIER_FLAG_END_ONLY};
+    barriers[5] = D3D12_TRANSITION_BARRIER::End(backBuffer, D3D12_RESOURCE_STATE_PRESENT,
+                                                            D3D12_RESOURCE_STATE_RENDER_TARGET);
     graphicsCommandList->ResourceBarrier(6, barriers);
     // Set the root arguments.
     graphicsCommandList->SetGraphicsRootConstantBufferView(0, m_materialBuffer.view);
@@ -742,10 +739,8 @@ void Renderer::performShadingPass() {
     // Start the transition of the frame resources to the writable state.
     frameRes.getTransitionBarriersToWritableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY);
     // Transition the state of the back buffer: Render Target -> Presenting.
-    barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer,
-                                           D3D12_RESOURCE_STATE_RENDER_TARGET,
-                                           D3D12_RESOURCE_STATE_PRESENT,
-                                           D3D12_RESOURCE_BARRIER_FLAG_NONE};
+    barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET,
+                                                       D3D12_RESOURCE_STATE_PRESENT};
     graphicsCommandList->ResourceBarrier(6, barriers);
     // Finalize and execute the command list.
     m_graphicsContext.executeCommandList(0);
