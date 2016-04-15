@@ -4,14 +4,14 @@
 
 // Computes the square of the value.
 template <typename T>
-static inline auto sq(const T v)
+constexpr auto sq(const T v)
 -> T {
     return v * v;
 }
 
 // Computes the reciprocal of the value.
 template <typename T>
-static inline auto rcp(const T v)
+constexpr auto rcp(const T v)
 -> float {
     return 1.f / v;
 }
