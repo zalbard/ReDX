@@ -112,6 +112,7 @@ namespace D3D12 {
         m_uploadBuffer.offset = static_cast<uint>(alignedOffset);
         // Check whether any copies to the GPU have to be performed.
         if (executeAllCopies || waitForPrevCopies) {
+            /* Insert a breakpoint here if the copy queue stalls! */
             executeCopyCommands(executeAllCopies);
         }
         // Move the offset to the end of the data.
