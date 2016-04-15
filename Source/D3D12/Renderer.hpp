@@ -118,6 +118,6 @@ namespace D3D12 {
         // Move the offset to the end of the data.
         m_uploadBuffer.offset = alignedEnd;
         // Return the address of and the offset to the beginning of the data.
-        return std::make_pair(alignedAddress, static_cast<uint>(alignedOffset));
+        return {alignedAddress, static_cast<uint>(alignedOffset)};
     }
 } // namespace D3D12

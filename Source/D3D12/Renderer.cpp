@@ -495,11 +495,11 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
     }
     // Initialize the shader resource view.
     const D3D12_TEX2D_SRV_DESC srvDesc{footprint.Format, mipCount};
-    const uint texId = m_texPool.size;
-    texture.view     = m_texPool.gpuHandle(m_texPool.size);
+    const uint textureId = m_texPool.size;
+    texture.view         = m_texPool.gpuHandle(m_texPool.size);
     m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc,
                                        m_texPool.cpuHandle(m_texPool.size++));
-    return std::make_pair(texture, texId);
+    return {texture, textureId};
 }
 
 IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {

@@ -195,7 +195,7 @@ namespace D3D12 {
         const uint64 value = ++m_fenceValue;
         CHECK_CALL(m_commandQueue->Signal(fence, value),
                    "Failed to insert a fence into the command queue.");
-        return std::make_pair(fence, value);
+        return {fence, value};
     }
 
     template<CmdType T, uint N, uint L>
@@ -257,7 +257,7 @@ namespace D3D12 {
         // Use the frequencies to perform conversions to microseconds.
         const uint64 cpuTime = (cpuTimeStamp * 1000000) / cpuFrequency;
         const uint64 gpuTime = (gpuTimeStamp * 1000000) / gpuFrequency;
-        return std::make_pair(cpuTime, gpuTime);
+        return {cpuTime, gpuTime};
     }
 
     template<CmdType T, uint N, uint L>
