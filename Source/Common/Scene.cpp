@@ -6,6 +6,7 @@
 #include "Scene.h"
 #include "Utility.h"
 #include "..\Common\Camera.h"
+#include "..\Common\Math.h"
 #include "..\D3D12\Renderer.hpp"
 
 using namespace DirectX;
@@ -208,12 +209,14 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
             ScratchImage img;
             CHECK_CALL(FlipRotate(*tmp.GetImages(), TEX_FR_FLIP_VERTICAL, img),
                        "Failed to perform a vertical image flip.");
+            const TexMetadata& info = img.GetMetadata();
             // Generate MIP maps.
             ScratchImage mipChain;
-            CHECK_CALL(GenerateMipMaps(*img.GetImages(), TEX_FILTER_DEFAULT, 0, mipChain),
+            const uint   mipCount = 1 + std::min(log2u(static_cast<uint>(info.width)),
+                                                 log2u(static_cast<uint>(info.height)));
+            CHECK_CALL(GenerateMipMaps(*img.GetImages(), TEX_FILTER_DEFAULT, mipCount, mipChain),
                        "Failed to generate MIP maps.");
             // Describe the 2D texture.
-            const TexMetadata& info = mipChain.GetMetadata();
             const D3D12_SUBRESOURCE_FOOTPRINT footprint = {
                 /* Format */   info.format,
                 /* Width */    static_cast<uint>(info.width),
@@ -222,11 +225,10 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
                 /* RowPitch */ static_cast<uint>(mipChain.GetImages()->rowPitch)
             };
             // Create a texture.
-            const uint mipCount = static_cast<uint>(info.mipLevels);
-            const auto result   = texLib.emplace(texName, engine.createTexture2D(footprint,
-                                                                 mipCount, mipChain.GetPixels()));
+            const auto res = texLib.emplace(texName, engine.createTexture2D(footprint, mipCount,
+                                                                            mipChain.GetPixels()));
             // Return the texture index.
-            const auto texIter  = result.first;
+            const auto texIter = res.first;
             return texIter->second.second;
         }
     };
