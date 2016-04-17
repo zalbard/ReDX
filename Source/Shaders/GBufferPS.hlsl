@@ -20,9 +20,9 @@ struct OutputPS {
 [RootSignature(RootSig)]
 OutputPS main(const InputPS input) {
     OutputPS output;
-    // Normalize the interpolated normal.
+    // Interpolate and normalize the normal.
     output.normal  = input.normal.xy * rsqrt(dot(input.normal, input.normal));
-    // Wrap the UV coordinates.
+    // Interpolate and wrap the UV coordinates.
     output.uvCoord = frac(input.uvCoord);
     // Compute per-pixel UV derivatives.
     output.uvGrad  = float4(ddx_fine(input.uvCoord), ddy_fine(input.uvCoord));
