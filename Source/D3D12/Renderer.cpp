@@ -422,6 +422,35 @@ ComPtr<ID3D12Resource> Renderer::createRenderBuffer(const uint width, const uint
     return renderBuffer;
 }
 
+ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data) {
+    assert(!data || size >= 4);
+    ConstantBuffer buffer;
+    // Allocate the buffer on the default heap.
+    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
+    const auto resourceDesc   = CD3DX12_RESOURCE_DESC::Buffer(size);
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
+                                                 &resourceDesc, D3D12_RESOURCE_STATE_COMMON,
+                                                 nullptr, IID_PPV_ARGS(&buffer.resource)),
+               "Failed to allocate a constant buffer.");
+    // Transition the state of the buffer for the graphics/compute command queue type class.
+    const D3D12_TRANSITION_BARRIER barrier{buffer.resource.Get(),
+                                           D3D12_RESOURCE_STATE_COMMON,
+                                           D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER};
+    m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
+    if (data) {
+        constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+        // Copy the data into the upload buffer.
+        const uint offset = copyToUploadBuffer<alignment>(size, data);
+        // Copy the data from the upload buffer into the video memory buffer.
+        m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
+                                                       m_uploadBuffer.resource.Get(), offset,
+                                                       size);
+    }
+    // Initialize the constant buffer view.
+    buffer.view = buffer.resource->GetGPUVirtualAddress();
+    return buffer;
+}
+
 StructuredBuffer Renderer::createStructuredBuffer(const uint size, const void* data) {
     assert(!data || size >= 4);
     StructuredBuffer buffer;

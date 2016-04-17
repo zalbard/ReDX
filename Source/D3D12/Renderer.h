@@ -67,6 +67,8 @@ namespace D3D12 {
         // Creates a render buffer with descriptors in both RTV and texture pools.
         ComPtr<ID3D12Resource> createRenderBuffer(const uint width, const uint height,
                                                   const DXGI_FORMAT format);
+        // Creates a constant buffer for the data of the specified size (in bytes).
+        ConstantBuffer createConstantBuffer(const uint size, const void* data = nullptr);
         // Creates a structured buffer for the data of the specified size (in bytes).
         StructuredBuffer createStructuredBuffer(const uint size, const void* data = nullptr);
         // Copies the data of the specified size (in bytes) and alignment into the upload buffer.
