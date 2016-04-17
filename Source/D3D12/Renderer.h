@@ -16,15 +16,13 @@ namespace D3D12 {
         // Returns the texture and the index of the associated SRV within the texture pool.
         std::pair<Texture, uint> createTexture2D(const D3D12_SUBRESOURCE_FOOTPRINT& footprint,
                                                  const uint mipCount, const void* data);
+        // Returns the index of the SRV within the texture pool.
+        uint getTextureIndex(const Texture& texture) const;
+        // Creates an index buffer for the index array with the specified number of indices.
+        IndexBuffer createIndexBuffer(const uint count, const uint* indices);
         // Creates a vertex attribute buffer for the vertex array of 'count' elements.
         template <typename T>
         VertexBuffer createVertexBuffer(const uint count, const T* elements);
-        // Creates an index buffer for the index array with the specified number of indices.
-        IndexBuffer createIndexBuffer(const uint count, const uint* indices);
-        // Creates a constant buffer for the data of the specified size (in bytes).
-        ConstantBuffer createConstantBuffer(const uint size, const void* data = nullptr);
-        // Returns the index of the SRV within the texture pool.
-        uint getTextureIndex(const Texture& texture) const;
         // Sets materials (represented by texture indices) in shaders.
         void setMaterials(const uint count, const Material* materials);
         // Submits all pending copy commands for execution, and begins a new segment
@@ -46,10 +44,10 @@ namespace D3D12 {
         void stop();
     private:
         struct FrameResource {
-            ComPtr<ID3D12Resource>      depthBuffer; 
-            ComPtr<ID3D12Resource>      normalBuffer, uvCoordBuffer, uvGradBuffer, materialBuffer;
-            uint                        firstRtvIndex;
-            uint                        firstTexIndex;
+            ComPtr<ID3D12Resource> depthBuffer; 
+            ComPtr<ID3D12Resource> normalBuffer, uvCoordBuffer, uvGradBuffer, matIdBuffer;
+            uint                   firstRtvIndex;
+            uint                   firstTexIndex;
             void getTransitionBarriersToWritableState(D3D12_RESOURCE_BARRIER* barriers,
                                                       const D3D12_RESOURCE_BARRIER_FLAGS flag);
             void getTransitionBarriersToReadableState(D3D12_RESOURCE_BARRIER* barriers,

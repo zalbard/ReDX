@@ -1,7 +1,7 @@
 #include "GBufferRS.hlsl"
 
 cbuffer RootConsts : register(b0) {
-    uint material;
+    uint matId;
 }
 
 struct InputPS {
@@ -14,18 +14,18 @@ struct OutputPS {
     float2 normal   : SV_Target0;
     float2 uvCoord  : SV_Target1;
     float4 uvGrad   : SV_Target2;
-    uint   material : SV_Target3;
+    uint   matId    : SV_Target3;
 };
 
 [RootSignature(RootSig)]
 OutputPS main(const InputPS input) {
     OutputPS output;
     // Normalize the interpolated normal.
-    output.normal   = input.normal.xy * rsqrt(dot(input.normal, input.normal));
+    output.normal  = input.normal.xy * rsqrt(dot(input.normal, input.normal));
     // Wrap the UV coordinates.
-    output.uvCoord  = frac(input.uvCoord);
+    output.uvCoord = frac(input.uvCoord);
     // Compute per-pixel UV derivatives.
-    output.uvGrad   = float4(ddx_fine(input.uvCoord), ddy_fine(input.uvCoord));
-    output.material = material;
+    output.uvGrad  = float4(ddx_fine(input.uvCoord), ddy_fine(input.uvCoord));
+    output.matId   = matId;
     return output;
 }

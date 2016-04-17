@@ -149,15 +149,15 @@ Renderer::Renderer()
             m_frameResouces[i].firstRtvIndex  = m_rtvPool.size;
             m_frameResouces[i].firstTexIndex  = m_texPool.size;
             // Create a depth buffer.
-            m_frameResouces[i].depthBuffer    = createDepthBuffer(width, height, FORMAT_DSV);
+            m_frameResouces[i].depthBuffer   = createDepthBuffer(width, height, FORMAT_DSV);
             // Create a normal vector buffer.
-            m_frameResouces[i].normalBuffer   = createRenderBuffer(width, height, FORMAT_NORMAL);
+            m_frameResouces[i].normalBuffer  = createRenderBuffer(width, height, FORMAT_NORMAL);
             // Create a UV coordinate buffer.
-            m_frameResouces[i].uvCoordBuffer  = createRenderBuffer(width, height, FORMAT_UVCOORD);
+            m_frameResouces[i].uvCoordBuffer = createRenderBuffer(width, height, FORMAT_UVCOORD);
             // Create a UV gradient buffer.
-            m_frameResouces[i].uvGradBuffer   = createRenderBuffer(width, height, FORMAT_UVGRAD);
+            m_frameResouces[i].uvGradBuffer  = createRenderBuffer(width, height, FORMAT_UVGRAD);
             // Create a material ID buffer.
-            m_frameResouces[i].materialBuffer = createRenderBuffer(width, height, FORMAT_MAT_ID);
+            m_frameResouces[i].matIdBuffer   = createRenderBuffer(width, height, FORMAT_MAT_ID);
         }
     }
     // Create a persistently mapped buffer on the upload heap.
@@ -531,6 +531,10 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
     return {texture, textureId};
 }
 
+uint Renderer::getTextureIndex(const Texture& texture) const {
+    return m_texPool.computeIndex(texture.view);
+}
+
 IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
     assert(indices && count >= 3);
     const uint size = count * sizeof(uint);
@@ -560,39 +564,6 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
     buffer.view.SizeInBytes    = size;
     buffer.view.Format         = DXGI_FORMAT_R32_UINT;
     return buffer;
-}
-
-ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data) {
-    assert(!data || size >= 4);
-    ConstantBuffer buffer;
-    // Allocate the buffer on the default heap.
-    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
-    const auto resourceDesc   = CD3DX12_RESOURCE_DESC::Buffer(size);
-    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &resourceDesc, D3D12_RESOURCE_STATE_COMMON,
-                                                 nullptr, IID_PPV_ARGS(&buffer.resource)),
-               "Failed to allocate a constant buffer.");
-    // Transition the state of the buffer for the graphics/compute command queue type class.
-    const D3D12_TRANSITION_BARRIER barrier{buffer.resource.Get(),
-                                           D3D12_RESOURCE_STATE_COMMON,
-                                           D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER};
-    m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
-    if (data) {
-        constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-        // Copy the data into the upload buffer.
-        const uint offset = copyToUploadBuffer<alignment>(size, data);
-        // Copy the data from the upload buffer into the video memory buffer.
-        m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
-                                                       m_uploadBuffer.resource.Get(), offset,
-                                                       size);
-    }
-    // Initialize the constant buffer view.
-    buffer.view = buffer.resource->GetGPUVirtualAddress();
-    return buffer;
-}
-
-uint Renderer::getTextureIndex(const Texture& texture) const {
-    return m_texPool.computeIndex(texture.view);
 }
 
 void Renderer::setMaterials(const uint count, const Material* materials) {
@@ -646,7 +617,7 @@ void Renderer::FrameResource::getTransitionBarriersToWritableState(
     barriers[3] = D3D12_TRANSITION_BARRIER{uvGradBuffer.Get(),
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                                            D3D12_RESOURCE_STATE_RENDER_TARGET, flag};
-    barriers[4] = D3D12_TRANSITION_BARRIER{materialBuffer.Get(),
+    barriers[4] = D3D12_TRANSITION_BARRIER{matIdBuffer.Get(),
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                                            D3D12_RESOURCE_STATE_RENDER_TARGET, flag};
 }
@@ -666,7 +637,7 @@ void Renderer::FrameResource::getTransitionBarriersToReadableState(
     barriers[3] = D3D12_TRANSITION_BARRIER{uvGradBuffer.Get(),
                                            D3D12_RESOURCE_STATE_RENDER_TARGET,
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
-    barriers[4] = D3D12_TRANSITION_BARRIER{materialBuffer.Get(),
+    barriers[4] = D3D12_TRANSITION_BARRIER{matIdBuffer.Get(),
                                            D3D12_RESOURCE_STATE_RENDER_TARGET,
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
 }
@@ -714,13 +685,13 @@ void Renderer::performGBufferPass(FXMMATRIX viewProj, const Scene::Objects& obje
     graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     graphicsCommandList->IASetVertexBuffers(0, 3, objects.vertexAttrBuffers.views.get());
     // Issue draw calls.
-    uint16 material = UINT16_MAX;
+    uint16 matId = UINT16_MAX;
     for (uint i = 0; i < objects.count; ++i) {
         if (objects.visibilityBits.testBit(i)) {
-            if (material != objects.materialIndices[i]) {
-                material  = objects.materialIndices[i];
+            if (matId != objects.materialIndices[i]) {
+                matId  = objects.materialIndices[i];
                 // Set the object's material index.
-                graphicsCommandList->SetGraphicsRoot32BitConstant(0, material, 0);
+                graphicsCommandList->SetGraphicsRoot32BitConstant(0, matId, 0);
             }
             // Draw the object.
             const uint count = objects.indexBuffers.views[i].SizeInBytes / sizeof(uint);
