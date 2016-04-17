@@ -6,6 +6,7 @@
 #include "Scene.h"
 #include "Utility.h"
 #include "..\Common\Camera.h"
+#include "..\Common\Math.h"
 #include "..\D3D12\Renderer.hpp"
 
 using namespace DirectX;
@@ -48,6 +49,9 @@ XMVECTOR Sphere::radius() const {
 struct IndexedObject {
     bool operator<(const IndexedObject& other) const {
         return material < other.material;
+    }
+    bool operator>(const IndexedObject& other) const {
+        return material > other.material;
     }
 public:
     int               material;
@@ -122,8 +126,9 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
             }
         }
     }
+    /* TODO: implement mesh decimation. */
     // Sort objects by material.
-    std::sort(indexedObjects.begin(), indexedObjects.end());
+    std::sort(indexedObjects.begin(), indexedObjects.end(), std::greater<IndexedObject>());
     // Allocate memory.
     objects.count           = static_cast<uint>(indexedObjects.size());
     objects.visibilityBits  = DynBitSet{objects.count};
@@ -204,12 +209,14 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
             ScratchImage img;
             CHECK_CALL(FlipRotate(*tmp.GetImages(), TEX_FR_FLIP_VERTICAL, img),
                        "Failed to perform a vertical image flip.");
+            const TexMetadata& info = img.GetMetadata();
             // Generate MIP maps.
             ScratchImage mipChain;
-            CHECK_CALL(GenerateMipMaps(*img.GetImages(), TEX_FILTER_DEFAULT, 0, mipChain),
+            const uint   mipCount = 1 + std::min(log2u(static_cast<uint>(info.width)),
+                                                 log2u(static_cast<uint>(info.height)));
+            CHECK_CALL(GenerateMipMaps(*img.GetImages(), TEX_FILTER_DEFAULT, mipCount, mipChain),
                        "Failed to generate MIP maps.");
             // Describe the 2D texture.
-            const TexMetadata& info = mipChain.GetMetadata();
             const D3D12_SUBRESOURCE_FOOTPRINT footprint = {
                 /* Format */   info.format,
                 /* Width */    static_cast<uint>(info.width),
@@ -217,14 +224,11 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
                 /* Depth */    static_cast<uint>(info.depth),
                 /* RowPitch */ static_cast<uint>(mipChain.GetImages()->rowPitch)
             };
-            // Create the texture.
-            const uint  mipCount = static_cast<uint>(info.mipLevels);
-            const byte* texData  = mipChain.GetPixels();
-            const auto  result   = texLib.emplace(texName, engine.createTexture2D(footprint,
-                                                                                  mipCount,
-                                                                                  texData));
+            // Create a texture.
+            const auto res = texLib.emplace(texName, engine.createTexture2D(footprint, mipCount,
+                                                                            mipChain.GetPixels()));
             // Return the texture index.
-            const auto texIter = result.first;
+            const auto texIter = res.first;
             return texIter->second.second;
         }
     };
@@ -258,19 +262,21 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
 
     }
     // Copy materials to the GPU.
-    engine.setMaterials(matCount * sizeof(Material), materials.get());
+    engine.setMaterials(matCount, materials.get());
     engine.executeCopyCommands();
     // Move textures into the array.
     texCount = static_cast<uint>(texLib.size());
     textures.allocate(texCount);
+    uint i = 0;
     for (auto& entry : texLib) {
         auto& texture = entry.second;
-        textures.assign(texture.second, std::move(texture.first));
+        textures.assign(i++, std::move(texture.first));
     }
     printInfo("Scene loaded successfully.");
 }
 
 float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
+    /* TODO: switch to AABBs and implement front-to-back sorting. */
     // Set all objects as visible.
     objects.visibilityBits.reset(1);
     uint visObjCnt = objects.count;

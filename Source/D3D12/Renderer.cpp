@@ -47,22 +47,24 @@ Renderer::Renderer()
     : m_frameIndex{0} {
     // Configure the scissor rectangle used for clipping.
     m_scissorRect = D3D12_RECT{
-        /* left */   0,
-        /* top */    0,
-        /* right */  Window::width(),
-        /* bottom */ Window::height()
+        /* left */     0,
+        /* top */      0,
+        /* right */    Window::width(),
+        /* bottom */   Window::height()
     };
+    const uint width  = static_cast<uint>(m_scissorRect.right);
+    const uint height = static_cast<uint>(m_scissorRect.bottom);
     // Configure the viewport.
     m_viewport = D3D12_VIEWPORT{
         /* TopLeftX */ 0.f,
         /* TopLeftY */ 0.f,
-        /* Width */    static_cast<float>(width(m_scissorRect)),
-        /* Height */   static_cast<float>(height(m_scissorRect)),
+        /* Width */    static_cast<float>(width),
+        /* Height */   static_cast<float>(height),
         /* MinDepth */ 0.f,
         /* MaxDepth */ 1.f
     };
     // Enable the Direct3D debug layer.
-    #ifdef _DEBUG
+    #ifndef NDEBUG
     {
         ComPtr<ID3D12Debug> debugController;
         CHECK_CALL(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)),
@@ -101,11 +103,11 @@ Renderer::Renderer()
     {
         // Fill out the swap chain description.
         const DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {
-            /* Width */       width(m_scissorRect),
-            /* Height */      height(m_scissorRect),
-            /* Format */      RTV_FORMAT,
+            /* Width */       width,
+            /* Height */      height,
+            /* Format */      FORMAT_RTV,
             /* Stereo */      0,
-            /* SampleDesc */  defaultSampleDesc,
+            /* SampleDesc */  SAMPLE_DEFAULT,
             /* BufferUsage */ DXGI_USAGE_RENDER_TARGET_OUTPUT,
             /* BufferCount */ BUF_CNT,
             /* Scaling */     DXGI_SCALING_NONE,
@@ -133,39 +135,30 @@ Renderer::Renderer()
         m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr,
                                          m_rtvPool.cpuHandle(m_rtvPool.size++));
     }
-    // Create a depth-stencil view (DSV) for each frame.
-    for (uint i = 0; i < FRAME_CNT; ++i) {
-        const D3D12_RESOURCE_DESC resourceDesc = {
-            /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-            /* Alignment */        0,   // Automatic
-            /* Width */            width(m_scissorRect),
-            /* Height */           height(m_scissorRect),
-            /* DepthOrArraySize */ 1,
-            /* MipLevels */        0,   // Automatic
-            /* Format */           DSV_FORMAT,
-            /* SampleDesc */       defaultSampleDesc,
-            /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
-            /* Flags */            D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
-        };
-        const CD3DX12_CLEAR_VALUE clearValue{
-            /* Format */  DSV_FORMAT,
-            /* Depth */   0.f,
-            /* Stencil */ 0
-        };
-        const CD3DX12_HEAP_PROPERTIES heapProperties{D3D12_HEAP_TYPE_DEFAULT};
-        CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                     &resourceDesc,
-                                                     D3D12_RESOURCE_STATE_DEPTH_WRITE, &clearValue,
-                                                     IID_PPV_ARGS(&m_frameResouces[i].depthBuffer)),
-                                                     "Failed to allocate a depth buffer.");
-        const D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {
-            /* Format */        DSV_FORMAT,
-            /* ViewDimension */ D3D12_DSV_DIMENSION_TEXTURE2D,
-            /* Flags */         D3D12_DSV_FLAG_NONE,
-            /* Texture2D */     {}
-        };
-        m_device->CreateDepthStencilView(m_frameResouces[i].depthBuffer.Get(), &dsvDesc,
-                                         m_dsvPool.cpuHandle(m_dsvPool.size++));
+    // Configure render passes.
+    configureGBufferPass();
+    configureShadingPass();
+    // Set the initial command list states.
+    m_copyContext.resetCommandList(0, nullptr);
+    m_graphicsContext.resetCommandList(0, m_gBufferPass.pipelineState.Get());
+    // Create resources for each frame.
+    {
+        assert(m_dsvPool.size == 0);
+        for (uint i = 0; i < FRAME_CNT; ++i) {
+            // Store the descriptor indices before we populate the pools.
+            m_frameResouces[i].firstRtvIndex  = m_rtvPool.size;
+            m_frameResouces[i].firstTexIndex  = m_texPool.size;
+            // Create a depth buffer.
+            m_frameResouces[i].depthBuffer   = createDepthBuffer(width, height, FORMAT_DSV);
+            // Create a normal vector buffer.
+            m_frameResouces[i].normalBuffer  = createRenderBuffer(width, height, FORMAT_NORMAL);
+            // Create a UV coordinate buffer.
+            m_frameResouces[i].uvCoordBuffer = createRenderBuffer(width, height, FORMAT_UVCOORD);
+            // Create a UV gradient buffer.
+            m_frameResouces[i].uvGradBuffer  = createRenderBuffer(width, height, FORMAT_UVGRAD);
+            // Create a material ID buffer.
+            m_frameResouces[i].matIdBuffer   = createRenderBuffer(width, height, FORMAT_MAT_ID);
+        }
     }
     // Create a persistently mapped buffer on the upload heap.
     {
@@ -185,99 +178,93 @@ Renderer::Renderer()
                                                 reinterpret_cast<void**>(&m_uploadBuffer.begin)),
                    "Failed to map the upload buffer.");
     }
-    // Set up the rendering pipeline.
-    configurePipeline();
+    // Create a buffer for material indices.
+    m_materialBuffer = createStructuredBuffer(MAT_CNT * sizeof(Material));
 }
 
-void Renderer::configurePipeline() {
+void D3D12::Renderer::configureGBufferPass() {
+    auto& rootSignature = m_gBufferPass.rootSignature;
+    auto& pipelineState = m_gBufferPass.pipelineState;
     // Import the bytecode of the graphics root signature and the shaders.
-    const Buffer rsByteCode{"Shaders\\DrawRS.cso"};
-    const Buffer vsByteCode("Shaders\\DrawVS.cso");
-    const Buffer psByteCode("Shaders\\DrawPS.cso");
+    const Buffer rsByteCode{"Shaders\\GBufferRS.cso"};
+    const Buffer vsByteCode("Shaders\\GBufferVS.cso");
+    const Buffer psByteCode("Shaders\\GBufferPS.cso");
     // Create a graphics root signature.
     CHECK_CALL(m_device->CreateRootSignature(m_device->nodeMask,
-                                             rsByteCode.data(),
-                                             rsByteCode.size,
-                                             IID_PPV_ARGS(&m_graphicsRootSignature)),
+                                             rsByteCode.data(), rsByteCode.size,
+                                             IID_PPV_ARGS(&rootSignature)),
                "Failed to create a graphics root signature.");
-    // Configure the way depth and stencil tests affect stencil values.
-    const D3D12_DEPTH_STENCILOP_DESC depthStencilOpDesc = {
-        /* StencilFailOp */      D3D12_STENCIL_OP_KEEP,
-        /* StencilDepthFailOp */ D3D12_STENCIL_OP_KEEP,
-        /* StencilPassOp  */     D3D12_STENCIL_OP_KEEP,
-        /* StencilFunc */        D3D12_COMPARISON_FUNC_ALWAYS
-    };
-    // Fill out the depth stencil description.
-    const D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {
-        /* DepthEnable */      TRUE,
-        /* DepthWriteMask */   D3D12_DEPTH_WRITE_MASK_ALL,
-        /* DepthFunc */        D3D12_COMPARISON_FUNC_GREATER,
-        /* StencilEnable */    FALSE,
-        /* StencilReadMask */  D3D12_DEFAULT_STENCIL_READ_MASK,
-        /* StencilWriteMask */ D3D12_DEFAULT_STENCIL_WRITE_MASK,
-        /* FrontFace */        depthStencilOpDesc,
-        /* BackFace */         depthStencilOpDesc
-    };
-    // Define the vertex input layout.
-    const D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
-        {
-            /* SemanticName */         "POSITION",
-            /* SemanticIndex */        0,
-            /* Format */               DXGI_FORMAT_R32G32B32_FLOAT,
-            /* InputSlot */            0,
-            /* AlignedByteOffset */    0,
-            /* InputSlotClass */       D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-            /* InstanceDataStepRate */ 0
-        },
-        {
-            /* SemanticName */         "NORMAL",
-            /* SemanticIndex */        0,
-            /* Format */               DXGI_FORMAT_R32G32B32_FLOAT,
-            /* InputSlot */            1,
-            /* AlignedByteOffset */    0,
-            /* InputSlotClass */       D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-            /* InstanceDataStepRate */ 0
-        },
-        {
-            /* SemanticName */         "TEXCOORD",
-            /* SemanticIndex */        0,
-            /* Format */               DXGI_FORMAT_R32G32_FLOAT,
-            /* InputSlot */            2,
-            /* AlignedByteOffset */    0,
-            /* InputSlotClass */       D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-            /* InstanceDataStepRate */ 0
-        },
-
-    };
-    const D3D12_INPUT_LAYOUT_DESC inputLayoutDesc = {
-        /* pInputElementDescs */ inputElementDescs,
-        /* NumElements */        _countof(inputElementDescs)
-    };
     // Configure the rasterizer state.
-    const D3D12_RASTERIZER_DESC rasterizerDesc = {
+    constexpr D3D12_RASTERIZER_DESC rasterizerDesc = {
         /* FillMode */              D3D12_FILL_MODE_SOLID,
         /* CullMode */              D3D12_CULL_MODE_BACK,
         /* FrontCounterClockwise */ FALSE,
         /* DepthBias */             D3D12_DEFAULT_DEPTH_BIAS,
         /* DepthBiasClamp */        D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
         /* SlopeScaledDepthBias */  D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
-        /* DepthClipEnable */       TRUE,
+        /* DepthClipEnable */       FALSE,
         /* MultisampleEnable */     FALSE,
         /* AntialiasedLineEnable */ FALSE,
         /* ForcedSampleCount */     0,
         /* ConservativeRaster */    D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
     };
+    // Configure the way depth and stencil tests affect stencil values.
+    constexpr D3D12_DEPTH_STENCILOP_DESC depthStencilOpDesc = {
+        /* StencilFailOp */         D3D12_STENCIL_OP_KEEP,
+        /* StencilDepthFailOp */    D3D12_STENCIL_OP_KEEP,
+        /* StencilPassOp  */        D3D12_STENCIL_OP_KEEP,
+        /* StencilFunc */           D3D12_COMPARISON_FUNC_ALWAYS
+    };
+    // Fill out the depth stencil description.
+    constexpr D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {
+        /* DepthEnable */           TRUE,
+        /* DepthWriteMask */        D3D12_DEPTH_WRITE_MASK_ALL,
+        /* DepthFunc */             D3D12_COMPARISON_FUNC_GREATER,
+        /* StencilEnable */         FALSE,
+        /* StencilReadMask */       D3D12_DEFAULT_STENCIL_READ_MASK,
+        /* StencilWriteMask */      D3D12_DEFAULT_STENCIL_WRITE_MASK,
+        /* FrontFace */             depthStencilOpDesc,
+        /* BackFace */              depthStencilOpDesc
+    };
+    // Define the vertex input layout.
+    constexpr D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+        {
+        /* SemanticName */          "Position",
+        /* SemanticIndex */         0,
+        /* Format */                DXGI_FORMAT_R32G32B32_FLOAT,
+        /* InputSlot */             0,
+        /* AlignedByteOffset */     0,
+        /* InputSlotClass */        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+        /* InstanceDataStepRate */  0
+        },
+        {
+        /* SemanticName */          "Normal",
+        /* SemanticIndex */         0,
+        /* Format */                DXGI_FORMAT_R32G32B32_FLOAT,
+        /* InputSlot */             1,
+        /* AlignedByteOffset */     0,
+        /* InputSlotClass */        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+        /* InstanceDataStepRate */  0
+        },
+        {
+        /* SemanticName */          "TexCoord",
+        /* SemanticIndex */         0,
+        /* Format */                DXGI_FORMAT_R32G32_FLOAT,
+        /* InputSlot */             2,
+        /* AlignedByteOffset */     0,
+        /* InputSlotClass */        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+        /* InstanceDataStepRate */  0
+        }
+    };
+    constexpr D3D12_INPUT_LAYOUT_DESC inputLayoutDesc = {
+        /* pInputElementDescs */    inputElementDescs,
+        /* NumElements */           _countof(inputElementDescs)
+    };
     // Fill out the pipeline state object description.
     const D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {
-        /* pRootSignature */        m_graphicsRootSignature.Get(),
-        /* VS */                    D3D12_SHADER_BYTECODE{
-            /* pShaderBytecode */       vsByteCode.data(),
-            /* BytecodeLength  */       vsByteCode.size
-                                    },
-        /* PS */                    D3D12_SHADER_BYTECODE{
-            /* pShaderBytecode */       psByteCode.data(),
-            /* BytecodeLength  */       psByteCode.size
-                                    },
+        /* pRootSignature */        rootSignature.Get(),
+        /* VS */                    {vsByteCode.data(), vsByteCode.size},
+        /* PS */                    {psByteCode.data(), psByteCode.size},
         /* DS, HS, GS, SO */        {}, {}, {}, {},
         /* BlendState */            CD3DX12_BLEND_DESC{D3D12_DEFAULT},
         /* SampleMask */            UINT_MAX,
@@ -286,57 +273,153 @@ void Renderer::configurePipeline() {
         /* InputLayout */           inputLayoutDesc,
         /* IBStripCutValue */       D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
         /* PrimitiveTopologyType */ D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-        /* NumRenderTargets */      1,
-        /* RTVFormats[8] */         {RTV_FORMAT},
-        /* DSVFormat */             DSV_FORMAT,
-        /* SampleDesc */            defaultSampleDesc,
+        /* NumRenderTargets */      4,
+        /* RTVFormats[8] */         {FORMAT_NORMAL, FORMAT_UVCOORD, FORMAT_UVGRAD, FORMAT_MAT_ID},
+        /* DSVFormat */             FORMAT_DSV,
+        /* SampleDesc */            SAMPLE_DEFAULT,
         /* NodeMask */              m_device->nodeMask,
-        /* CachedPSO */             D3D12_CACHED_PIPELINE_STATE{},
+        /* CachedPSO */             {},
         /* Flags */                 D3D12_PIPELINE_STATE_FLAG_NONE
     };
-    // Create the initial graphics pipeline state.
+    // Create a graphics pipeline state object.
     CHECK_CALL(m_device->CreateGraphicsPipelineState(&pipelineStateDesc,
-                                                     IID_PPV_ARGS(&m_graphicsPipelineState)),
+                                                     IID_PPV_ARGS(&pipelineState)),
                "Failed to create a graphics pipeline state object.");
-    // Set the command list states.
-    m_copyContext.resetCommandList(0, nullptr);
-    m_graphicsContext.resetCommandList(0, m_graphicsPipelineState.Get());
-    // Create a constant buffer for material indices.
-    m_materialBuffer = createConstantBuffer(1024);
-    // Create constant buffers for transformation matrices.
-    for (uint i = 0; i < FRAME_CNT; ++i) {
-        m_frameResouces[i].transformBuffer = createConstantBuffer(sizeof(XMMATRIX));
-    }
 }
 
-IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
-    assert(indices && count >= 3);
-    IndexBuffer buffer;
-    const uint size = count * sizeof(uint);
-    // Allocate the buffer on the default heap.
-    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
-    const auto resourceDesc   = CD3DX12_RESOURCE_DESC::Buffer(size);
+void Renderer::configureShadingPass() {
+    auto& rootSignature = m_shadingPass.rootSignature;
+    auto& pipelineState = m_shadingPass.pipelineState;
+    // Import the bytecode of the graphics root signature and the shaders.
+    const Buffer rsByteCode{"Shaders\\ShadeRS.cso"};
+    const Buffer vsByteCode("Shaders\\ShadeVS.cso");
+    const Buffer psByteCode("Shaders\\ShadePS.cso");
+    // Create a graphics root signature.
+    CHECK_CALL(m_device->CreateRootSignature(m_device->nodeMask,
+                                             rsByteCode.data(), rsByteCode.size,
+                                             IID_PPV_ARGS(&rootSignature)),
+               "Failed to create a graphics root signature.");
+    // Configure the rasterizer state.
+    constexpr D3D12_RASTERIZER_DESC rasterizerDesc = {
+        /* FillMode */              D3D12_FILL_MODE_SOLID,
+        /* CullMode */              D3D12_CULL_MODE_NONE,
+        /* FrontCounterClockwise */ FALSE,
+        /* DepthBias */             D3D12_DEFAULT_DEPTH_BIAS,
+        /* DepthBiasClamp */        D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+        /* SlopeScaledDepthBias */  D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+        /* DepthClipEnable */       FALSE,
+        /* MultisampleEnable */     FALSE,
+        /* AntialiasedLineEnable */ FALSE,
+        /* ForcedSampleCount */     0,
+        /* ConservativeRaster */    D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF
+    };
+    // Fill out the pipeline state object description.
+    const D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {
+        /* pRootSignature */        rootSignature.Get(),
+        /* VS */                    {vsByteCode.data(), vsByteCode.size},
+        /* PS */                    {psByteCode.data(), psByteCode.size},
+        /* DS, HS, GS, SO */        {}, {}, {}, {},
+        /* BlendState */            CD3DX12_BLEND_DESC{D3D12_DEFAULT},
+        /* SampleMask */            UINT_MAX,
+        /* RasterizerState */       rasterizerDesc,
+        /* DepthStencilState */     {},
+        /* InputLayout */           {},
+        /* IBStripCutValue */       D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
+        /* PrimitiveTopologyType */ D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+        /* NumRenderTargets */      1,
+        /* RTVFormats[8] */         {FORMAT_RTV},
+        /* DSVFormat */             DXGI_FORMAT_UNKNOWN,
+        /* SampleDesc */            SAMPLE_DEFAULT,
+        /* NodeMask */              m_device->nodeMask,
+        /* CachedPSO */             {},
+        /* Flags */                 D3D12_PIPELINE_STATE_FLAG_NONE
+    };
+    // Create a graphics pipeline state object.
+    CHECK_CALL(m_device->CreateGraphicsPipelineState(&pipelineStateDesc,
+                                                     IID_PPV_ARGS(&pipelineState)),
+               "Failed to create a graphics pipeline state object.");
+}
+
+ComPtr<ID3D12Resource> Renderer::createDepthBuffer(const uint width, const uint height,
+                                                   const DXGI_FORMAT format) {
+    const D3D12_RESOURCE_DESC resourceDesc = {
+        /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+        /* Alignment */        0,   // Automatic
+        /* Width */            width,
+        /* Height */           height,
+        /* DepthOrArraySize */ 1,
+        /* MipLevels */        1,
+        /* Format */           format,
+        /* SampleDesc */       SAMPLE_DEFAULT,
+        /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
+        /* Flags */            D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
+    };
+    const CD3DX12_CLEAR_VALUE clearValue = {
+        /* Format */           format,
+        /* Depth, Stencil */   0, 0
+    };
+    ComPtr<ID3D12Resource> depthBuffer;
+    // Allocate the depth buffer on the default heap.
+    const CD3DX12_HEAP_PROPERTIES heapProperties{D3D12_HEAP_TYPE_DEFAULT};
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
-                                                 &resourceDesc, D3D12_RESOURCE_STATE_COMMON,
-                                                 nullptr, IID_PPV_ARGS(&buffer.resource)),
-               "Failed to allocate an index buffer.");
-    // Transition the buffer state for the graphics/compute command queue type class.
-    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
-                                                   D3D12_RESOURCE_STATE_COMMON,
-                                                   D3D12_RESOURCE_STATE_INDEX_BUFFER);
-    // Max. alignment requirement for indices is 4 bytes.
-    constexpr uint64 alignment = 4;
-    // Copy indices into the upload buffer.
-    const uint offset = copyToUploadBuffer<alignment>(size, indices);
-    // Copy the data from the upload buffer into the video memory buffer.
-    m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
-                                                   m_uploadBuffer.resource.Get(), offset,
-                                                   size);
-    // Initialize the index buffer view.
-    buffer.view.BufferLocation = buffer.resource->GetGPUVirtualAddress(),
-    buffer.view.SizeInBytes    = size;
-    buffer.view.Format         = DXGI_FORMAT_R32_UINT;
-    return buffer;
+                                                 &resourceDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                                                 &clearValue, IID_PPV_ARGS(&depthBuffer)),
+               "Failed to allocate a depth buffer.");
+    // Initialize the depth-stencil view.
+    const D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {
+        /* Format */           format,
+        /* ViewDimension */    D3D12_DSV_DIMENSION_TEXTURE2D,
+        /* Flags */            D3D12_DSV_FLAG_NONE,
+        /* MipSlice */         0
+    };
+    m_device->CreateDepthStencilView(depthBuffer.Get(), &dsvDesc,
+                                     m_dsvPool.cpuHandle(m_dsvPool.size++));
+    // Initialize the shader resource view.
+    const D3D12_TEX2D_SRV_DESC srvDesc{getResourceFormat(format), 1};
+    m_device->CreateShaderResourceView(depthBuffer.Get(), &srvDesc,
+                                       m_texPool.cpuHandle(m_texPool.size++));
+    return depthBuffer;
+}
+
+ComPtr<ID3D12Resource> Renderer::createRenderBuffer(const uint width, const uint height,
+                                                    const DXGI_FORMAT format) {
+    const D3D12_RESOURCE_DESC resourceDesc = {
+        /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+        /* Alignment */        0,   // Automatic,
+        /* Width */            width,
+        /* Height */           height,
+        /* DepthOrArraySize */ 1,
+        /* MipLevels */        1,
+        /* Format */           format,
+        /* SampleDesc */       SAMPLE_DEFAULT,
+        /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
+        /* Flags */            D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
+    };
+    const CD3DX12_CLEAR_VALUE clearValue = {
+        /* Format */           format,
+        /* Depth */            FLOAT4_BLACK
+    };
+    ComPtr<ID3D12Resource> renderBuffer;
+    // Allocate the render buffer on the default heap.
+    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
+                                                 &resourceDesc, D3D12_RESOURCE_STATE_RENDER_TARGET,
+                                                 &clearValue, IID_PPV_ARGS(&renderBuffer)),
+               "Failed to allocate a render target.");
+    // Initialize the render target view.
+    const D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {
+        /* Format */           format,
+        /* ViewDimension*/     D3D12_RTV_DIMENSION_TEXTURE2D,
+        /* MipSlice */         0,
+        /* PlaneSlice */       0
+    };
+    m_device->CreateRenderTargetView(renderBuffer.Get(), &rtvDesc,
+                                     m_rtvPool.cpuHandle(m_rtvPool.size++));
+    // Initialize the shader resource view.
+    const D3D12_TEX2D_SRV_DESC srvDesc{format, 1};
+    m_device->CreateShaderResourceView(renderBuffer.Get(), &srvDesc,
+                                       m_texPool.cpuHandle(m_texPool.size++));
+    return renderBuffer;
 }
 
 ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data) {
@@ -349,10 +432,10 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data)
                                                  &resourceDesc, D3D12_RESOURCE_STATE_COMMON,
                                                  nullptr, IID_PPV_ARGS(&buffer.resource)),
                "Failed to allocate a constant buffer.");
-    // Transition the buffer state for the graphics/compute command queue type class.
-    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(buffer.resource.Get(),
-                                                   D3D12_RESOURCE_STATE_COMMON,
-                                                   D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    // Transition the state of the buffer for the graphics/compute command queue type class.
+    const D3D12_TRANSITION_BARRIER barrier{buffer.resource.Get(),
+                                           D3D12_RESOURCE_STATE_COMMON,
+                                           D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
         constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
@@ -368,10 +451,37 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data)
     return buffer;
 }
 
+StructuredBuffer Renderer::createStructuredBuffer(const uint size, const void* data) {
+    assert(!data || size >= 4);
+    StructuredBuffer buffer;
+    // Allocate the buffer on the default heap.
+    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
+    const auto resourceDesc   = CD3DX12_RESOURCE_DESC::Buffer(size);
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
+                                                 &resourceDesc, D3D12_RESOURCE_STATE_COMMON,
+                                                 nullptr, IID_PPV_ARGS(&buffer.resource)),
+               "Failed to allocate a structured buffer.");
+    // Transition the state of the buffer for the graphics/compute command queue type class.
+    const D3D12_TRANSITION_BARRIER barrier{buffer.resource.Get(),
+                                           D3D12_RESOURCE_STATE_COMMON,
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE};
+    m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
+    if (data) {
+        constexpr uint64 alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+        // Copy the data into the upload buffer.
+        const uint offset = copyToUploadBuffer<alignment>(size, data);
+        // Copy the data from the upload buffer into the video memory buffer.
+        m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
+                                                       m_uploadBuffer.resource.Get(), offset,
+                                                       size);
+    }
+    // Initialize the shader resource view.
+    buffer.view = buffer.resource->GetGPUVirtualAddress();
+    return buffer;
+}
+
 std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTPRINT& footprint,
                                                    const uint mipCount, const void* data) {
-    Texture texture;
-    // Allocate the texture on the default heap.
     const D3D12_RESOURCE_DESC resourceDesc = {
         /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
         /* Alignment */        D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
@@ -380,19 +490,25 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
         /* DepthOrArraySize */ static_cast<uint16>(footprint.Depth),
         /* MipLevels */        static_cast<uint16>(mipCount),
         /* Format */           footprint.Format,
-        /* SampleDesc */       defaultSampleDesc,
+        /* SampleDesc */       SAMPLE_DEFAULT,
         /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
         /* Flags */            D3D12_RESOURCE_FLAG_NONE
     };
+    const CD3DX12_CLEAR_VALUE clearValue = {
+        /* Format */           footprint.Format,
+        /* Depth */            FLOAT4_BLACK
+    };
+    Texture texture;
+    // Allocate the texture on the default heap.
     const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
                                                  &resourceDesc, D3D12_RESOURCE_STATE_COMMON,
                                                  nullptr, IID_PPV_ARGS(&texture.resource)),
                "Failed to allocate a texture.");
-    // Transition the buffer state for the graphics/compute command queue type class.
-    const auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(texture.resource.Get(),
-                                                   D3D12_RESOURCE_STATE_COMMON,
-                                                   D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    // Transition the state of the texture for the graphics/compute command queue type class.
+    const D3D12_TRANSITION_BARRIER barrier{texture.resource.Get(),
+                                           D3D12_RESOURCE_STATE_COMMON,
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
         constexpr uint64 pitchAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
@@ -425,7 +541,7 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
             const D3D12_PLACED_SUBRESOURCE_FOOTPRINT levelFootprint = {
                 /* Offset */   offset,
                 /* Format */   footprint.Format,
-                /* Width */    footprint.Width >> i,
+                /* Width */    footprint.Width  >> i,
                 /* Height */   footprint.Height >> i,
                 /* Depth */    footprint.Depth,
                 /* RowPitch */ levelPitch
@@ -435,35 +551,59 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
             m_copyContext.commandList(0)->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
         }
     }
-    // Describe the shader resource view.
-    const CD3DX12_TEX2D_SRV_DESC srvDesc{footprint.Format, mipCount};
     // Initialize the shader resource view.
-    const uint textureId = m_texPool.size++;
-    texture.view = m_texPool.cpuHandle(textureId);
-    m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc, texture.view);
+    const D3D12_TEX2D_SRV_DESC srvDesc{footprint.Format, mipCount};
+    const uint textureId = m_texPool.size;
+    texture.view         = m_texPool.gpuHandle(m_texPool.size);
+    m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc,
+                                       m_texPool.cpuHandle(m_texPool.size++));
     return {texture, textureId};
 }
 
-void Renderer::setMaterials(const uint size, const void* data) {
-    constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-    // Copy the data into the upload buffer.
-    const uint offset = copyToUploadBuffer<alignment>(size, data);
-    // Copy the data from the upload buffer into the video memory buffer.
-    m_copyContext.commandList(0)->CopyBufferRegion(m_materialBuffer.resource.Get(), 0,
-                                                   m_uploadBuffer.resource.Get(), offset,
-                                                   size);
+uint Renderer::getTextureIndex(const Texture& texture) const {
+    return m_texPool.computeIndex(texture.view);
 }
 
-void Renderer::setViewProjMatrix(FXMMATRIX viewProj) {
-    const XMMATRIX tViewProj = XMMatrixTranspose(viewProj);
+IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
+    assert(indices && count >= 3);
+    const uint size = count * sizeof(uint);
+    IndexBuffer buffer;
+    // Allocate the buffer on the default heap.
+    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
+    const auto resourceDesc   = CD3DX12_RESOURCE_DESC::Buffer(size);
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
+                                                 &resourceDesc, D3D12_RESOURCE_STATE_COMMON,
+                                                 nullptr, IID_PPV_ARGS(&buffer.resource)),
+               "Failed to allocate an index buffer.");
+    // Transition the state of the buffer for the graphics/compute command queue type class.
+    const D3D12_TRANSITION_BARRIER barrier{buffer.resource.Get(),
+                                           D3D12_RESOURCE_STATE_COMMON,
+                                           D3D12_RESOURCE_STATE_INDEX_BUFFER};
+    m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
+    // Max. alignment requirement for indices is 4 bytes.
+    constexpr uint64 alignment = 4;
+    // Copy indices into the upload buffer.
+    const uint offset = copyToUploadBuffer<alignment>(size, indices);
+    // Copy the data from the upload buffer into the video memory buffer.
+    m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
+                                                   m_uploadBuffer.resource.Get(), offset,
+                                                   size);
+    // Initialize the index buffer view.
+    buffer.view.BufferLocation = buffer.resource->GetGPUVirtualAddress(),
+    buffer.view.SizeInBytes    = size;
+    buffer.view.Format         = DXGI_FORMAT_R32_UINT;
+    return buffer;
+}
+
+void Renderer::setMaterials(const uint count, const Material* materials) {
+    assert(count <= MAT_CNT);
     constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     // Copy the data into the upload buffer.
-    const uint offset = copyToUploadBuffer<alignment>(sizeof(tViewProj), &tViewProj);
+    const uint size   = count * sizeof(Material);
+    const uint offset = copyToUploadBuffer<alignment>(size, materials);
     // Copy the data from the upload buffer into the video memory buffer.
-    const ConstantBuffer& transformBuffer = m_frameResouces[m_frameIndex].transformBuffer;
-    m_copyContext.commandList(0)->CopyBufferRegion(transformBuffer.resource.Get(), 0,
-                                                   m_uploadBuffer.resource.Get(), offset,
-                                                   sizeof(tViewProj));
+    m_copyContext.commandList(0)->CopyBufferRegion(m_materialBuffer.resource.Get(), 0,
+                                                   m_uploadBuffer.resource.Get(), offset, size);
 }
 
 void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
@@ -491,46 +631,89 @@ void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
     m_uploadBuffer.currSegStart = m_uploadBuffer.offset;
 }
 
-std::pair<uint64, uint64> Renderer::getTime() const {
-    return m_graphicsContext.getTime();
+void Renderer::FrameResource::getTransitionBarriersToWritableState(
+                              D3D12_RESOURCE_BARRIER* barriers,                          
+                              const D3D12_RESOURCE_BARRIER_FLAGS flag) {
+    barriers[0] = D3D12_TRANSITION_BARRIER{depthBuffer.Get(),
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                                           D3D12_RESOURCE_STATE_DEPTH_WRITE,   flag};
+    barriers[1] = D3D12_TRANSITION_BARRIER{normalBuffer.Get(),
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                                           D3D12_RESOURCE_STATE_RENDER_TARGET, flag};
+    barriers[2] = D3D12_TRANSITION_BARRIER{uvCoordBuffer.Get(),
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                                           D3D12_RESOURCE_STATE_RENDER_TARGET, flag};
+    barriers[3] = D3D12_TRANSITION_BARRIER{uvGradBuffer.Get(),
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                                           D3D12_RESOURCE_STATE_RENDER_TARGET, flag};
+    barriers[4] = D3D12_TRANSITION_BARRIER{matIdBuffer.Get(),
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                                           D3D12_RESOURCE_STATE_RENDER_TARGET, flag};
 }
 
-void Renderer::startFrame() {
-    // Transition the back buffer state: Presenting -> Render Target.
-    const auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
-    const auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
-                                                      D3D12_RESOURCE_STATE_PRESENT,
-                                                      D3D12_RESOURCE_STATE_RENDER_TARGET);
+void Renderer::FrameResource::getTransitionBarriersToReadableState(
+                              D3D12_RESOURCE_BARRIER* barriers,                          
+                              const D3D12_RESOURCE_BARRIER_FLAGS flag) {
+    barriers[0] = D3D12_TRANSITION_BARRIER{depthBuffer.Get(),
+                                           D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
+    barriers[1] = D3D12_TRANSITION_BARRIER{normalBuffer.Get(),
+                                           D3D12_RESOURCE_STATE_RENDER_TARGET,
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
+    barriers[2] = D3D12_TRANSITION_BARRIER{uvCoordBuffer.Get(),
+                                           D3D12_RESOURCE_STATE_RENDER_TARGET,
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
+    barriers[3] = D3D12_TRANSITION_BARRIER{uvGradBuffer.Get(),
+                                           D3D12_RESOURCE_STATE_RENDER_TARGET,
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
+    barriers[4] = D3D12_TRANSITION_BARRIER{matIdBuffer.Get(),
+                                           D3D12_RESOURCE_STATE_RENDER_TARGET,
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
+}
+
+void Renderer::performGBufferPass(FXMMATRIX viewProj, const Scene::Objects& objects) {
     ID3D12GraphicsCommandList* graphicsCommandList = m_graphicsContext.commandList(0);
-    graphicsCommandList->ResourceBarrier(1, &barrier);
-    // Set the necessary state.
+    // Set the necessary command list state.
     graphicsCommandList->RSSetViewports(1, &m_viewport);
     graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
-    ID3D12DescriptorHeap* texHeap = m_texPool.descriptorHeap();
-    graphicsCommandList->SetDescriptorHeaps(1, &texHeap);
-    // Configure the root signature.
-    graphicsCommandList->SetGraphicsRootSignature(m_graphicsRootSignature.Get());
-    const ConstantBuffer& transformBuffer = m_frameResouces[m_frameIndex].transformBuffer;
-    graphicsCommandList->SetGraphicsRootConstantBufferView(1, transformBuffer.view);
-    graphicsCommandList->SetGraphicsRootConstantBufferView(2, m_materialBuffer.view);
-    graphicsCommandList->SetGraphicsRootDescriptorTable(3, m_texPool.gpuHandle(0));
-    // Set the back buffer as the render target.
-    const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvPool.cpuHandle(m_backBufferIndex);
+    graphicsCommandList->SetGraphicsRootSignature(m_gBufferPass.rootSignature.Get());
+    // Finish the transition of the frame resources to the writable state.
+    D3D12_RESOURCE_BARRIER barriers[6];
+    FrameResource& frameRes = m_frameResouces[m_frameIndex];
+    frameRes.getTransitionBarriersToWritableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
+    // Start the transition of the back buffer state: Presenting -> Render Target.
+    ID3D12Resource* backBuffer = m_renderTargets[m_backBufferIndex].Get();
+    barriers[5] = D3D12_TRANSITION_BARRIER::Begin(backBuffer, D3D12_RESOURCE_STATE_PRESENT,
+                                                              D3D12_RESOURCE_STATE_RENDER_TARGET);
+    graphicsCommandList->ResourceBarrier(6, barriers);
+    // Dump the columns 0, 1 and 3 of the view-projection matrix.
+    const XMMATRIX tViewProj = XMMatrixTranspose(viewProj);
+    XMFLOAT4A matCols[3];
+    XMStoreFloat4A(&matCols[0], tViewProj.r[0]);
+    XMStoreFloat4A(&matCols[1], tViewProj.r[1]);
+    XMStoreFloat4A(&matCols[2], tViewProj.r[3]);
+    // Set the root arguments.
+    graphicsCommandList->SetGraphicsRoot32BitConstants(1, 12, matCols, 0);
+    // Set the RTVs and the DSV.
+    const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[4] = {
+        m_rtvPool.cpuHandle(frameRes.firstRtvIndex),
+        m_rtvPool.cpuHandle(frameRes.firstRtvIndex + 1),
+        m_rtvPool.cpuHandle(frameRes.firstRtvIndex + 2),
+        m_rtvPool.cpuHandle(frameRes.firstRtvIndex + 3),
+    };
     const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_dsvPool.cpuHandle(m_frameIndex);
-    graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-    // Clear the RTV and the DSV.
-    constexpr float clearColor[] = {0.f, 0.f, 0.f, 1.f};
-    graphicsCommandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
-    const D3D12_CLEAR_FLAGS clearFlags = D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL;
-    graphicsCommandList->ClearDepthStencilView(dsvHandle, clearFlags, 0.f, 0, 0, nullptr);
-    // Set the primitive/topology type.
+    graphicsCommandList->OMSetRenderTargets(4, rtvHandles, true, &dsvHandle);
+    // Clear the RTVs and the DSV.
+    constexpr D3D12_CLEAR_FLAGS clearFlags = D3D12_CLEAR_FLAG_DEPTH;
+    graphicsCommandList->ClearRenderTargetView(rtvHandles[0], FLOAT4_BLACK, 0, nullptr);
+    graphicsCommandList->ClearRenderTargetView(rtvHandles[1], FLOAT4_BLACK, 0, nullptr);
+    graphicsCommandList->ClearRenderTargetView(rtvHandles[2], FLOAT4_BLACK, 0, nullptr);
+    graphicsCommandList->ClearRenderTargetView(rtvHandles[3], FLOAT4_BLACK, 0, nullptr);
+    graphicsCommandList->ClearDepthStencilView(dsvHandle, clearFlags, 0, 0, 0, nullptr);
+    // Define the input geometry.
     graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-}
-
-void Renderer::drawIndexed(const Scene::Objects& objects) {
-    // Record commands into the command list.
-    const auto graphicsCommandList = m_graphicsContext.commandList(0);
     graphicsCommandList->IASetVertexBuffers(0, 3, objects.vertexAttrBuffers.views.get());
+    // Issue draw calls.
     uint16 matId = UINT16_MAX;
     for (uint i = 0; i < objects.count; ++i) {
         if (objects.visibilityBits.testBit(i)) {
@@ -545,27 +728,68 @@ void Renderer::drawIndexed(const Scene::Objects& objects) {
             graphicsCommandList->DrawIndexedInstanced(count, 1, 0, 0, 0);
         }
     }
+    // Finalize and execute the command list.
+    m_graphicsContext.executeCommandList(0);
+}
+
+void Renderer::performShadingPass() {
+    // Reset the command list to the new state.
+    m_graphicsContext.resetCommandList(0, m_shadingPass.pipelineState.Get());
+    ID3D12GraphicsCommandList* graphicsCommandList = m_graphicsContext.commandList(0);
+    // Set the necessary command list state.
+    graphicsCommandList->RSSetViewports(1, &m_viewport);
+    graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
+    graphicsCommandList->SetGraphicsRootSignature(m_shadingPass.rootSignature.Get());
+    ID3D12DescriptorHeap* texHeap = m_texPool.descriptorHeap();
+    graphicsCommandList->SetDescriptorHeaps(1, &texHeap);
+    // Transition the frame resources to the readable state.
+    D3D12_RESOURCE_BARRIER barriers[6];
+    FrameResource& frameRes = m_frameResouces[m_frameIndex];
+    frameRes.getTransitionBarriersToReadableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_NONE);
+    // Finish the transition of the back buffer state: Presenting -> Render Target.
+    ID3D12Resource* backBuffer = m_renderTargets[m_backBufferIndex].Get();
+    barriers[5] = D3D12_TRANSITION_BARRIER::End(backBuffer, D3D12_RESOURCE_STATE_PRESENT,
+                                                            D3D12_RESOURCE_STATE_RENDER_TARGET);
+    graphicsCommandList->ResourceBarrier(6, barriers);
+    // Set the root arguments.
+    graphicsCommandList->SetGraphicsRootShaderResourceView(0, m_materialBuffer.view);
+    // Set the SRVs of the frame resources.
+    const D3D12_GPU_DESCRIPTOR_HANDLE firstTexHandle = m_texPool.gpuHandle(frameRes.firstTexIndex);
+    graphicsCommandList->SetGraphicsRootDescriptorTable(1, firstTexHandle);
+    // Set the SRVs of all textures.
+    graphicsCommandList->SetGraphicsRootDescriptorTable(2, m_texPool.gpuHandle(0));
+    // Set and clear the RTV.
+    const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvPool.cpuHandle(m_backBufferIndex);
+    graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
+    graphicsCommandList->ClearRenderTargetView(rtvHandle, FLOAT4_BLACK, 0, nullptr);
+    // Perform the screen space pass using a single triangle.
+    graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    graphicsCommandList->DrawInstanced(3, 1, 0, 0);
+    // Start the transition of the frame resources to the writable state.
+    frameRes.getTransitionBarriersToWritableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY);
+    // Transition the state of the back buffer: Render Target -> Presenting.
+    barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET,
+                                                       D3D12_RESOURCE_STATE_PRESENT};
+    graphicsCommandList->ResourceBarrier(6, barriers);
+    // Finalize and execute the command list.
+    m_graphicsContext.executeCommandList(0);
 }
 
 void Renderer::finalizeFrame() {
-    // Transition the back buffer state: Render Target -> Presenting.
-    const auto backBuffer = m_renderTargets[m_backBufferIndex].Get();
-    const auto barrier    = CD3DX12_RESOURCE_BARRIER::Transition(backBuffer,
-                                                      D3D12_RESOURCE_STATE_RENDER_TARGET,
-                                                      D3D12_RESOURCE_STATE_PRESENT);
-    m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
-    // Finalize and execute the command list.
-    m_graphicsContext.executeCommandList(0);
     // Present the frame, and update the index of the render (back) buffer.
     CHECK_CALL(m_swapChain->Present(VSYNC_INTERVAL, 0), "Failed to display the frame buffer.");
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
     // Reset the graphics command (frame) allocator, and update the frame index.
     m_frameIndex = m_graphicsContext.resetCommandAllocator();
     // Reset the command list to its initial state.
-    m_graphicsContext.resetCommandList(0, m_graphicsPipelineState.Get());
+    m_graphicsContext.resetCommandList(0, m_gBufferPass.pipelineState.Get());
     // Block the thread until the swap chain is ready accept a new frame.
     // Otherwise, Present() may block the thread, increasing the input lag.
     WaitForSingleObject(m_swapChainWaitableObject, INFINITE);
+}
+
+std::pair<uint64, uint64> Renderer::getTime() const {
+    return m_graphicsContext.getTime();
 }
 
 void Renderer::stop() {

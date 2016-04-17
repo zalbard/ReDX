@@ -11,13 +11,29 @@
 namespace D3D12 {
     using Microsoft::WRL::ComPtr;
 
-    struct CD3DX12_TEX2D_SRV_DESC: public D3D12_SHADER_RESOURCE_VIEW_DESC {
-        CD3DX12_TEX2D_SRV_DESC() = default;
-        explicit CD3DX12_TEX2D_SRV_DESC(const DXGI_FORMAT format, const uint mipCount,
-            const uint  mostDetailedMip         = 0,
-            const uint  planeSlice              = 0,
-            const float resourceMinLODClamp     = 0.f,
-            const uint  shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING);
+    struct D3D12_TEX2D_SRV_DESC: public D3D12_SHADER_RESOURCE_VIEW_DESC {
+        explicit D3D12_TEX2D_SRV_DESC(const DXGI_FORMAT format, const uint mipCount,
+                                      const uint  mostDetailedMip         = 0,
+                                      const uint  planeSlice              = 0,
+                                      const float resourceMinLODClamp     = 0.f,
+                                      const uint  shader4ComponentMapping =
+                                      D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING);
+    };
+
+    struct D3D12_TRANSITION_BARRIER: public D3D12_RESOURCE_BARRIER {
+        explicit D3D12_TRANSITION_BARRIER(ID3D12Resource* resource,
+                                          const D3D12_RESOURCE_STATES before,
+                                          const D3D12_RESOURCE_STATES after,
+                                          const D3D12_RESOURCE_BARRIER_FLAGS flag =
+                                          D3D12_RESOURCE_BARRIER_FLAG_NONE);
+        // Performs the state transition with the 'BEGIN_ONLY' flag.
+        static D3D12_TRANSITION_BARRIER Begin(ID3D12Resource* resource,
+                                              const D3D12_RESOURCE_STATES before,
+                                              const D3D12_RESOURCE_STATES after);
+        // Performs the state transition with the 'END_ONLY' flag.
+        static D3D12_TRANSITION_BARRIER End(ID3D12Resource* resource,
+                                            const D3D12_RESOURCE_STATES before,
+                                            const D3D12_RESOURCE_STATES after);
     };
 
     struct UploadRingBuffer {
@@ -41,14 +57,21 @@ namespace D3D12 {
         D3D12_INDEX_BUFFER_VIEW     view;            // Descriptor
     };
 
+    // Best for coherent access patterns.
     struct ConstantBuffer {
         ComPtr<ID3D12Resource>      resource;        // Memory buffer
         D3D12_GPU_VIRTUAL_ADDRESS   view;            // Descriptor (Constant Buffer View)
     };
 
+    // Best for divergent access patterns.
+    struct StructuredBuffer {
+        ComPtr<ID3D12Resource>      resource;        // Memory buffer
+        D3D12_GPU_VIRTUAL_ADDRESS   view;            // Descriptor (Shader Resource View)
+    };
+
     struct Texture {
         ComPtr<ID3D12Resource>      resource;        // Memory buffer
-        D3D12_CPU_DESCRIPTOR_HANDLE view;            // Descriptor handle (Shader Resource View)
+        D3D12_GPU_DESCRIPTOR_HANDLE view;            // Descriptor handle (Shader Resource View)
     };
 
     // Stores objects of type T in the SoA layout.
@@ -86,13 +109,16 @@ namespace D3D12 {
     template <DescType T, uint N>
     struct DescriptorPool {
         // Returns the pointer to the underlying descriptor heap.
-        ID3D12DescriptorHeap* descriptorHeap() const;
+        ID3D12DescriptorHeap* descriptorHeap();
         // Returns the CPU handle of the descriptor stored at the 'index' position.
         D3D12_CPU_DESCRIPTOR_HANDLE       cpuHandle(const uint index);
         const D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle(const uint index) const;
         // Returns the GPU handle of the descriptor stored at the 'index' position.
         D3D12_GPU_DESCRIPTOR_HANDLE       gpuHandle(const uint index);
         const D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle(const uint index) const;
+        // Computes the position (offset) of the descriptor handle.
+        uint computeIndex(const D3D12_CPU_DESCRIPTOR_HANDLE handle) const;
+        uint computeIndex(const D3D12_GPU_DESCRIPTOR_HANDLE handle) const;
     public:
         uint                         size     = 0;   // Current descriptor count
         static constexpr uint        capacity = N;   // Maximal descriptor count

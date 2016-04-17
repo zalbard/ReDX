@@ -27,7 +27,7 @@ struct Material {
     uint normalTexId;       // Normal map index
     uint maskTexId;         // Alpha mask index
     uint roughTexId;        // Roughness map index
-    uint pad0, pad1, pad2;  // Align to 2 * sizeof(float4)
+    uint pad0, pad1, pad2;  // 16 byte alignment
 };
 
 // 3D scene representation.

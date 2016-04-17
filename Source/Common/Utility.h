@@ -6,26 +6,6 @@
 #include <ctime>
 #include "Definitions.h"
 
-// Aligns the memory address to the next multiple of alignment.
-template <uint64 alignment>
-static inline auto align(void* address)
--> byte* {
-    // Make sure that the alignment is non-zero, and is a power of 2.
-    static_assert((0 != alignment) && (0 == (alignment & (alignment - 1))), "Invalid alignment.");
-    const uint64 numVal = reinterpret_cast<uint64>(address);
-    return reinterpret_cast<byte*>((numVal + (alignment - 1)) & ~(alignment - 1));
-}
-
-// Aligns the integral value to the next multiple of alignment.
-template <uint64 alignment>
-static inline auto align(const uint value)
--> uint {
-    // Make sure that the alignment is non-zero, and is a power of 2.
-    static_assert((0 != alignment) && (0 == (alignment & (alignment - 1))), "Invalid alignment.");
-    const uint64 numVal = static_cast<uint64>(value);
-    return static_cast<uint>((numVal + (alignment - 1)) & ~(alignment - 1));
-}
-
 // For internal use only!
 static inline void printInternal(FILE* stream, const char* prefix, const char* fmt,
                                  const va_list args) {

@@ -94,14 +94,9 @@ int __cdecl main(const int argc, const char* argv[]) {
             pCam.rotateAndMoveForward(totalPitch, totalYaw, totalDist);
         }
         // Execute engine code.
-        const auto asyncTask = std::async(std::launch::async, [&engine, &pCam]() {
-            engine.setViewProjMatrix(pCam.computeViewProjMatrix());
-            engine.executeCopyCommands();
-        });
         const float fracObjVis = scene.performFrustumCulling(pCam);
-        engine.startFrame();
-        engine.drawIndexed(scene.objects);
-        asyncTask.wait();
+        engine.performGBufferPass(pCam.computeViewProjMatrix(), scene.objects);
+        engine.performShadingPass();
         engine.finalizeFrame();
         // Update the timings.
         {
