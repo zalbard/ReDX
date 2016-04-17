@@ -57,12 +57,17 @@ namespace D3D12 {
         D3D12_INDEX_BUFFER_VIEW     view;            // Descriptor
     };
 
+    // Best for coherent access patterns.
     struct ConstantBuffer {
         ComPtr<ID3D12Resource>      resource;        // Memory buffer
         D3D12_GPU_VIRTUAL_ADDRESS   view;            // Descriptor (Constant Buffer View)
     };
 
-    /* TODO: implement StructuredBuffer (D3D12_BUFFER_UAV). */
+    // Best for divergent access patterns.
+    struct StructuredBuffer {
+        ComPtr<ID3D12Resource>      resource;        // Memory buffer
+        D3D12_GPU_VIRTUAL_ADDRESS   view;            // Descriptor (Shader Resource View)
+    };
 
     struct Texture {
         ComPtr<ID3D12Resource>      resource;        // Memory buffer

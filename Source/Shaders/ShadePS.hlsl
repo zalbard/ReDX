@@ -10,25 +10,21 @@ struct Material {
     uint pad0, pad1, pad2;  // 16 byte alignment
 };
 
-#define MAT_CNT 32          // Maximal number of materials
+StructuredBuffer<Material> materials  : register(t0);
 
-cbuffer Materials : register(b0) {
-    Material materials[MAT_CNT];
-}
-
-Texture2D<uint2>  depthStencilTexture : register(t0);
-Texture2D<float2> normalTexture       : register(t1);
-Texture2D<float2> uvCoordTexture      : register(t2);
-Texture2D<float4> uvGradTexture       : register(t3);
-Texture2D<uint>   materialTexture     : register(t4);
-Texture2D         textures[]          : register(t5);
+Texture2D<uint2>  depthStencilTexture : register(t1);
+Texture2D<float2> normalTexture       : register(t2);
+Texture2D<float2> uvCoordTexture      : register(t3);
+Texture2D<float4> uvGradTexture       : register(t4);
+Texture2D<uint>   matIdTexture        : register(t5);
+Texture2D         textures[]          : register(t6);
 
 SamplerState      af4Sampler          : register(s0);
 
 [RootSignature(RootSig)]
 float4 main(const float4 position : SV_Position) : SV_Target {
     const int2   pixel   = int2(position.xy);
-    const uint   matId   = materialTexture.Load(int3(pixel, 0));
+    const uint   matId   = matIdTexture.Load(int3(pixel, 0));
     const float2 uvCoord = uvCoordTexture.Load(int3(pixel, 0));
     const float4 uvGrad  = uvGradTexture.Load(int3(pixel, 0));
     // Return the base color.

@@ -178,8 +178,8 @@ Renderer::Renderer()
                                                 reinterpret_cast<void**>(&m_uploadBuffer.begin)),
                    "Failed to map the upload buffer.");
     }
-    // Create a constant buffer for material indices.
-    m_materialBuffer = createConstantBuffer(MAT_CNT * sizeof(Material));
+    // Create a buffer for material indices.
+    m_materialBuffer = createStructuredBuffer(MAT_CNT * sizeof(Material));
 }
 
 void D3D12::Renderer::configureGBufferPass() {
@@ -420,6 +420,35 @@ ComPtr<ID3D12Resource> Renderer::createRenderBuffer(const uint width, const uint
     m_device->CreateShaderResourceView(renderBuffer.Get(), &srvDesc,
                                        m_texPool.cpuHandle(m_texPool.size++));
     return renderBuffer;
+}
+
+StructuredBuffer Renderer::createStructuredBuffer(const uint size, const void* data) {
+    assert(!data || size >= 4);
+    StructuredBuffer buffer;
+    // Allocate the buffer on the default heap.
+    const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
+    const auto resourceDesc   = CD3DX12_RESOURCE_DESC::Buffer(size);
+    CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
+                                                 &resourceDesc, D3D12_RESOURCE_STATE_COMMON,
+                                                 nullptr, IID_PPV_ARGS(&buffer.resource)),
+               "Failed to allocate a structured buffer.");
+    // Transition the state of the buffer for the graphics/compute command queue type class.
+    const D3D12_TRANSITION_BARRIER barrier{buffer.resource.Get(),
+                                           D3D12_RESOURCE_STATE_COMMON,
+                                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE};
+    m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
+    if (data) {
+        constexpr uint64 alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+        // Copy the data into the upload buffer.
+        const uint offset = copyToUploadBuffer<alignment>(size, data);
+        // Copy the data from the upload buffer into the video memory buffer.
+        m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
+                                                       m_uploadBuffer.resource.Get(), offset,
+                                                       size);
+    }
+    // Initialize the shader resource view.
+    buffer.view = buffer.resource->GetGPUVirtualAddress();
+    return buffer;
 }
 
 std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTPRINT& footprint,
@@ -723,7 +752,7 @@ void Renderer::performShadingPass() {
                                                             D3D12_RESOURCE_STATE_RENDER_TARGET);
     graphicsCommandList->ResourceBarrier(6, barriers);
     // Set the root arguments.
-    graphicsCommandList->SetGraphicsRootConstantBufferView(0, m_materialBuffer.view);
+    graphicsCommandList->SetGraphicsRootShaderResourceView(0, m_materialBuffer.view);
     // Set the SRVs of the frame resources.
     const D3D12_GPU_DESCRIPTOR_HANDLE firstTexHandle = m_texPool.gpuHandle(frameRes.firstTexIndex);
     graphicsCommandList->SetGraphicsRootDescriptorTable(1, firstTexHandle);

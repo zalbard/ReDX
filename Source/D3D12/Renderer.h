@@ -69,6 +69,8 @@ namespace D3D12 {
         // Creates a render buffer with descriptors in both RTV and texture pools.
         ComPtr<ID3D12Resource> createRenderBuffer(const uint width, const uint height,
                                                   const DXGI_FORMAT format);
+        // Creates a structured buffer for the data of the specified size (in bytes).
+        StructuredBuffer createStructuredBuffer(const uint size, const void* data = nullptr);
         // Copies the data of the specified size (in bytes) and alignment into the upload buffer.
         // Returns the offset into the upload buffer which corresponds to the location of the data.
         template<uint64 alignment>
@@ -94,7 +96,7 @@ namespace D3D12 {
         HANDLE                        m_swapChainWaitableObject;
         CopyContext<2, 1>             m_copyContext;
         UploadRingBuffer              m_uploadBuffer;
-        ConstantBuffer                m_materialBuffer;
+        StructuredBuffer              m_materialBuffer;
         RenderPassConfig              m_gBufferPass;
         RenderPassConfig              m_shadingPass;
     };
