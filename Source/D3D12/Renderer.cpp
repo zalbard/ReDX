@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <d3dcompiler.h>
 #include <d3dx12.h>
 #include <tuple>
@@ -516,35 +517,37 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
         assert(0 == footprint.RowPitch % pitchAlignment);
         // Upload MIP levels one by one.
         for (uint i = 0; i < mipCount; ++i) {
-            const uint rowPitch   = footprint.RowPitch >> i;
-            const uint levelPitch = align<pitchAlignment>(rowPitch);
-            const uint levelSize  = levelPitch * footprint.Height >> i;
+            const uint width     = std::max(1u, footprint.Width >> i);
+            const uint height    = std::max(1u, footprint.Height >> i);
+            const uint dataPitch = std::max(1u, footprint.RowPitch >> i);
+            const uint rowPitch  = align<pitchAlignment>(dataPitch);
+            const uint size      = rowPitch * height;
             uint offset;
             // Check whether pitched copying is required.
-            if (rowPitch == levelPitch) {
+            if (dataPitch == rowPitch) {
                 // Copy the entire MIP level at once.
-                offset = copyToUploadBuffer<placeAlignment>(levelSize, data);
+                offset = copyToUploadBuffer<placeAlignment>(size, data);
                 // Advance the data pointer to the next MIP level.
-                data = static_cast<const byte*>(data) + levelSize;
+                data = static_cast<const byte*>(data) + size;
             } else {
                 // Reserve a chunk of memory for the entire MIP level.
                 byte* address;
-                std::tie(address, offset) = reserveChunkOfUploadBuffer<placeAlignment>(levelSize);
+                std::tie(address, offset) = reserveChunkOfUploadBuffer<placeAlignment>(size);
                 // Copy the MIP level one row at a time.
-                for (uint row = 0, height = footprint.Height >> i; row < height; ++row) {
-                    memcpy(address, data, rowPitch);
-                    address += levelPitch;
-                    data     = static_cast<const byte*>(data) + rowPitch;
+                for (uint row = 0; row < height; ++row) {
+                    memcpy(address, data, dataPitch);
+                    address += rowPitch;
+                    data     = static_cast<const byte*>(data) + dataPitch;
                 }
             }
             // Copy the data from the upload buffer into the video memory texture.
             const D3D12_PLACED_SUBRESOURCE_FOOTPRINT levelFootprint = {
                 /* Offset */   offset,
                 /* Format */   footprint.Format,
-                /* Width */    footprint.Width  >> i,
-                /* Height */   footprint.Height >> i,
+                /* Width */    width,
+                /* Height */   height,
                 /* Depth */    footprint.Depth,
-                /* RowPitch */ levelPitch
+                /* RowPitch */ rowPitch
             };
             const CD3DX12_TEXTURE_COPY_LOCATION src{m_uploadBuffer.resource.Get(), levelFootprint};
             const CD3DX12_TEXTURE_COPY_LOCATION dst{texture.resource.Get(), i};

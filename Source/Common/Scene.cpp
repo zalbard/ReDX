@@ -209,13 +209,11 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
             ScratchImage img;
             CHECK_CALL(FlipRotate(*tmp.GetImages(), TEX_FR_FLIP_VERTICAL, img),
                        "Failed to perform a vertical image flip.");
-            const TexMetadata& info = img.GetMetadata();
             // Generate MIP maps.
             ScratchImage mipChain;
-            const uint   mipCount = 1 + std::min(log2u(static_cast<uint>(info.width)),
-                                                 log2u(static_cast<uint>(info.height)));
-            CHECK_CALL(GenerateMipMaps(*img.GetImages(), TEX_FILTER_DEFAULT, mipCount, mipChain),
+            CHECK_CALL(GenerateMipMaps(*img.GetImages(), TEX_FILTER_DEFAULT, 0, mipChain),
                        "Failed to generate MIP maps.");
+            const TexMetadata& info = mipChain.GetMetadata();
             // Describe the 2D texture.
             const D3D12_SUBRESOURCE_FOOTPRINT footprint = {
                 /* Format */   info.format,
@@ -225,6 +223,7 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
                 /* RowPitch */ static_cast<uint>(mipChain.GetImages()->rowPitch)
             };
             // Create a texture.
+            const uint mipCount = static_cast<uint>(info.mipLevels);
             const auto res = texLib.emplace(texName, engine.createTexture2D(footprint, mipCount,
                                                                             mipChain.GetPixels()));
             // Return the texture index.
