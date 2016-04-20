@@ -34,13 +34,12 @@ static inline auto align(void* address)
 }
 
 // Aligns the integral value to the next multiple of alignment.
-template <uint64 alignment>
+template <uint alignment>
 static inline auto align(const uint value)
 -> uint {
     // Make sure that the alignment is non-zero, and is a power of 2.
     static_assert((alignment != 0) && isPow2(alignment), "Invalid alignment.");
-    const uint64 numVal = static_cast<uint64>(value);
-    return static_cast<uint>((numVal + (alignment - 1)) & ~(alignment - 1));
+    return (value + (alignment - 1)) & ~(alignment - 1);
 }
 
 // Computes the integer value of log2 of 'v'.

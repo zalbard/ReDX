@@ -511,7 +511,7 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
-        constexpr uint64 pitchAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
+        constexpr uint   pitchAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
         constexpr uint64 placeAlignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
         assert(0 == footprint.RowPitch % pitchAlignment);
         // Upload MIP levels one by one.
