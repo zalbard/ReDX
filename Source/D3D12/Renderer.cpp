@@ -5,11 +5,21 @@
 #include "HelperStructs.hpp"
 #include "Renderer.hpp"
 #include "..\Common\Buffer.h"
+#include "..\Common\Camera.h"
 #include "..\Common\Math.h"
 #include "..\UI\Window.h"
 
 using namespace D3D12;
 using namespace DirectX;
+
+struct Transforms {
+    XMFLOAT3A viewToWorldC0;    // Transposed view matrix, column 0
+    XMFLOAT3A viewToWorldC1;    // Transposed view matrix, column 1
+    XMFLOAT3A viewToWorldC2;    // Transposed view matrix, column 2
+    float     negInvResX;       // -1 / resX
+    float     heightByResY;     // 2 * tan(vFoV / 2) / resY
+    float     negHalfHeight;    // -tan(vFoV / 2)
+};
 
 static inline auto createWarpDevice(IDXGIFactory4* factory)
 -> ComPtr<ID3D12DeviceEx> {
@@ -146,9 +156,10 @@ Renderer::Renderer()
     {
         assert(m_dsvPool.size == 0);
         for (uint i = 0; i < FRAME_CNT; ++i) {
+            m_frameResouces[i].transformBuffer = createConstantBuffer(sizeof(Transforms));
             // Store the descriptor indices before we populate the pools.
-            m_frameResouces[i].firstRtvIndex  = m_rtvPool.size;
-            m_frameResouces[i].firstTexIndex  = m_texPool.size;
+            m_frameResouces[i].firstRtvIndex = m_rtvPool.size;
+            m_frameResouces[i].firstTexIndex = m_texPool.size;
             // Create a depth buffer.
             m_frameResouces[i].depthBuffer   = createDepthBuffer(width, height, FORMAT_DSV);
             // Create a normal vector buffer.
@@ -439,9 +450,9 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data)
                                            D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
-        constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
         // Copy the data into the upload buffer.
-        const uint offset = copyToUploadBuffer<alignment>(size, data);
+        constexpr uint alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+        const     uint offset    = copyToUploadBuffer<alignment>(size, data);
         // Copy the data from the upload buffer into the video memory buffer.
         m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
                                                        m_uploadBuffer.resource.Get(), offset,
@@ -468,9 +479,9 @@ StructuredBuffer Renderer::createStructuredBuffer(const uint size, const void* d
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
-        constexpr uint64 alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
         // Copy the data into the upload buffer.
-        const uint offset = copyToUploadBuffer<alignment>(size, data);
+        constexpr uint alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+        const     uint offset    = copyToUploadBuffer<alignment>(size, data);
         // Copy the data from the upload buffer into the video memory buffer.
         m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
                                                        m_uploadBuffer.resource.Get(), offset,
@@ -583,10 +594,9 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
                                            D3D12_RESOURCE_STATE_COMMON,
                                            D3D12_RESOURCE_STATE_INDEX_BUFFER};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
-    // Max. alignment requirement for indices is 4 bytes.
-    constexpr uint64 alignment = 4;
     // Copy indices into the upload buffer.
-    const uint offset = copyToUploadBuffer<alignment>(size, indices);
+    constexpr uint alignment = 4;
+    const     uint offset    = copyToUploadBuffer<alignment>(size, indices);
     // Copy the data from the upload buffer into the video memory buffer.
     m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
                                                    m_uploadBuffer.resource.Get(), offset,
@@ -600,12 +610,33 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
 
 void Renderer::setMaterials(const uint count, const Material* materials) {
     assert(count <= MAT_CNT);
-    constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     // Copy the data into the upload buffer.
-    const uint size   = count * sizeof(Material);
-    const uint offset = copyToUploadBuffer<alignment>(size, materials);
+    constexpr uint alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    const     uint size      = count * sizeof(Material);
+    const     uint offset    = copyToUploadBuffer<alignment>(size, materials);
     // Copy the data from the upload buffer into the video memory buffer.
     m_copyContext.commandList(0)->CopyBufferRegion(m_materialBuffer.resource.Get(), 0,
+                                                   m_uploadBuffer.resource.Get(), offset, size);
+}
+
+void Renderer::setCameraTransforms(const PerspectiveCamera& pCam) {
+    const XMMATRIX viewMat = pCam.computeViewMatrix();
+    const float    vFoV    = pCam.verticalFoV();
+    // Fill the 'Transforms' structure.
+    Transforms transforms;
+    XMStoreFloat3A(&transforms.viewToWorldC0, viewMat.r[0]);
+    XMStoreFloat3A(&transforms.viewToWorldC1, viewMat.r[1]);
+    XMStoreFloat3A(&transforms.viewToWorldC2, viewMat.r[2]);
+    transforms.negInvResX    = -rcp(m_viewport.Width);
+    transforms.heightByResY  = 2.f * tan(0.5f * vFoV) / m_viewport.Height;
+    transforms.negHalfHeight = -tan(0.5f * vFoV);
+    // Copy the data into the upload buffer.
+    constexpr uint alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    constexpr uint size      = sizeof(Transforms);
+    const     uint offset    = copyToUploadBuffer<alignment>(size, &transforms);
+    // Copy the data from the upload buffer into the video memory buffer.
+    ID3D12Resource* transformBuffer = m_frameResouces[m_frameIndex].transformBuffer.resource.Get();
+    m_copyContext.commandList(0)->CopyBufferRegion(transformBuffer, 0,
                                                    m_uploadBuffer.resource.Get(), offset, size);
 }
 
@@ -755,12 +786,13 @@ void Renderer::performShadingPass() {
                                                             D3D12_RESOURCE_STATE_RENDER_TARGET);
     graphicsCommandList->ResourceBarrier(6, barriers);
     // Set the root arguments.
-    graphicsCommandList->SetGraphicsRootShaderResourceView(0, m_materialBuffer.view);
+    graphicsCommandList->SetGraphicsRootConstantBufferView(0, frameRes.transformBuffer.view);
+    graphicsCommandList->SetGraphicsRootShaderResourceView(1, m_materialBuffer.view);
     // Set the SRVs of the frame resources.
     const D3D12_GPU_DESCRIPTOR_HANDLE firstTexHandle = m_texPool.gpuHandle(frameRes.firstTexIndex);
-    graphicsCommandList->SetGraphicsRootDescriptorTable(1, firstTexHandle);
+    graphicsCommandList->SetGraphicsRootDescriptorTable(2, firstTexHandle);
     // Set the SRVs of all textures.
-    graphicsCommandList->SetGraphicsRootDescriptorTable(2, m_texPool.gpuHandle(0));
+    graphicsCommandList->SetGraphicsRootDescriptorTable(3, m_texPool.gpuHandle(0));
     // Set and clear the RTV.
     const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvPool.cpuHandle(m_backBufferIndex);
     graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);

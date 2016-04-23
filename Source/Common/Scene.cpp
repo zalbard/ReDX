@@ -243,18 +243,16 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
             const obj::Material& material = matIt->second;
             // Currently, only glossy and specular materials are supported.
             assert(2 == material.illum);
+            // Metallicness map.
+            materials[i].metalTexId  = acquireTexureIndex(material.map_ka);
             // Base color texture.
             materials[i].baseTexId   = acquireTexureIndex(material.map_kd);
-            /*
-                // Metallicness map.
-                materials[i].metalTexId  = acquireTexureIndex(material.map_ka);
-                // Normal map.
-                materials[i].normalTexId = acquireTexureIndex(material.map_bump);
-                // Alpha mask.
-                materials[i].maskTexId   = acquireTexureIndex(material.map_d);
-                // Roughness map.
-                materials[i].roughTexId  = acquireTexureIndex(material.map_ns);
-            */
+            // Normal map.
+            materials[i].normalTexId = acquireTexureIndex(material.map_bump);
+            // Alpha mask.
+            materials[i].maskTexId   = acquireTexureIndex(material.map_d);
+            // Roughness map.
+            materials[i].roughTexId  = acquireTexureIndex(material.map_ns);
             // Copy textures to the GPU.
             engine.executeCopyCommands();
         }

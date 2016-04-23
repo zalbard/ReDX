@@ -14,7 +14,9 @@ public:
                                DirectX::FXMVECTOR up);
     // Returns the wold-space position of the camera.
     DirectX::XMVECTOR position() const;
-    // Returns the projection matrix of the camera.
+    // Returns the vertical field of view (in radians).
+    float verticalFoV() const;
+    // Returns the projection matrix.
     DirectX::XMMATRIX projectionMatrix() const;
     // Returns the normalized direction along the optical axis.
     DirectX::XMVECTOR computeForwardDir() const;
@@ -42,4 +44,5 @@ private:
     DirectX::XMVECTOR m_worldUp;        // World-space up vector
     DirectX::XMVECTOR m_orientQuat;     // Orientation defined as a quaternion
     DirectX::XMMATRIX m_projMat;        // Projection matrix
+    float             m_vFoV;           // Vertical field of view (in radians)
 };

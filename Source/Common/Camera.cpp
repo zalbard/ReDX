@@ -8,10 +8,15 @@ PerspectiveCamera::PerspectiveCamera(const long width, const long height, const 
     : m_position(pos)
     , m_worldUp(up)
     , m_orientQuat(XMQuaternionRotationMatrix(RotationMatrixLH(dir, up)))
-    , m_projMat{InfRevProjMatLH(width, height, vFoV)} {}
+    , m_projMat{InfRevProjMatLH(width, height, vFoV)}
+    , m_vFoV{vFoV} {}
 
 XMVECTOR PerspectiveCamera::position() const {
     return m_position;
+}
+
+float PerspectiveCamera::verticalFoV() const {
+    return m_vFoV;
 }
 
 XMMATRIX PerspectiveCamera::projectionMatrix() const {

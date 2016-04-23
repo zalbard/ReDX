@@ -23,10 +23,9 @@ namespace D3D12 {
                                                D3D12_RESOURCE_STATE_COMMON,
                                                D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER};
         m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
-        // Max. alignment requirement for vertex data is 4 bytes.
-        constexpr uint64 alignment = 4;
         // Copy vertices into the upload buffer.
-        const uint offset = copyToUploadBuffer<alignment>(size, elements);
+        constexpr uint alignment = 4;
+        const     uint offset    = copyToUploadBuffer<alignment>(size, elements);
         // Copy the data from the upload buffer into the video memory buffer.
         m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
                                                        m_uploadBuffer.resource.Get(), offset,
@@ -38,7 +37,7 @@ namespace D3D12 {
         return buffer;
     }
 
-    template <uint64 alignment>
+    template <uint alignment>
     inline auto Renderer::copyToUploadBuffer(const uint size, const void* data)
     -> uint {
         assert(data);
@@ -52,7 +51,7 @@ namespace D3D12 {
         return offset;
     }
 
-    template <uint64 alignment>
+    template <uint alignment>
     inline auto Renderer::reserveChunkOfUploadBuffer(const uint size)
     -> std::pair<byte*, uint> {
         assert(size > 0);
