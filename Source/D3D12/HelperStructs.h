@@ -39,6 +39,13 @@ namespace D3D12 {
     struct UploadRingBuffer {
         RULE_OF_FIVE_MOVE_ONLY(UploadRingBuffer);
         UploadRingBuffer();
+        // Returns the amount of unused space (in bytes) in the buffer.
+        // Effectively, computes the distance from 'offset' to 'prevSegStart'
+        // (or 'currSegStart' if the former is invalid) with respect to the wrap-around.
+        uint remainingCapacity() const;
+        // Returns the size (in bytes) of the previous segment of the buffer.
+        uint previousSegmentSize() const;
+    public:
         ComPtr<ID3D12Resource>      resource;        // Memory buffer
         byte*                       begin;           // CPU virtual memory-mapped address
         uint                        capacity;        // Buffer size (in bytes)

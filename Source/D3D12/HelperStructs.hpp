@@ -5,7 +5,8 @@
 #include "..\Common\Utility.h"
 
 namespace D3D12 {
-    static inline DXGI_FORMAT getResourceFormat(const DXGI_FORMAT depthFormat) {
+    static inline auto getResourceFormat(const DXGI_FORMAT depthFormat)
+    -> DXGI_FORMAT {
         DXGI_FORMAT format;
         switch (depthFormat) {
         case DXGI_FORMAT_D16_UNORM:
@@ -77,8 +78,22 @@ namespace D3D12 {
         , begin{nullptr}
         , capacity{0}
         , offset{0}
-        , prevSegStart{UINT_MAX}
+        , prevSegStart{0}
         , currSegStart{0} {}
+
+    inline auto UploadRingBuffer::remainingCapacity() const
+    -> uint {
+        const int dist = prevSegStart - offset;
+        // Account for the wrap-around.
+        return (prevSegStart <= offset) ? capacity + dist : dist;
+    }
+
+    inline auto UploadRingBuffer::previousSegmentSize() const
+    -> uint {
+        const int dist = currSegStart - prevSegStart;
+        // Account for the wrap-around.
+        return (prevSegStart <= currSegStart) ? dist : capacity + dist;
+    }
 
     inline UploadRingBuffer::UploadRingBuffer(UploadRingBuffer&& other) noexcept
         : resource{std::move(other.resource)}

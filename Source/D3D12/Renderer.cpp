@@ -661,7 +661,8 @@ void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
     // Reset the command list to its initial state.
     m_copyContext.resetCommandList(0, nullptr);
     // Begin a new segment of the upload buffer.
-    m_uploadBuffer.prevSegStart = immediateCopy ? UINT_MAX : m_uploadBuffer.currSegStart;
+    m_uploadBuffer.prevSegStart = immediateCopy ? m_uploadBuffer.offset
+                                                : m_uploadBuffer.currSegStart;
     m_uploadBuffer.currSegStart = m_uploadBuffer.offset;
 }
 
