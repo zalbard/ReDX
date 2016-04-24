@@ -107,8 +107,6 @@ float4 main(const float4 position : SV_Position) : SV_Target {
     const float3 N       = decodeOctahedral(normalTexture.Load(int3(pixel, 0)));
     const float2 uvCoord = uvCoordTexture.Load(int3(pixel, 0));
     const float4 uvGrad  = uvGradTexture.Load(int3(pixel, 0));
-    // Compute the cosine term.
-    const float  cosNL = saturate(dot(N, L));
     // Look up the metallicness coefficient.
     uint texId = materials[matId].metalTexId;
     const float metallicness = textures[NonUniformResourceIndex(texId)].SampleGrad(af4Sampler,
@@ -131,5 +129,5 @@ float4 main(const float4 position : SV_Position) : SV_Target {
         const float3 specularAlbedo = metallicness * baseColor;
         brdf += evalGGX(specularAlbedo, roughness, N, L, V);
     }
-    return float4(radiance * brdf * cosNL, 1.f);
+    return float4(radiance * brdf * saturate(dot(N, L)), 1.f);
 }
