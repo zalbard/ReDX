@@ -121,16 +121,15 @@ float4 main(const float4 position : SV_Position) : SV_Target {
     const float3 diffuseAlbedo = (1.f - metallicness) * baseColor;
     float3 brdf = diffuseAlbedo * M_1_PI;
     // Attempt early termination.
-    if (metallicness == 0.f) {
-        return float4(radiance * brdf * cosNL, 1.f);
+    if (metallicness > 0.f) {
+        // Look up roughness.
+        texId = materials[matId].roughTexId;
+        const float roughness = textures[NonUniformResourceIndex(texId)].SampleGrad(af4Sampler,
+                                uvCoord, uvGrad.xy, uvGrad.zw).r;
+        // Evaluate the metallic (GGX) part.
+        const float3 V = computeViewDir(position.xy);
+        const float3 specularAlbedo = metallicness * baseColor;
+        brdf += evalGGX(specularAlbedo, roughness, N, L, V);
     }
-    // Look up the roughness.
-    texId = materials[matId].roughTexId;
-    const float roughness = textures[NonUniformResourceIndex(texId)].SampleGrad(af4Sampler,
-                             uvCoord, uvGrad.xy, uvGrad.zw).r;
-    // Evaluate the metallic (GGX) part.
-    const float3 specularAlbedo = metallicness * baseColor;
-    const float3 V = computeViewDir(position.xy);
-    brdf += evalGGX(specularAlbedo, roughness, N, L, V);
     return float4(radiance * brdf * cosNL, 1.f);
 }
