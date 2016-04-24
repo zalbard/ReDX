@@ -82,7 +82,7 @@ float3 evalFresnelSchlick(const float3 F0, const float3 L, const float3 H) {
 }
 
 // Evaluates the GGX BRDF.
-float3 evalGGX(const float3 specularAlbedo, const float roughness,
+float3 evalGGX(const float3 specularReflectance, const float roughness,
                const float3 N, const float3 L, const float3 V) {
     const float3 H = normalize(L + V);
     // Evaluate the NDF term.
@@ -94,7 +94,7 @@ float3 evalGGX(const float3 specularAlbedo, const float roughness,
     // Evaluate the Smith's geometric term using Schlick's approximation.
     const float G = evalVisibilitySchlick(k, N, L) * evalVisibilitySchlick(k, N, V);
     // Evaluate the Fresnel term.
-    const float3 F = evalFresnelSchlick(specularAlbedo, L, H);
+    const float3 F = evalFresnelSchlick(specularReflectance, L, H);
     return F * (D * G);
 }
 
@@ -116,8 +116,8 @@ float4 main(const float4 position : SV_Position) : SV_Target {
     const float3 baseColor = textures[NonUniformResourceIndex(texId)].SampleGrad(af4Sampler,
                              uvCoord, uvGrad.xy, uvGrad.zw).rgb;
     // Evaluate the dielectric (Lambertian diffuse) part.
-    const float3 diffuseAlbedo = (1.f - metallicness) * baseColor;
-    float3 brdf = diffuseAlbedo * M_1_PI;
+    const float3 diffuseReflectance = (1.f - metallicness) * baseColor;
+    float3 brdf = diffuseReflectance * M_1_PI;
     // Attempt early termination.
     if (metallicness > 0.f) {
         // Look up roughness.
@@ -126,8 +126,8 @@ float4 main(const float4 position : SV_Position) : SV_Target {
                                 uvCoord, uvGrad.xy, uvGrad.zw).r;
         // Evaluate the metallic (GGX) part.
         const float3 V = computeViewDir(position.xy);
-        const float3 specularAlbedo = metallicness * baseColor;
-        brdf += evalGGX(specularAlbedo, roughness, N, L, V);
+        const float3 specularReflectance = metallicness * baseColor;
+        brdf += evalGGX(specularReflectance, roughness, N, L, V);
     }
     return float4(radiance * brdf * saturate(dot(N, L)), 1.f);
 }
