@@ -110,8 +110,8 @@ int __cdecl main(const int argc, const char* argv[]) {
             engine.recordShadingPass();
         });
         // <-- Join engine tasks.
-        asyncRec1.wait();
         asyncRec0.wait();
+        asyncRec1.wait();
         asyncCopy.wait();
         engine.renderFrame();
         // Update the timings.
