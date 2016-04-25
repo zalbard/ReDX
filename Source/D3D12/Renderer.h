@@ -87,7 +87,7 @@ namespace D3D12 {
         ComPtr<ID3D12DeviceEx>        m_device;
         D3D12_VIEWPORT                m_viewport;
         D3D12_RECT                    m_scissorRect;
-        GraphicsContext<FRAME_CNT, 1> m_graphicsContext;
+        GraphicsContext<FRAME_CNT, 2> m_graphicsContext;
         uint                          m_frameIndex;
         uint                          m_backBufferIndex;
         ComPtr<ID3D12Resource>        m_renderTargets[BUF_CNT];

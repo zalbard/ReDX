@@ -152,6 +152,7 @@ Renderer::Renderer()
     // Set the initial command list states.
     m_copyContext.resetCommandList(0, nullptr);
     m_graphicsContext.resetCommandList(0, m_gBufferPass.pipelineState.Get());
+    m_graphicsContext.resetCommandList(1, m_shadingPass.pipelineState.Get());
     // Create resources for each frame.
     {
         assert(m_dsvPool.size == 0);
@@ -763,14 +764,10 @@ void Renderer::performGBufferPass(FXMMATRIX viewProj, const Scene::Objects& obje
             graphicsCommandList->DrawIndexedInstanced(count, 1, 0, 0, 0);
         }
     }
-    // Finalize and execute the command list.
-    m_graphicsContext.executeCommandList(0);
 }
 
 void Renderer::performShadingPass() {
-    // Reset the command list to the new state.
-    m_graphicsContext.resetCommandList(0, m_shadingPass.pipelineState.Get());
-    ID3D12GraphicsCommandList* graphicsCommandList = m_graphicsContext.commandList(0);
+    ID3D12GraphicsCommandList* graphicsCommandList = m_graphicsContext.commandList(1);
     // Set the necessary command list state.
     graphicsCommandList->RSSetViewports(1, &m_viewport);
     graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
@@ -807,18 +804,20 @@ void Renderer::performShadingPass() {
     barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET,
                                                        D3D12_RESOURCE_STATE_PRESENT};
     graphicsCommandList->ResourceBarrier(6, barriers);
-    // Finalize and execute the command list.
-    m_graphicsContext.executeCommandList(0);
 }
 
 void Renderer::finalizeFrame() {
+    // Finalize and execute command lists.
+    m_graphicsContext.executeCommandList(0);
+    m_graphicsContext.executeCommandList(1);
     // Present the frame, and update the index of the render (back) buffer.
     CHECK_CALL(m_swapChain->Present(VSYNC_INTERVAL, 0), "Failed to display the frame buffer.");
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
     // Reset the graphics command (frame) allocator, and update the frame index.
     m_frameIndex = m_graphicsContext.resetCommandAllocators();
-    // Reset the command list to its initial state.
+    // Reset command lists to their initial states.
     m_graphicsContext.resetCommandList(0, m_gBufferPass.pipelineState.Get());
+    m_graphicsContext.resetCommandList(1, m_shadingPass.pipelineState.Get());
     // Block the thread until the swap chain is ready accept a new frame.
     // Otherwise, Present() may block the thread, increasing the input lag.
     WaitForSingleObject(m_swapChainWaitableObject, INFINITE);
