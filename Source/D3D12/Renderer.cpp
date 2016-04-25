@@ -707,7 +707,7 @@ void Renderer::FrameResource::getTransitionBarriersToReadableState(
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
 }
 
-void Renderer::performGBufferPass(FXMMATRIX viewProj, const Scene::Objects& objects) {
+void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene::Objects& objects) {
     ID3D12GraphicsCommandList* graphicsCommandList = m_graphicsContext.commandList(0);
     // Set the necessary command list state.
     graphicsCommandList->RSSetViewports(1, &m_viewport);
@@ -719,7 +719,7 @@ void Renderer::performGBufferPass(FXMMATRIX viewProj, const Scene::Objects& obje
     frameRes.getTransitionBarriersToWritableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
     graphicsCommandList->ResourceBarrier(5, barriers);
     // Dump the columns 0, 1 and 3 of the view-projection matrix.
-    const XMMATRIX tViewProj = XMMatrixTranspose(viewProj);
+    const XMMATRIX tViewProj = XMMatrixTranspose(pCam.computeViewProjMatrix());
     XMFLOAT4A matCols[3];
     XMStoreFloat4A(&matCols[0], tViewProj.r[0]);
     XMStoreFloat4A(&matCols[1], tViewProj.r[1]);
@@ -762,7 +762,7 @@ void Renderer::performGBufferPass(FXMMATRIX viewProj, const Scene::Objects& obje
     }
 }
 
-void Renderer::performShadingPass() {
+void Renderer::recordShadingPass() {
     ID3D12GraphicsCommandList* graphicsCommandList = m_graphicsContext.commandList(1);
     // Set the necessary command list state.
     graphicsCommandList->RSSetViewports(1, &m_viewport);
@@ -802,7 +802,7 @@ void Renderer::performShadingPass() {
     graphicsCommandList->ResourceBarrier(6, barriers);
 }
 
-void Renderer::finalizeFrame() {
+void Renderer::renderFrame() {
     // Finalize and execute command lists.
     m_graphicsContext.executeCommandLists();
     // Present the frame, and update the index of the render (back) buffer.

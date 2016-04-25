@@ -33,13 +33,13 @@ namespace D3D12 {
         // current segment are also completed during this call (at the cost of blocking
         // the thread), therefore making the entire buffer free and available for writing.
         void executeCopyCommands(const bool immediateCopy = false);
-        // Performs a render pass that fills the G-buffer.
-        // Input: the view-projection matrix and opaque scene objects.
-        void performGBufferPass(DirectX::FXMMATRIX viewProj, const Scene::Objects& objects);
-        // Performs the shading pass.
-        void performShadingPass();
-        // Finalizes the frame rendering process.
-        void finalizeFrame();
+        // Records commands within the G-buffer generation pass.
+        // Input: the camera and opaque scene objects.
+        void recordGBufferPass(const PerspectiveCamera& pCam, const Scene::Objects& objects);
+        // Records commands within the shading pass.
+        void recordShadingPass();
+        // Starts the frame rendering process.
+        void renderFrame();
         // Returns the current time of the CPU thread and the GPU queue in microseconds.
         std::pair<uint64, uint64> getTime() const;
         // Terminates the rendering process.
