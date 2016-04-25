@@ -88,7 +88,7 @@ float3 evalGGX(const float3 specularReflectance, const float roughness,
     // Evaluate the NDF term.
     const float cosNH = saturate(dot(N, H));
     const float alpha = sq(roughness);
-    const float D = sq(alpha) * M_1_PI / sq(sq(cosNH) * (sq(alpha) - 1) + 1);
+    const float D = sq(alpha) * M_1_PI / sq(sq(cosNH) * (sq(alpha) - 1.f) + 1.f);
     // Perform Disney's hotness remapping.
     const float k = 0.125f * sq(roughness + 1.f);
     // Evaluate the Smith's geometric term using Schlick's approximation.
