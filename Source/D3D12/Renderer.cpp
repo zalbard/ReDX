@@ -657,7 +657,7 @@ void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
                       "Unsupported copy context buffering mode.");
     }
     // Reset the command list allocator.
-    m_copyContext.resetCommandAllocator();
+    m_copyContext.resetCommandAllocators();
     // Reset the command list to its initial state.
     m_copyContext.resetCommandList(0, nullptr);
     // Begin a new segment of the upload buffer.
@@ -816,7 +816,7 @@ void Renderer::finalizeFrame() {
     CHECK_CALL(m_swapChain->Present(VSYNC_INTERVAL, 0), "Failed to display the frame buffer.");
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
     // Reset the graphics command (frame) allocator, and update the frame index.
-    m_frameIndex = m_graphicsContext.resetCommandAllocator();
+    m_frameIndex = m_graphicsContext.resetCommandAllocators();
     // Reset the command list to its initial state.
     m_graphicsContext.resetCommandList(0, m_gBufferPass.pipelineState.Get());
     // Block the thread until the swap chain is ready accept a new frame.

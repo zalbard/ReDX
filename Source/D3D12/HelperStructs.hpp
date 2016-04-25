@@ -233,20 +233,22 @@ namespace D3D12 {
     }
 
     template<CmdType T, uint N, uint L>
-    inline auto CommandContext<T, N, L>::resetCommandAllocator()
+    inline auto CommandContext<T, N, L>::resetCommandAllocators()
     -> uint {
-        // Update the value of the last inserted fence for the current allocator.
-        m_lastFenceValues[m_allocatorIndex] = m_fenceValue;
-        // Switch to the next command list allocator.
-        const uint newAllocatorIndex = m_allocatorIndex = (m_allocatorIndex + 1) % N;
+        // Update the value of the last inserted fence for the current allocator set.
+        m_lastFenceValues[m_frameAllocatorSet] = m_fenceValue;
+        // Switch to the allocator set for the next frame.
+        const uint nextAllocatorSet = m_frameAllocatorSet = (m_frameAllocatorSet + 1) % N;
         // Command list allocators can only be reset when the associated 
         // command lists have finished execution on the GPU.
         // Therefore, we have to check the value of the fence, and wait if necessary.
-        syncThread(m_lastFenceValues[newAllocatorIndex]);
-        // It's now safe to reset the command allocator.
-        CHECK_CALL(m_commandAllocators[newAllocatorIndex]->Reset(),
-                   "Failed to reset the command list allocator.");
-        return newAllocatorIndex;
+        syncThread(m_lastFenceValues[nextAllocatorSet]);
+        // It's now safe to reset the command allocators.
+        for (uint i = 0; i < L; ++i) {
+            CHECK_CALL(m_commandAllocators[nextAllocatorSet][i]->Reset(),
+                       "Failed to reset the command list allocator.");
+        }
+        return nextAllocatorSet;
     }
 
     template<CmdType T, uint N, uint L>
@@ -255,7 +257,8 @@ namespace D3D12 {
         assert(index < L);
         // After a command list has been executed, it can be then
         // reset at any time (and must be before re-recording).
-        CHECK_CALL(m_commandLists[index]->Reset(m_commandAllocators[m_allocatorIndex].Get(), state),
+        auto commandListAllocator = m_commandAllocators[m_frameAllocatorSet][index].Get();
+        CHECK_CALL(m_commandLists[index]->Reset(commandListAllocator, state),
                    "Failed to reset the command list.");
     }
 
@@ -334,16 +337,18 @@ namespace D3D12 {
                    "Failed to create a command queue.");
         // Create command allocators.
         for (uint i = 0; i < N; ++i) {
-            CHECK_CALL(CreateCommandAllocator(static_cast<D3D12_COMMAND_LIST_TYPE>(T),
-                       IID_PPV_ARGS(&commandContext->m_commandAllocators[i])),
-                       "Failed to create a command list allocator.");
+            for (uint j = 0; j < L; ++j) {
+                CHECK_CALL(CreateCommandAllocator(static_cast<D3D12_COMMAND_LIST_TYPE>(T),
+                           IID_PPV_ARGS(&commandContext->m_commandAllocators[i][j])),
+                           "Failed to create a command list allocator.");
+            }
         }
-        // Set the initial allocator index to 0.
-        commandContext->m_allocatorIndex = 0;
+        // Set the initial frame allocator set index to 0.
+        commandContext->m_frameAllocatorSet = 0;
         // Create command lists in the closed, NULL state using the initial allocator.
         for (uint i = 0; i < L; ++i) {
             CHECK_CALL(CreateCommandList(nodeMask, static_cast<D3D12_COMMAND_LIST_TYPE>(T),
-                                         commandContext->m_commandAllocators[0].Get(), nullptr,
+                                         commandContext->m_commandAllocators[0][i].Get(), nullptr,
                                          IID_PPV_ARGS(&commandContext->m_commandLists[i])),
                        "Failed to create a command list.");
             CHECK_CALL(commandContext->m_commandLists[i]->Close(),
