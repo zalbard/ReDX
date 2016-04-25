@@ -93,20 +93,26 @@ int __cdecl main(const int argc, const char* argv[]) {
             if (keyPressStatus.a) totalYaw   -= angle;
             pCam.rotateAndMoveForward(totalPitch, totalYaw, totalDist);
         }
-        // Execute engine code.
-        const auto asyncCopies = std::async(std::launch::async, [&engine, &pCam](){
+        // --> Fork engine tasks.
+        auto asyncCopy = std::async(std::launch::async, [&engine, &pCam](){
             // Thread 1.
             engine.setCameraTransforms(pCam);
             engine.executeCopyCommands();
         });
-        const auto asyncRecord = std::async(std::launch::async, [&engine](){
+        auto asyncRec0 = std::async(std::launch::async, [&engine, &scene, &pCam](){
             // Thread 2.
+            const float fracObjVis = scene.performFrustumCulling(pCam);
+            engine.recordGBufferPass(pCam, scene.objects);
+            return fracObjVis;
+        });
+        auto asyncRec1 = std::async(std::launch::async, [&engine](){
+            // Thread 3.
             engine.recordShadingPass();
         });
-        const float fracObjVis = scene.performFrustumCulling(pCam);
-        engine.recordGBufferPass(pCam, scene.objects);
-        asyncRecord.wait();
-        asyncCopies.wait();
+        // <-- Join engine tasks.
+        asyncRec1.wait();
+        asyncRec0.wait();
+        asyncCopy.wait();
         engine.renderFrame();
         // Update the timings.
         {
@@ -115,7 +121,7 @@ int __cdecl main(const int argc, const char* argv[]) {
             const uint64 cpuFrameTime    = cpuTime1 - cpuTime0;
             const uint64 gpuFrameTime    = gpuTime1 - gpuTime0;
             // Convert the frame times from microseconds to milliseconds.
-            Window::displayInfo(fracObjVis, cpuFrameTime * 1e-3f, gpuFrameTime * 1e-3f);
+            Window::displayInfo(asyncRec0.get(), cpuFrameTime * 1e-3f, gpuFrameTime * 1e-3f);
             // Convert the frame time from microseconds to seconds.
             timeDelta = static_cast<float>(cpuFrameTime * 1e-6);
             cpuTime0  = cpuTime1;
