@@ -160,6 +160,10 @@ namespace D3D12 {
         // and inserts a fence into the command queue afterwards.
         // Returns the inserted fence and its value.
         std::pair<ID3D12Fence*, uint64> executeCommandList(const uint index);
+        // Closes all command lists, submits them for execution in ascending order,
+        // and inserts a fence into the command queue afterwards.
+        // Returns the inserted fence and its value.
+        std::pair<ID3D12Fence*, uint64> executeCommandLists();
         // Stalls the execution of the current thread until
         // the fence with the specified value is reached.
         void syncThread(const uint64 fenceValue);

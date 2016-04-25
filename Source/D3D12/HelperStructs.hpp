@@ -214,6 +214,27 @@ namespace D3D12 {
     }
 
     template<CmdType T, uint N, uint L>
+    inline auto CommandContext<T, N, L>::executeCommandLists()
+    -> std::pair<ID3D12Fence*, uint64> {
+        // Close command lists.
+        ID3D12CommandList* commandLists[L];
+        for (uint i = 0; i < L; ++i) {
+            commandLists[i] = m_commandLists[i].Get();
+            CHECK_CALL(m_commandLists[i]->Close(), "Failed to close the command list.");
+        }
+        // Submit command lists for execution.
+        m_commandQueue->ExecuteCommandLists(L, commandLists);
+        // Insert a fence (with the updated value) into the command queue.
+        // Once we reach the fence in the queue, a signal will go off,
+        // which will set the internal value of the fence object to 'value'.
+        ID3D12Fence* fence = m_fence.Get();
+        const uint64 value = ++m_fenceValue;
+        CHECK_CALL(m_commandQueue->Signal(fence, value),
+                   "Failed to insert a fence into the command queue.");
+        return {fence, value};
+    }
+
+    template<CmdType T, uint N, uint L>
     inline void CommandContext<T, N, L>::syncThread(const uint64 fenceValue) {
         // fence->GetCompletedValue() returns the value of the fence reached so far.
         // If we haven't reached the fence with 'fenceValue' yet...

@@ -714,14 +714,10 @@ void Renderer::performGBufferPass(FXMMATRIX viewProj, const Scene::Objects& obje
     graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
     graphicsCommandList->SetGraphicsRootSignature(m_gBufferPass.rootSignature.Get());
     // Finish the transition of the frame resources to the writable state.
-    D3D12_RESOURCE_BARRIER barriers[6];
+    D3D12_RESOURCE_BARRIER barriers[5];
     FrameResource& frameRes = m_frameResouces[m_frameIndex];
     frameRes.getTransitionBarriersToWritableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
-    // Start the transition of the back buffer state: Presenting -> Render Target.
-    ID3D12Resource* backBuffer = m_renderTargets[m_backBufferIndex].Get();
-    barriers[5] = D3D12_TRANSITION_BARRIER::Begin(backBuffer, D3D12_RESOURCE_STATE_PRESENT,
-                                                              D3D12_RESOURCE_STATE_RENDER_TARGET);
-    graphicsCommandList->ResourceBarrier(6, barriers);
+    graphicsCommandList->ResourceBarrier(5, barriers);
     // Dump the columns 0, 1 and 3 of the view-projection matrix.
     const XMMATRIX tViewProj = XMMatrixTranspose(viewProj);
     XMFLOAT4A matCols[3];
@@ -778,10 +774,10 @@ void Renderer::performShadingPass() {
     D3D12_RESOURCE_BARRIER barriers[6];
     FrameResource& frameRes = m_frameResouces[m_frameIndex];
     frameRes.getTransitionBarriersToReadableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_NONE);
-    // Finish the transition of the back buffer state: Presenting -> Render Target.
+    // Transition the state of the back buffer: Presenting -> Render Target.
     ID3D12Resource* backBuffer = m_renderTargets[m_backBufferIndex].Get();
-    barriers[5] = D3D12_TRANSITION_BARRIER::End(backBuffer, D3D12_RESOURCE_STATE_PRESENT,
-                                                            D3D12_RESOURCE_STATE_RENDER_TARGET);
+    barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer, D3D12_RESOURCE_STATE_PRESENT,
+                                                       D3D12_RESOURCE_STATE_RENDER_TARGET};
     graphicsCommandList->ResourceBarrier(6, barriers);
     // Set the root arguments.
     graphicsCommandList->SetGraphicsRootConstantBufferView(0, frameRes.transformBuffer.view);
@@ -808,8 +804,7 @@ void Renderer::performShadingPass() {
 
 void Renderer::finalizeFrame() {
     // Finalize and execute command lists.
-    m_graphicsContext.executeCommandList(0);
-    m_graphicsContext.executeCommandList(1);
+    m_graphicsContext.executeCommandLists();
     // Present the frame, and update the index of the render (back) buffer.
     CHECK_CALL(m_swapChain->Present(VSYNC_INTERVAL, 0), "Failed to display the frame buffer.");
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
