@@ -103,7 +103,7 @@ float4 main(const float4 position : SV_Position) : SV_Target {
     // Load the pixel data from the G-buffer.
     const int2   pixel   = int2(position.xy);
     const uint   matId   = matIdTexture.Load(int3(pixel, 0));
-    if (matId == 0) return float4(0.f, 0.f, 0.f, 1.f);
+    if (matId == 0) return float4(radiance, 1.f);
     const float3 N       = decodeOctahedral(normalTexture.Load(int3(pixel, 0)));
     const float2 uvCoord = uvCoordTexture.Load(int3(pixel, 0));
     const float4 uvGrad  = uvGradTexture.Load(int3(pixel, 0));
