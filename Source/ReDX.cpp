@@ -99,7 +99,7 @@ int __cdecl main(const int argc, const char* argv[]) {
             engine.setCameraTransforms(pCam);
             engine.executeCopyCommands();
         });
-        auto asyncRec0 = std::async(std::launch::async, [&engine, &scene, &pCam](){
+        auto asyncRec0 = std::async(std::launch::async, [&engine, &pCam, &scene](){
             // Thread 2.
             const float fracObjVis = scene.performFrustumCulling(pCam);
             engine.recordGBufferPass(pCam, scene.objects);
