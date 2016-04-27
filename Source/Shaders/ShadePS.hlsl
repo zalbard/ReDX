@@ -98,6 +98,17 @@ float3 evalGGX(const float3 specularReflectance, const float roughness,
     return F * (D * G);
 }
 
+// Performs ACES Filmic Tone Mapping.
+// https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
+float3 acesFilmToneMap(float3 x) {
+    const float a = 2.51f;
+    const float b = 0.03f;
+    const float c = 2.43f;
+    const float d = 0.59f;
+    const float e = 0.14f;
+    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
 [RootSignature(RootSig)]
 float4 main(const float4 position : SV_Position) : SV_Target {
     // Load the pixel data from the G-buffer.
@@ -129,5 +140,7 @@ float4 main(const float4 position : SV_Position) : SV_Target {
         const float3 specularReflectance = metallicness * baseColor;
         brdf += evalGGX(specularReflectance, roughness, N, L, V);
     }
-    return float4(radiance * brdf * saturate(dot(N, L)), 1.f);
+    const float3 reflRadiance = radiance * brdf * saturate(dot(N, L));
+    // TODO: perform gamma correction.
+    return float4(acesFilmToneMap(reflRadiance), 1.f);
 }
