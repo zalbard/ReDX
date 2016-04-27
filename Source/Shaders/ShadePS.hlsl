@@ -1,7 +1,7 @@
 #include "ShadeRS.hlsl"
 
 static const float  M_1_PI   = 0.318309873f;
-static const float3 radiance = float3(5.f, 4.f, 3.f);
+static const float3 radiance = float3(2.2f, 2.f, 1.8f);
 static const float3 L        = normalize(float3(0.f, 0.90f, 0.42f));
 
 cbuffer Transforms : register(b0) {
@@ -141,6 +141,5 @@ float4 main(const float4 position : SV_Position) : SV_Target {
         brdf += evalGGX(specularReflectance, roughness, N, L, V);
     }
     const float3 reflRadiance = radiance * brdf * saturate(dot(N, L));
-    // TODO: perform gamma correction.
     return float4(acesFilmToneMap(reflRadiance), 1.f);
 }

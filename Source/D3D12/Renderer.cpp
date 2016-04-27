@@ -116,7 +116,7 @@ Renderer::Renderer()
         const DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {
             /* Width */       width,
             /* Height */      height,
-            /* Format */      FORMAT_RTV,
+            /* Format */      FORMAT_SC,
             /* Stereo */      0,
             /* SampleDesc */  SAMPLE_DEFAULT,
             /* BufferUsage */ DXGI_USAGE_RENDER_TARGET_OUTPUT,
@@ -141,9 +141,15 @@ Renderer::Renderer()
     }
     // Create a render target view (RTV) for each frame buffer.
     for (uint i = 0; i < BUF_CNT; ++i) {
+        constexpr D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {
+            /* Format */        FORMAT_RTV,
+            /* ViewDimension */ D3D12_RTV_DIMENSION_TEXTURE2D,
+            /* MipSlice */      0,
+            /* PlaneSlice */    0
+        };
         CHECK_CALL(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])),
                    "Failed to acquire a swap chain buffer.");
-        m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr,
+        m_device->CreateRenderTargetView(m_renderTargets[i].Get(), &rtvDesc,
                                          m_rtvPool.cpuHandle(m_rtvPool.size++));
     }
     // Configure render passes.
