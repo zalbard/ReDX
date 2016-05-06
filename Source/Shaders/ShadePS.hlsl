@@ -5,21 +5,18 @@ static const float3 radiance = float3(2.2f, 2.f, 1.8f);
 static const float3 L        = normalize(float3(0.f, 0.90f, 0.42f));
 
 cbuffer Transforms : register(b0) {
-    float3x3 viewToWorld;   // Transposed view matrix
-    float    pad;           // Unused
-    float    negInvResX;    // -1 / resX
-    float    heightByResY;  // 2 * tan(vFoV / 2) / resY
-    float    negHalfHeight; // -tan(vFoV / 2)
+    float3x3 rasterToWorldDir;  // Transforms the raster coordinates (x, y, 1) into
+    float    pad;               // the raster-to-camera-center direction in world space.
 }
 
 // Contains texture array indices.
 struct Material {
-    uint metalTexId;        // Metallicness map index
-    uint baseTexId;         // Base color texture index
-    uint normalTexId;       // Normal map index
-    uint maskTexId;         // Alpha mask index
-    uint roughTexId;        // Roughness map index
-    uint pad0, pad1, pad2;  // 16 byte alignment
+    uint metalTexId;            // Metallicness map index
+    uint baseTexId;             // Base color texture index
+    uint normalTexId;           // Normal map index
+    uint maskTexId;             // Alpha mask index
+    uint roughTexId;            // Roughness map index
+    uint pad0, pad1, pad2;      // 16 byte alignment
 };
 
 StructuredBuffer<Material> materials  : register(t0);
@@ -57,13 +54,7 @@ float3 decodeOctahedral(const float2 P) {
 
 // Computes the world-space direction from the shaded fragment towards the camera.
 float3 computeViewDir(const float2 position) {
-    // Compute the pixel-to-camera-center direction in view space.
-    // Dir = -(X, Y, Z), s.t. X = x / resX - 0.5, Y = (0.5 - y / resY) * h, Z = 1.
-    const float3 viewSpaceDir = float3(position.x * negInvResX   + 0.5f,
-                                       position.y * heightByResY + negHalfHeight,
-                                       -1.f);
-    // Transform it to world space.
-    return normalize(mul(viewSpaceDir, viewToWorld));
+    return normalize(mul(float3(position, 1.f), rasterToWorldDir));
 }
 
 // Evaluates Schlick's approximation of the visibility term.

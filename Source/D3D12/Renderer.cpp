@@ -12,15 +12,6 @@
 using namespace D3D12;
 using namespace DirectX;
 
-struct Transforms {
-    XMFLOAT3A viewToWorldC0;    // Transposed view matrix, column 0
-    XMFLOAT3A viewToWorldC1;    // Transposed view matrix, column 1
-    XMFLOAT3A viewToWorldC2;    // Transposed view matrix, column 2
-    float     negInvResX;       // -1 / resX
-    float     heightByResY;     // 2 * tan(vFoV / 2) / resY
-    float     negHalfHeight;    // -tan(vFoV / 2)
-};
-
 static inline auto createWarpDevice(IDXGIFactory4* factory)
 -> ComPtr<ID3D12DeviceEx> {
     ComPtr<IDXGIAdapter> adapter;
@@ -163,7 +154,7 @@ Renderer::Renderer()
     {
         assert(m_dsvPool.size == 0);
         for (uint i = 0; i < FRAME_CNT; ++i) {
-            m_frameResouces[i].transformBuffer = createConstantBuffer(sizeof(Transforms));
+            m_frameResouces[i].transformBuffer = createConstantBuffer(3 * sizeof(XMVECTOR));
             // Store the descriptor indices before we populate the pools.
             m_frameResouces[i].firstRtvIndex = m_rtvPool.size;
             m_frameResouces[i].firstTexIndex = m_texPool.size;
@@ -627,20 +618,29 @@ void Renderer::setMaterials(const uint count, const Material* materials) {
 }
 
 void Renderer::setCameraTransforms(const PerspectiveCamera& pCam) {
-    const XMMATRIX viewMat = pCam.computeViewMatrix();
-    const float    vFoV    = pCam.verticalFoV();
-    // Fill the 'Transforms' structure.
-    Transforms transforms;
-    XMStoreFloat3A(&transforms.viewToWorldC0, viewMat.r[0]);
-    XMStoreFloat3A(&transforms.viewToWorldC1, viewMat.r[1]);
-    XMStoreFloat3A(&transforms.viewToWorldC2, viewMat.r[2]);
-    transforms.negInvResX    = -rcp(m_viewport.Width);
-    transforms.heightByResY  = 2.f * tan(0.5f * vFoV) / m_viewport.Height;
-    transforms.negHalfHeight = -tan(0.5f * vFoV);
+    // Compose the transformation matrix 'rasterToViewDir', which transforms
+    // the raster coordinates (x, y, 1) into the raster-to-camera-center direction in view space.
+    // Dir = -(X, Y, Z), s.t. X = (x / resX - 0.5) * width, Y = (0.5 - y / resY) * height, Z = 1.
+    // -X = x * (-width / resX) + 0.5 * width  = x * m00 + m20.
+    // -Y = y * (height / resY) - 0.5 * height = y * m11 + m21.
+    const XMFLOAT2 sensorDims = pCam.sensorDimensions();
+    const float m00 = sensorDims.x / -m_viewport.Width;
+    const float m20 = sensorDims.x * 0.5f;
+    const float m11 = sensorDims.y / m_viewport.Height;
+    const float m21 = sensorDims.y * -0.5f;
+    // Compose the matrix.
+    const XMMATRIX rasterToViewDir = {m00, 0.f,  0.f, 0.f,
+                                      0.f, m11,  0.f, 0.f,
+                                      m20, m21, -1.f, 0.f,
+                                      0.f, 0.f,  0.f, 0.f};
+    // Compute the rotation matrix from view to world space.
+    const XMMATRIX cameraRotationMat = XMMatrixRotationQuaternion(pCam.orientation());
+    // Concatenate the transformations and transpose the result.
+    const XMMATRIX tRasterToWorldDir = XMMatrixTranspose(rasterToViewDir * cameraRotationMat);
     // Copy the data into the upload buffer.
     constexpr uint alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-    constexpr uint size      = sizeof(Transforms);
-    const     uint offset    = copyToUploadBuffer<alignment>(size, &transforms);
+    constexpr uint size      = 3 * sizeof(XMVECTOR);
+    const     uint offset    = copyToUploadBuffer<alignment>(size, &tRasterToWorldDir);
     // Copy the data from the upload buffer into the video memory buffer.
     ID3D12Resource* transformBuffer = m_frameResouces[m_frameIndex].transformBuffer.resource.Get();
     m_copyContext.commandList(0)->CopyBufferRegion(transformBuffer, 0,
