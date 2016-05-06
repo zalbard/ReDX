@@ -1,9 +1,11 @@
+#include <algorithm>
 #include <d3dcompiler.h>
 #include <d3dx12.h>
 #include <tuple>
 #include "HelperStructs.hpp"
 #include "Renderer.hpp"
 #include "..\Common\Buffer.h"
+#include "..\Common\Camera.h"
 #include "..\Common\Math.h"
 #include "..\UI\Window.h"
 
@@ -105,7 +107,7 @@ Renderer::Renderer()
         const DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {
             /* Width */       width,
             /* Height */      height,
-            /* Format */      FORMAT_RTV,
+            /* Format */      FORMAT_SC,
             /* Stereo */      0,
             /* SampleDesc */  SAMPLE_DEFAULT,
             /* BufferUsage */ DXGI_USAGE_RENDER_TARGET_OUTPUT,
@@ -130,9 +132,15 @@ Renderer::Renderer()
     }
     // Create a render target view (RTV) for each frame buffer.
     for (uint i = 0; i < BUF_CNT; ++i) {
+        constexpr D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {
+            /* Format */        FORMAT_RTV,
+            /* ViewDimension */ D3D12_RTV_DIMENSION_TEXTURE2D,
+            /* MipSlice */      0,
+            /* PlaneSlice */    0
+        };
         CHECK_CALL(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])),
                    "Failed to acquire a swap chain buffer.");
-        m_device->CreateRenderTargetView(m_renderTargets[i].Get(), nullptr,
+        m_device->CreateRenderTargetView(m_renderTargets[i].Get(), &rtvDesc,
                                          m_rtvPool.cpuHandle(m_rtvPool.size++));
     }
     // Configure render passes.
@@ -141,13 +149,15 @@ Renderer::Renderer()
     // Set the initial command list states.
     m_copyContext.resetCommandList(0, nullptr);
     m_graphicsContext.resetCommandList(0, m_gBufferPass.pipelineState.Get());
+    m_graphicsContext.resetCommandList(1, m_shadingPass.pipelineState.Get());
     // Create resources for each frame.
     {
         assert(m_dsvPool.size == 0);
         for (uint i = 0; i < FRAME_CNT; ++i) {
+            m_frameResouces[i].transformBuffer = createConstantBuffer(3 * sizeof(XMVECTOR));
             // Store the descriptor indices before we populate the pools.
-            m_frameResouces[i].firstRtvIndex  = m_rtvPool.size;
-            m_frameResouces[i].firstTexIndex  = m_texPool.size;
+            m_frameResouces[i].firstRtvIndex = m_rtvPool.size;
+            m_frameResouces[i].firstTexIndex = m_texPool.size;
             // Create a depth buffer.
             m_frameResouces[i].depthBuffer   = createDepthBuffer(width, height, FORMAT_DSV);
             // Create a normal vector buffer.
@@ -438,9 +448,9 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data)
                                            D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
-        constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
         // Copy the data into the upload buffer.
-        const uint offset = copyToUploadBuffer<alignment>(size, data);
+        constexpr uint alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+        const     uint offset    = copyToUploadBuffer<alignment>(size, data);
         // Copy the data from the upload buffer into the video memory buffer.
         m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
                                                        m_uploadBuffer.resource.Get(), offset,
@@ -467,9 +477,9 @@ StructuredBuffer Renderer::createStructuredBuffer(const uint size, const void* d
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
-        constexpr uint64 alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
         // Copy the data into the upload buffer.
-        const uint offset = copyToUploadBuffer<alignment>(size, data);
+        constexpr uint alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+        const     uint offset    = copyToUploadBuffer<alignment>(size, data);
         // Copy the data from the upload buffer into the video memory buffer.
         m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
                                                        m_uploadBuffer.resource.Get(), offset,
@@ -511,40 +521,42 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
-        constexpr uint64 pitchAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
+        constexpr uint   pitchAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
         constexpr uint64 placeAlignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
         assert(0 == footprint.RowPitch % pitchAlignment);
         // Upload MIP levels one by one.
         for (uint i = 0; i < mipCount; ++i) {
-            const uint rowPitch   = footprint.RowPitch >> i;
-            const uint levelPitch = align<pitchAlignment>(rowPitch);
-            const uint levelSize  = levelPitch * footprint.Height >> i;
+            const uint width     = std::max(1u, footprint.Width >> i);
+            const uint height    = std::max(1u, footprint.Height >> i);
+            const uint dataPitch = std::max(1u, footprint.RowPitch >> i);
+            const uint rowPitch  = align<pitchAlignment>(dataPitch);
+            const uint size      = rowPitch * height;
             uint offset;
             // Check whether pitched copying is required.
-            if (rowPitch == levelPitch) {
+            if (dataPitch == rowPitch) {
                 // Copy the entire MIP level at once.
-                offset = copyToUploadBuffer<placeAlignment>(levelSize, data);
+                offset = copyToUploadBuffer<placeAlignment>(size, data);
                 // Advance the data pointer to the next MIP level.
-                data = static_cast<const byte*>(data) + levelSize;
+                data = static_cast<const byte*>(data) + size;
             } else {
                 // Reserve a chunk of memory for the entire MIP level.
                 byte* address;
-                std::tie(address, offset) = reserveChunkOfUploadBuffer<placeAlignment>(levelSize);
+                std::tie(address, offset) = reserveChunkOfUploadBuffer<placeAlignment>(size);
                 // Copy the MIP level one row at a time.
-                for (uint row = 0, height = footprint.Height >> i; row < height; ++row) {
-                    memcpy(address, data, rowPitch);
-                    address += levelPitch;
-                    data     = static_cast<const byte*>(data) + rowPitch;
+                for (uint row = 0; row < height; ++row) {
+                    memcpy(address, data, dataPitch);
+                    address += rowPitch;
+                    data     = static_cast<const byte*>(data) + dataPitch;
                 }
             }
             // Copy the data from the upload buffer into the video memory texture.
             const D3D12_PLACED_SUBRESOURCE_FOOTPRINT levelFootprint = {
                 /* Offset */   offset,
                 /* Format */   footprint.Format,
-                /* Width */    footprint.Width  >> i,
-                /* Height */   footprint.Height >> i,
+                /* Width */    width,
+                /* Height */   height,
                 /* Depth */    footprint.Depth,
-                /* RowPitch */ levelPitch
+                /* RowPitch */ rowPitch
             };
             const CD3DX12_TEXTURE_COPY_LOCATION src{m_uploadBuffer.resource.Get(), levelFootprint};
             const CD3DX12_TEXTURE_COPY_LOCATION dst{texture.resource.Get(), i};
@@ -580,10 +592,9 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
                                            D3D12_RESOURCE_STATE_COMMON,
                                            D3D12_RESOURCE_STATE_INDEX_BUFFER};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
-    // Max. alignment requirement for indices is 4 bytes.
-    constexpr uint64 alignment = 4;
     // Copy indices into the upload buffer.
-    const uint offset = copyToUploadBuffer<alignment>(size, indices);
+    constexpr uint alignment = 4;
+    const     uint offset    = copyToUploadBuffer<alignment>(size, indices);
     // Copy the data from the upload buffer into the video memory buffer.
     m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
                                                    m_uploadBuffer.resource.Get(), offset,
@@ -597,12 +608,42 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
 
 void Renderer::setMaterials(const uint count, const Material* materials) {
     assert(count <= MAT_CNT);
-    constexpr uint64 alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     // Copy the data into the upload buffer.
-    const uint size   = count * sizeof(Material);
-    const uint offset = copyToUploadBuffer<alignment>(size, materials);
+    constexpr uint alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    const     uint size      = count * sizeof(Material);
+    const     uint offset    = copyToUploadBuffer<alignment>(size, materials);
     // Copy the data from the upload buffer into the video memory buffer.
     m_copyContext.commandList(0)->CopyBufferRegion(m_materialBuffer.resource.Get(), 0,
+                                                   m_uploadBuffer.resource.Get(), offset, size);
+}
+
+void Renderer::setCameraTransforms(const PerspectiveCamera& pCam) {
+    // Compose the transformation matrix 'rasterToViewDir', which transforms
+    // the raster coordinates (x, y, 1) into the raster-to-camera-center direction in view space.
+    // Dir = -(X, Y, Z), s.t. X = (x / resX - 0.5) * width, Y = (0.5 - y / resY) * height, Z = 1.
+    // -X = x * (-width / resX) + 0.5 * width  = x * m00 + m20.
+    // -Y = y * (height / resY) - 0.5 * height = y * m11 + m21.
+    const XMFLOAT2 sensorDims = pCam.sensorDimensions();
+    const float m00 = sensorDims.x / -m_viewport.Width;
+    const float m20 = sensorDims.x * 0.5f;
+    const float m11 = sensorDims.y / m_viewport.Height;
+    const float m21 = sensorDims.y * -0.5f;
+    // Compose the matrix.
+    const XMMATRIX rasterToViewDir = {m00, 0.f,  0.f, 0.f,
+                                      0.f, m11,  0.f, 0.f,
+                                      m20, m21, -1.f, 0.f,
+                                      0.f, 0.f,  0.f, 0.f};
+    // Compute the rotation matrix from view to world space.
+    const XMMATRIX cameraRotationMat = XMMatrixRotationQuaternion(pCam.orientation());
+    // Concatenate the transformations and transpose the result.
+    const XMMATRIX tRasterToWorldDir = XMMatrixTranspose(rasterToViewDir * cameraRotationMat);
+    // Copy the data into the upload buffer.
+    constexpr uint alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    constexpr uint size      = 3 * sizeof(XMVECTOR);
+    const     uint offset    = copyToUploadBuffer<alignment>(size, &tRasterToWorldDir);
+    // Copy the data from the upload buffer into the video memory buffer.
+    ID3D12Resource* transformBuffer = m_frameResouces[m_frameIndex].transformBuffer.resource.Get();
+    m_copyContext.commandList(0)->CopyBufferRegion(transformBuffer, 0,
                                                    m_uploadBuffer.resource.Get(), offset, size);
 }
 
@@ -623,11 +664,12 @@ void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
                       "Unsupported copy context buffering mode.");
     }
     // Reset the command list allocator.
-    m_copyContext.resetCommandAllocator();
+    m_copyContext.resetCommandAllocators();
     // Reset the command list to its initial state.
     m_copyContext.resetCommandList(0, nullptr);
     // Begin a new segment of the upload buffer.
-    m_uploadBuffer.prevSegStart = immediateCopy ? UINT_MAX : m_uploadBuffer.currSegStart;
+    m_uploadBuffer.prevSegStart = immediateCopy ? m_uploadBuffer.offset
+                                                : m_uploadBuffer.currSegStart;
     m_uploadBuffer.currSegStart = m_uploadBuffer.offset;
 }
 
@@ -671,23 +713,19 @@ void Renderer::FrameResource::getTransitionBarriersToReadableState(
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
 }
 
-void Renderer::performGBufferPass(FXMMATRIX viewProj, const Scene::Objects& objects) {
+void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene::Objects& objects) {
     ID3D12GraphicsCommandList* graphicsCommandList = m_graphicsContext.commandList(0);
     // Set the necessary command list state.
     graphicsCommandList->RSSetViewports(1, &m_viewport);
     graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
     graphicsCommandList->SetGraphicsRootSignature(m_gBufferPass.rootSignature.Get());
     // Finish the transition of the frame resources to the writable state.
-    D3D12_RESOURCE_BARRIER barriers[6];
+    D3D12_RESOURCE_BARRIER barriers[5];
     FrameResource& frameRes = m_frameResouces[m_frameIndex];
     frameRes.getTransitionBarriersToWritableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
-    // Start the transition of the back buffer state: Presenting -> Render Target.
-    ID3D12Resource* backBuffer = m_renderTargets[m_backBufferIndex].Get();
-    barriers[5] = D3D12_TRANSITION_BARRIER::Begin(backBuffer, D3D12_RESOURCE_STATE_PRESENT,
-                                                              D3D12_RESOURCE_STATE_RENDER_TARGET);
-    graphicsCommandList->ResourceBarrier(6, barriers);
+    graphicsCommandList->ResourceBarrier(5, barriers);
     // Dump the columns 0, 1 and 3 of the view-projection matrix.
-    const XMMATRIX tViewProj = XMMatrixTranspose(viewProj);
+    const XMMATRIX tViewProj = XMMatrixTranspose(pCam.computeViewProjMatrix());
     XMFLOAT4A matCols[3];
     XMStoreFloat4A(&matCols[0], tViewProj.r[0]);
     XMStoreFloat4A(&matCols[1], tViewProj.r[1]);
@@ -728,14 +766,10 @@ void Renderer::performGBufferPass(FXMMATRIX viewProj, const Scene::Objects& obje
             graphicsCommandList->DrawIndexedInstanced(count, 1, 0, 0, 0);
         }
     }
-    // Finalize and execute the command list.
-    m_graphicsContext.executeCommandList(0);
 }
 
-void Renderer::performShadingPass() {
-    // Reset the command list to the new state.
-    m_graphicsContext.resetCommandList(0, m_shadingPass.pipelineState.Get());
-    ID3D12GraphicsCommandList* graphicsCommandList = m_graphicsContext.commandList(0);
+void Renderer::recordShadingPass() {
+    ID3D12GraphicsCommandList* graphicsCommandList = m_graphicsContext.commandList(1);
     // Set the necessary command list state.
     graphicsCommandList->RSSetViewports(1, &m_viewport);
     graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
@@ -746,18 +780,19 @@ void Renderer::performShadingPass() {
     D3D12_RESOURCE_BARRIER barriers[6];
     FrameResource& frameRes = m_frameResouces[m_frameIndex];
     frameRes.getTransitionBarriersToReadableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_NONE);
-    // Finish the transition of the back buffer state: Presenting -> Render Target.
+    // Transition the state of the back buffer: Presenting -> Render Target.
     ID3D12Resource* backBuffer = m_renderTargets[m_backBufferIndex].Get();
-    barriers[5] = D3D12_TRANSITION_BARRIER::End(backBuffer, D3D12_RESOURCE_STATE_PRESENT,
-                                                            D3D12_RESOURCE_STATE_RENDER_TARGET);
+    barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer, D3D12_RESOURCE_STATE_PRESENT,
+                                                       D3D12_RESOURCE_STATE_RENDER_TARGET};
     graphicsCommandList->ResourceBarrier(6, barriers);
     // Set the root arguments.
-    graphicsCommandList->SetGraphicsRootShaderResourceView(0, m_materialBuffer.view);
+    graphicsCommandList->SetGraphicsRootConstantBufferView(0, frameRes.transformBuffer.view);
+    graphicsCommandList->SetGraphicsRootShaderResourceView(1, m_materialBuffer.view);
     // Set the SRVs of the frame resources.
     const D3D12_GPU_DESCRIPTOR_HANDLE firstTexHandle = m_texPool.gpuHandle(frameRes.firstTexIndex);
-    graphicsCommandList->SetGraphicsRootDescriptorTable(1, firstTexHandle);
+    graphicsCommandList->SetGraphicsRootDescriptorTable(2, firstTexHandle);
     // Set the SRVs of all textures.
-    graphicsCommandList->SetGraphicsRootDescriptorTable(2, m_texPool.gpuHandle(0));
+    graphicsCommandList->SetGraphicsRootDescriptorTable(3, m_texPool.gpuHandle(0));
     // Set and clear the RTV.
     const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvPool.cpuHandle(m_backBufferIndex);
     graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
@@ -771,18 +806,19 @@ void Renderer::performShadingPass() {
     barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET,
                                                        D3D12_RESOURCE_STATE_PRESENT};
     graphicsCommandList->ResourceBarrier(6, barriers);
-    // Finalize and execute the command list.
-    m_graphicsContext.executeCommandList(0);
 }
 
-void Renderer::finalizeFrame() {
+void Renderer::renderFrame() {
+    // Finalize and execute command lists.
+    m_graphicsContext.executeCommandLists();
     // Present the frame, and update the index of the render (back) buffer.
     CHECK_CALL(m_swapChain->Present(VSYNC_INTERVAL, 0), "Failed to display the frame buffer.");
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
     // Reset the graphics command (frame) allocator, and update the frame index.
-    m_frameIndex = m_graphicsContext.resetCommandAllocator();
-    // Reset the command list to its initial state.
+    m_frameIndex = m_graphicsContext.resetCommandAllocators();
+    // Reset command lists to their initial states.
     m_graphicsContext.resetCommandList(0, m_gBufferPass.pipelineState.Get());
+    m_graphicsContext.resetCommandList(1, m_shadingPass.pipelineState.Get());
     // Block the thread until the swap chain is ready accept a new frame.
     // Otherwise, Present() may block the thread, increasing the input lag.
     WaitForSingleObject(m_swapChainWaitableObject, INFINITE);

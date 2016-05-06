@@ -1,6 +1,6 @@
 #include "GBufferRS.hlsl"
 
-cbuffer RootConsts : register(b0) {
+cbuffer MaterialId : register(b0) {
     uint matId;
 }
 
@@ -17,11 +17,27 @@ struct OutputPS {
     uint   matId    : SV_Target3;
 };
 
+// Returns 1 for non-negative components, -1 otherwise.
+float2 nonNegative(const float2 P) {
+    return float2((P.x >= 0.f) ? 1.f : -1.f,
+                  (P.y >= 0.f) ? 1.f : -1.f);
+}
+
+// Performs Octahedral Normal Vector encoding.
+// Input:  normalized 3D vector 'N' on a sphere.
+// Output: 2D point 'P' on a square [-1, 1] x [-1, 1].
+float2 encodeOctahedral(const float3 N) {
+    // Project the sphere onto the octahedron, and then onto the XY plane.
+    const float2 P = N.xy * (1.f / (abs(N.x) + abs(N.y) + abs(N.z)));
+    // Reflect the folds of the lower hemisphere over the diagonals.
+    return (N.z <= 0.f) ? ((1.f - abs(P.yx)) * nonNegative(P)) : P;
+}
+
 [RootSignature(RootSig)]
 OutputPS main(const InputPS input) {
     OutputPS output;
-    // Interpolate and normalize the normal.
-    output.normal  = input.normal.xy * rsqrt(dot(input.normal, input.normal));
+    // Interpolate and encode the normal.
+    output.normal  = encodeOctahedral(input.normal);
     // Interpolate and wrap the UV coordinates.
     output.uvCoord = frac(input.uvCoord);
     // Compute per-pixel UV derivatives.

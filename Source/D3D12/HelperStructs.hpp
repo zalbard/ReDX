@@ -5,7 +5,8 @@
 #include "..\Common\Utility.h"
 
 namespace D3D12 {
-    static inline DXGI_FORMAT getResourceFormat(const DXGI_FORMAT depthFormat) {
+    static inline auto getResourceFormat(const DXGI_FORMAT depthFormat)
+    -> DXGI_FORMAT {
         DXGI_FORMAT format;
         switch (depthFormat) {
         case DXGI_FORMAT_D16_UNORM:
@@ -77,8 +78,22 @@ namespace D3D12 {
         , begin{nullptr}
         , capacity{0}
         , offset{0}
-        , prevSegStart{UINT_MAX}
+        , prevSegStart{0}
         , currSegStart{0} {}
+
+    inline auto UploadRingBuffer::remainingCapacity() const
+    -> uint {
+        const int dist = prevSegStart - offset;
+        // Account for the wrap-around.
+        return (prevSegStart <= offset) ? capacity + dist : dist;
+    }
+
+    inline auto UploadRingBuffer::previousSegmentSize() const
+    -> uint {
+        const int dist = currSegStart - prevSegStart;
+        // Account for the wrap-around.
+        return (prevSegStart <= currSegStart) ? dist : capacity + dist;
+    }
 
     inline UploadRingBuffer::UploadRingBuffer(UploadRingBuffer&& other) noexcept
         : resource{std::move(other.resource)}
@@ -199,6 +214,27 @@ namespace D3D12 {
     }
 
     template<CmdType T, uint N, uint L>
+    inline auto CommandContext<T, N, L>::executeCommandLists()
+    -> std::pair<ID3D12Fence*, uint64> {
+        // Close command lists.
+        ID3D12CommandList* commandLists[L];
+        for (uint i = 0; i < L; ++i) {
+            commandLists[i] = m_commandLists[i].Get();
+            CHECK_CALL(m_commandLists[i]->Close(), "Failed to close the command list.");
+        }
+        // Submit command lists for execution.
+        m_commandQueue->ExecuteCommandLists(L, commandLists);
+        // Insert a fence (with the updated value) into the command queue.
+        // Once we reach the fence in the queue, a signal will go off,
+        // which will set the internal value of the fence object to 'value'.
+        ID3D12Fence* fence = m_fence.Get();
+        const uint64 value = ++m_fenceValue;
+        CHECK_CALL(m_commandQueue->Signal(fence, value),
+                   "Failed to insert a fence into the command queue.");
+        return {fence, value};
+    }
+
+    template<CmdType T, uint N, uint L>
     inline void CommandContext<T, N, L>::syncThread(const uint64 fenceValue) {
         // fence->GetCompletedValue() returns the value of the fence reached so far.
         // If we haven't reached the fence with 'fenceValue' yet...
@@ -218,20 +254,22 @@ namespace D3D12 {
     }
 
     template<CmdType T, uint N, uint L>
-    inline auto CommandContext<T, N, L>::resetCommandAllocator()
+    inline auto CommandContext<T, N, L>::resetCommandAllocators()
     -> uint {
-        // Update the value of the last inserted fence for the current allocator.
-        m_lastFenceValues[m_allocatorIndex] = m_fenceValue;
-        // Switch to the next command list allocator.
-        const uint newAllocatorIndex = m_allocatorIndex = (m_allocatorIndex + 1) % N;
+        // Update the value of the last inserted fence for the current allocator set.
+        m_lastFenceValues[m_frameAllocatorSet] = m_fenceValue;
+        // Switch to the allocator set for the next frame.
+        const uint nextAllocatorSet = m_frameAllocatorSet = (m_frameAllocatorSet + 1) % N;
         // Command list allocators can only be reset when the associated 
         // command lists have finished execution on the GPU.
         // Therefore, we have to check the value of the fence, and wait if necessary.
-        syncThread(m_lastFenceValues[newAllocatorIndex]);
-        // It's now safe to reset the command allocator.
-        CHECK_CALL(m_commandAllocators[newAllocatorIndex]->Reset(),
-                   "Failed to reset the command list allocator.");
-        return newAllocatorIndex;
+        syncThread(m_lastFenceValues[nextAllocatorSet]);
+        // It's now safe to reset the command allocators.
+        for (uint i = 0; i < L; ++i) {
+            CHECK_CALL(m_commandAllocators[nextAllocatorSet][i]->Reset(),
+                       "Failed to reset the command list allocator.");
+        }
+        return nextAllocatorSet;
     }
 
     template<CmdType T, uint N, uint L>
@@ -240,7 +278,8 @@ namespace D3D12 {
         assert(index < L);
         // After a command list has been executed, it can be then
         // reset at any time (and must be before re-recording).
-        CHECK_CALL(m_commandLists[index]->Reset(m_commandAllocators[m_allocatorIndex].Get(), state),
+        auto commandListAllocator = m_commandAllocators[m_frameAllocatorSet][index].Get();
+        CHECK_CALL(m_commandLists[index]->Reset(commandListAllocator, state),
                    "Failed to reset the command list.");
     }
 
@@ -319,16 +358,18 @@ namespace D3D12 {
                    "Failed to create a command queue.");
         // Create command allocators.
         for (uint i = 0; i < N; ++i) {
-            CHECK_CALL(CreateCommandAllocator(static_cast<D3D12_COMMAND_LIST_TYPE>(T),
-                       IID_PPV_ARGS(&commandContext->m_commandAllocators[i])),
-                       "Failed to create a command list allocator.");
+            for (uint j = 0; j < L; ++j) {
+                CHECK_CALL(CreateCommandAllocator(static_cast<D3D12_COMMAND_LIST_TYPE>(T),
+                           IID_PPV_ARGS(&commandContext->m_commandAllocators[i][j])),
+                           "Failed to create a command list allocator.");
+            }
         }
-        // Set the initial allocator index to 0.
-        commandContext->m_allocatorIndex = 0;
+        // Set the initial frame allocator set index to 0.
+        commandContext->m_frameAllocatorSet = 0;
         // Create command lists in the closed, NULL state using the initial allocator.
         for (uint i = 0; i < L; ++i) {
             CHECK_CALL(CreateCommandList(nodeMask, static_cast<D3D12_COMMAND_LIST_TYPE>(T),
-                                         commandContext->m_commandAllocators[0].Get(), nullptr,
+                                         commandContext->m_commandAllocators[0][i].Get(), nullptr,
                                          IID_PPV_ARGS(&commandContext->m_commandLists[i])),
                        "Failed to create a command list.");
             CHECK_CALL(commandContext->m_commandLists[i]->Close(),

@@ -14,8 +14,13 @@ public:
                                DirectX::FXMVECTOR up);
     // Returns the wold-space position of the camera.
     DirectX::XMVECTOR position() const;
-    // Returns the projection matrix of the camera.
+    // Returns the projection matrix.
     DirectX::XMMATRIX projectionMatrix() const;
+    // Returns the orientation defined as a quaternion.
+    DirectX::XMVECTOR orientation() const;
+    // Returns the width and the height of the camera sensor.
+    // The sensor is the top (smaller) rectangular base of the view frustum.
+    DirectX::XMFLOAT2 sensorDimensions() const;
     // Returns the normalized direction along the optical axis.
     DirectX::XMVECTOR computeForwardDir() const;
     // Returns the view-projection matrix (and, optionally, the view matrix).
@@ -42,4 +47,5 @@ private:
     DirectX::XMVECTOR m_worldUp;        // World-space up vector
     DirectX::XMVECTOR m_orientQuat;     // Orientation defined as a quaternion
     DirectX::XMMATRIX m_projMat;        // Projection matrix
+    DirectX::XMFLOAT2 m_sensorDims;     // Sensor dimensions
 };

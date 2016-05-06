@@ -8,7 +8,14 @@ PerspectiveCamera::PerspectiveCamera(const long width, const long height, const 
     : m_position(pos)
     , m_worldUp(up)
     , m_orientQuat(XMQuaternionRotationMatrix(RotationMatrixLH(dir, up)))
-    , m_projMat{InfRevProjMatLH(width, height, vFoV)} {}
+    , m_projMat{InfRevProjMatLH(width, height, vFoV)} {
+        // We are using an infinite reversed projection matrix, so
+        // the sensor lies on the far plane, at the distance of 1.
+        const float sensorHeight = 2.f * tanf(0.5f * vFoV);
+        const float aspectRatio  = static_cast<float>(width) / static_cast<float>(height);
+        const float sensorWidth  = sensorHeight * aspectRatio;
+        m_sensorDims = {sensorWidth, sensorHeight};
+}
 
 XMVECTOR PerspectiveCamera::position() const {
     return m_position;
@@ -16,6 +23,14 @@ XMVECTOR PerspectiveCamera::position() const {
 
 XMMATRIX PerspectiveCamera::projectionMatrix() const {
     return m_projMat;
+}
+
+XMVECTOR PerspectiveCamera::orientation() const {
+    return m_orientQuat;
+}
+
+XMFLOAT2 PerspectiveCamera::sensorDimensions() const {
+    return m_sensorDims;
 }
 
 XMVECTOR PerspectiveCamera::computeForwardDir() const {

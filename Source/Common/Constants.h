@@ -47,12 +47,14 @@ constexpr auto  FORMAT_UVCOORD  = DXGI_FORMAT_R16G16_UNORM;
 constexpr auto  FORMAT_UVGRAD   = DXGI_FORMAT_R16G16B16A16_SNORM;
 // Material ID texture format.
 constexpr auto  FORMAT_MAT_ID   = DXGI_FORMAT_R16_UINT;
+// Swap chain buffer format.
+constexpr auto  FORMAT_SC       = DXGI_FORMAT_R8G8B8A8_UNORM;
 // Primary render target view format.
-constexpr auto  FORMAT_RTV      = DXGI_FORMAT_R8G8B8A8_UNORM;
+constexpr auto  FORMAT_RTV      = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 // Primary depth stencil view format.
 constexpr auto  FORMAT_DSV      = DXGI_FORMAT_D24_UNORM_S8_UINT;
-// Upload buffer size (16 MiB).
-constexpr uint  UPLOAD_BUF_SIZE = 16 * 1024 * 1024;
+// Upload buffer size (32 MiB).
+constexpr uint  UPLOAD_BUF_SIZE = 32 * 1024 * 1024;
 // Camera's speed (in meters/sec).
 constexpr float CAM_SPEED       = 500.f;
 // Camera's angular speed (in radians/sec).

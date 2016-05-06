@@ -1,5 +1,6 @@
 #define RootSig                                                          \
     "RootFlags(DENY_VERTEX_SHADER_ROOT_ACCESS), "                        \
+    "CBV(b0, visibility = SHADER_VISIBILITY_PIXEL), "                    \
     "SRV(t0, visibility = SHADER_VISIBILITY_PIXEL), "                    \
     "DescriptorTable("                                                   \
         "SRV(t1, numDescriptors = 5), "                                  \

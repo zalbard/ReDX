@@ -93,11 +93,27 @@ int __cdecl main(const int argc, const char* argv[]) {
             if (keyPressStatus.a) totalYaw   -= angle;
             pCam.rotateAndMoveForward(totalPitch, totalYaw, totalDist);
         }
-        // Execute engine code.
-        const float fracObjVis = scene.performFrustumCulling(pCam);
-        engine.performGBufferPass(pCam.computeViewProjMatrix(), scene.objects);
-        engine.performShadingPass();
-        engine.finalizeFrame();
+        // --> Fork engine tasks.
+        auto asyncCopy = std::async(std::launch::async, [&engine, &pCam](){
+            // Thread 1.
+            engine.setCameraTransforms(pCam);
+            engine.executeCopyCommands();
+        });
+        auto asyncRec0 = std::async(std::launch::async, [&engine, &pCam, &scene](){
+            // Thread 2.
+            const float fracObjVis = scene.performFrustumCulling(pCam);
+            engine.recordGBufferPass(pCam, scene.objects);
+            return fracObjVis;
+        });
+        auto asyncRec1 = std::async(std::launch::async, [&engine](){
+            // Thread 3.
+            engine.recordShadingPass();
+        });
+        // <-- Join engine tasks.
+        asyncRec0.wait();
+        asyncRec1.wait();
+        asyncCopy.wait();
+        engine.renderFrame();
         // Update the timings.
         {
             uint64 cpuTime1, gpuTime1;
@@ -105,7 +121,7 @@ int __cdecl main(const int argc, const char* argv[]) {
             const uint64 cpuFrameTime    = cpuTime1 - cpuTime0;
             const uint64 gpuFrameTime    = gpuTime1 - gpuTime0;
             // Convert the frame times from microseconds to milliseconds.
-            Window::displayInfo(fracObjVis, cpuFrameTime * 1e-3f, gpuFrameTime * 1e-3f);
+            Window::displayInfo(asyncRec0.get(), cpuFrameTime * 1e-3f, gpuFrameTime * 1e-3f);
             // Convert the frame time from microseconds to seconds.
             timeDelta = static_cast<float>(cpuFrameTime * 1e-6);
             cpuTime0  = cpuTime1;

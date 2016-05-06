@@ -39,6 +39,13 @@ namespace D3D12 {
     struct UploadRingBuffer {
         RULE_OF_FIVE_MOVE_ONLY(UploadRingBuffer);
         UploadRingBuffer();
+        // Returns the amount of unused space (in bytes) in the buffer.
+        // Effectively, computes the distance from 'offset' to 'prevSegStart'
+        // (or 'currSegStart' if the former is invalid) with respect to the wrap-around.
+        uint remainingCapacity() const;
+        // Returns the size (in bytes) of the previous segment of the buffer.
+        uint previousSegmentSize() const;
+    public:
         ComPtr<ID3D12Resource>      resource;        // Memory buffer
         byte*                       begin;           // CPU virtual memory-mapped address
         uint                        capacity;        // Buffer size (in bytes)
@@ -57,13 +64,13 @@ namespace D3D12 {
         D3D12_INDEX_BUFFER_VIEW     view;            // Descriptor
     };
 
-    // Best for coherent access patterns.
+    // Ideally suited for uniform (convergent) access patterns.
     struct ConstantBuffer {
         ComPtr<ID3D12Resource>      resource;        // Memory buffer
         D3D12_GPU_VIRTUAL_ADDRESS   view;            // Descriptor (Constant Buffer View)
     };
 
-    // Best for divergent access patterns.
+    // Ideally suited for non-uniform (divergent) access patterns.
     struct StructuredBuffer {
         ComPtr<ID3D12Resource>      resource;        // Memory buffer
         D3D12_GPU_VIRTUAL_ADDRESS   view;            // Descriptor (Shader Resource View)
@@ -153,16 +160,21 @@ namespace D3D12 {
         // and inserts a fence into the command queue afterwards.
         // Returns the inserted fence and its value.
         std::pair<ID3D12Fence*, uint64> executeCommandList(const uint index);
+        // Closes all command lists, submits them for execution in ascending order,
+        // and inserts a fence into the command queue afterwards.
+        // Returns the inserted fence and its value.
+        std::pair<ID3D12Fence*, uint64> executeCommandLists();
         // Stalls the execution of the current thread until
         // the fence with the specified value is reached.
         void syncThread(const uint64 fenceValue);
         // Stalls the execution of the command queue until
         // the fence with the specified value is reached.
         void syncCommandQueue(ID3D12Fence* fence, const uint64 fenceValue);
-        // Resets the command list allocator, and returns the index of the new allocator.
-        uint resetCommandAllocator();
+        // Resets the set of command list allocators for the current frame,
+        // and returns the index of the next allocator set.
+        uint resetCommandAllocators();
         // Resets the command list with the specified index to the specified state.
-        // Since it opens the command list, avoid calling it right before resetCommandAllocator().
+        // Since it opens the command list, avoid calling it right before resetCommandAllocators().
         void resetCommandList(const uint index, ID3D12PipelineState* state);
         // Returns the current time of the CPU thread and the GPU queue in microseconds.
         std::pair<uint64, uint64> getTime() const;
@@ -181,8 +193,8 @@ namespace D3D12 {
     private:
         ComPtr<ID3D12GraphicsCommandList> m_commandLists[L];
         ComPtr<ID3D12CommandQueue>        m_commandQueue;
-        uint                              m_allocatorIndex;
-        ComPtr<ID3D12CommandAllocator>    m_commandAllocators[N];
+        uint                              m_frameAllocatorSet;
+        ComPtr<ID3D12CommandAllocator>    m_commandAllocators[N][L];
         /* Synchronization objects */
         uint64                            m_lastFenceValues[N];
         ComPtr<ID3D12Fence>               m_fence;
