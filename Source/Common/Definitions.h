@@ -46,11 +46,8 @@ using uint   = unsigned int;
 using uint16 = unsigned short;
 using uint64 = unsigned long long int;
 
-// Remove Windows header macro definitions.
-#ifdef min
-#undef min
-#endif
-
-#ifdef max
-#undef max
-#endif
+// Clean up Windows header includes.
+// These are already defined for the entire project!
+// #define NOMINMAX
+// #define STRICT
+// #define WIN32_LEAN_AND_MEAN

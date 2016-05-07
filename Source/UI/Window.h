@@ -18,10 +18,8 @@ public:
    // Returns the width/height ratio of the drawable window area.
    static float aspectRatio();
    // Displays information (in milliseconds) in the title bar:
-   // 'fracObjVis' - the fraction of objects visible on screen;
    // 'cpuFrameTime', 'gpuFrameTime' - the frame times (in milliseconds) of CPU/GPU timelines. 
-   static void displayInfo(const float fracObjVis, const float cpuFrameTime,
-                           const float gpuFrameTime);
+   static void displayInfo(const float cpuFrameTime, const float gpuFrameTime);
 private:
    static HWND m_hwnd;              // Handle
    static long m_width, m_height;   // Client area dimensions

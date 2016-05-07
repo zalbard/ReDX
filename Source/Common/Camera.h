@@ -1,7 +1,6 @@
 #pragma once
 
-#include <DirectXMathSSE4.h>
-#include "Definitions.h"
+#include "Primitives.h"
 
 class PerspectiveCamera {
 public:
@@ -27,6 +26,8 @@ public:
     DirectX::XMMATRIX computeViewProjMatrix(DirectX::XMMATRIX* viewMat = nullptr) const;
     // Returns the view matrix.
     DirectX::XMMATRIX computeViewMatrix() const;
+    // Computes the viewing frustum bounded by the far/left/right/top/bottom planes.
+    Frustum computeViewFrustum() const;
     // Moves the camera forward by 'dist' meters.
     void moveForward(const float dist);
     // Moves the camera back by 'dist' meters.

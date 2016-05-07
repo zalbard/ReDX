@@ -54,6 +54,38 @@ XMMATRIX PerspectiveCamera::computeViewMatrix() const {
     return XMMatrixAffineTransformation(scale, m_position, invOrient, translation);
 }
 
+Frustum PerspectiveCamera::computeViewFrustum() const {
+    // See "Fast Extraction of Viewing Frustum Planes from the WorldView-Projection Matrix".
+    Frustum  frustum;
+    XMMATRIX frustumPlanes;
+    const XMMATRIX tViewProj = XMMatrixTranspose(computeViewProjMatrix());
+    // Left plane.
+    frustumPlanes.r[0] = tViewProj.r[3] + tViewProj.r[0];
+    // Right plane.
+    frustumPlanes.r[1] = tViewProj.r[3] - tViewProj.r[0];
+    // Top plane.
+    frustumPlanes.r[2] = tViewProj.r[3] - tViewProj.r[1];
+    // Bottom plane.
+    frustumPlanes.r[3] = tViewProj.r[3] + tViewProj.r[1];
+    // Far plane.
+    frustum.farPlane   = tViewProj.r[3] - tViewProj.r[2];
+    // Compute the inverse magnitudes.
+    frustum.tPlanes    = XMMatrixTranspose(frustumPlanes);
+    const XMVECTOR magsSq  = sq(frustum.tPlanes.r[0])
+                           + sq(frustum.tPlanes.r[1])
+                           + sq(frustum.tPlanes.r[2]);
+    const XMVECTOR invMags = XMVectorReciprocalSqrt(magsSq);
+    // Normalize the plane equations.
+    frustumPlanes.r[0] *= XMVectorSplatX(invMags);
+    frustumPlanes.r[1] *= XMVectorSplatY(invMags);
+    frustumPlanes.r[2] *= XMVectorSplatZ(invMags);
+    frustumPlanes.r[3] *= XMVectorSplatW(invMags);
+    frustum.farPlane    = XMPlaneNormalize(frustum.farPlane);
+    // Transpose the normalized plane equations.
+    frustum.tPlanes = XMMatrixTranspose(frustumPlanes);
+    return frustum;
+}
+
 void PerspectiveCamera::moveBack(const float dist) {
     moveForward(-dist);
 }

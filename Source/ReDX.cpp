@@ -1,6 +1,5 @@
 #include <future>
 #include "Common\Camera.h"
-#include "Common\Scene.h"
 #include "Common\Utility.h"
 #include "D3D12\Renderer.hpp"
 #include "UI\Window.h"
@@ -101,9 +100,7 @@ int __cdecl main(const int argc, const char* argv[]) {
         });
         auto asyncRec0 = std::async(std::launch::async, [&engine, &pCam, &scene](){
             // Thread 2.
-            const float fracObjVis = scene.performFrustumCulling(pCam);
             engine.recordGBufferPass(pCam, scene.objects);
-            return fracObjVis;
         });
         auto asyncRec1 = std::async(std::launch::async, [&engine](){
             // Thread 3.
@@ -121,7 +118,7 @@ int __cdecl main(const int argc, const char* argv[]) {
             const uint64 cpuFrameTime    = cpuTime1 - cpuTime0;
             const uint64 gpuFrameTime    = gpuTime1 - gpuTime0;
             // Convert the frame times from microseconds to milliseconds.
-            Window::displayInfo(asyncRec0.get(), cpuFrameTime * 1e-3f, gpuFrameTime * 1e-3f);
+            Window::displayInfo(cpuFrameTime * 1e-3f, gpuFrameTime * 1e-3f);
             // Convert the frame time from microseconds to seconds.
             timeDelta = static_cast<float>(cpuFrameTime * 1e-6);
             cpuTime0  = cpuTime1;

@@ -50,6 +50,9 @@
     <ClCompile Include="Source\Common\Buffer.cpp">
       <Filter>Source Files\Common</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Common\Primitives.cpp">
+      <Filter>Source Files\Common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\D3D12\Renderer.h">
@@ -104,6 +107,9 @@
       <Filter>Source Files\ThirdParty</Filter>
     </ClInclude>
     <ClInclude Include="Source\Common\Buffer.h">
+      <Filter>Source Files\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Source\Common\Primitives.h">
       <Filter>Source Files\Common</Filter>
     </ClInclude>
   </ItemGroup>

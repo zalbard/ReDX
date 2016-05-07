@@ -5,7 +5,6 @@
 #pragma warning(error : 4458)
 #include "Scene.h"
 #include "Utility.h"
-#include "..\Common\Camera.h"
 #include "..\Common\Math.h"
 #include "..\D3D12\Renderer.hpp"
 
@@ -34,17 +33,6 @@ public:
 using CoordIterator  = const float*;
 using BoundingSphere = Miniball::Miniball<Miniball::CoordAccessor<IndexedPointIterator,
                                                                   CoordIterator>>;
-
-Sphere::Sphere(const XMFLOAT3& center, const float radius)
-    : m_data{center.x, center.y, center.z, radius} {}
-
-XMVECTOR Sphere::center() const {
-    return m_data;
-}
-
-XMVECTOR Sphere::radius() const {
-    return XMVectorSplatW(m_data);
-}
 
 struct IndexedObject {
     bool operator<(const IndexedObject& other) const {
@@ -131,7 +119,6 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
     std::sort(indexedObjects.begin(), indexedObjects.end(), std::greater<IndexedObject>());
     // Allocate memory.
     objects.count           = static_cast<uint>(indexedObjects.size());
-    objects.visibilityBits  = DynBitSet{objects.count};
     objects.boundingSpheres = std::make_unique<Sphere[]>(objects.count);
     objects.materialIndices = std::make_unique<uint16[]>(objects.count);
     objects.vertexAttrBuffers.allocate(3);
@@ -270,73 +257,4 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
         textures.assign(i++, std::move(texture.first));
     }
     printInfo("Scene loaded successfully.");
-}
-
-float Scene::performFrustumCulling(const PerspectiveCamera& pCam) {
-    /* TODO: switch to AABBs and implement front-to-back sorting. */
-    // Set all objects as visible.
-    objects.visibilityBits.reset(1);
-    uint visObjCnt = objects.count;
-    // Compute the transposed equations of the far/left/right/top/bottom frustum planes.
-    // See "Fast Extraction of Viewing Frustum Planes from the WorldView-Projection Matrix".
-    XMMATRIX tfp;
-    XMVECTOR farPlane;
-    {
-        const XMMATRIX viewProjMat = pCam.computeViewProjMatrix();
-        const XMMATRIX tvp         = XMMatrixTranspose(viewProjMat);
-        XMMATRIX frustumPlanes;
-        // Left plane.
-        frustumPlanes.r[0] = tvp.r[3] + tvp.r[0];
-        // Right plane.
-        frustumPlanes.r[1] = tvp.r[3] - tvp.r[0];
-        // Top plane.
-        frustumPlanes.r[2] = tvp.r[3] - tvp.r[1];
-        // Bottom plane.
-        frustumPlanes.r[3] = tvp.r[3] + tvp.r[1];
-        // Far plane.
-        farPlane           = tvp.r[3] - tvp.r[2];
-        // Compute the inverse magnitudes.
-        tfp = XMMatrixTranspose(frustumPlanes);
-        const XMVECTOR magsSq  = tfp.r[0] * tfp.r[0] + tfp.r[1] * tfp.r[1] + tfp.r[2] * tfp.r[2];
-        const XMVECTOR invMags = XMVectorReciprocalSqrt(magsSq);
-        // Normalize the plane equations.
-        frustumPlanes.r[0] *= XMVectorSplatX(invMags);
-        frustumPlanes.r[1] *= XMVectorSplatY(invMags);
-        frustumPlanes.r[2] *= XMVectorSplatZ(invMags);
-        frustumPlanes.r[3] *= XMVectorSplatW(invMags);
-        farPlane            = XMPlaneNormalize(farPlane);
-        // Transpose the normalized plane equations.
-        tfp = XMMatrixTranspose(frustumPlanes);
-    }
-    // Test each object.
-    for (uint i = 0, n = objects.count; i < n; ++i) {
-        const Sphere   boundingSphere  =  objects.boundingSpheres[i];
-        const XMVECTOR sphereCenter    =  boundingSphere.center();
-        const XMVECTOR negSphereRadius = -boundingSphere.radius();
-        // Compute the distances to the left/right/top/bottom frustum planes.
-        const XMVECTOR upperPart = tfp.r[0] * XMVectorSplatX(sphereCenter) +
-                                   tfp.r[1] * XMVectorSplatY(sphereCenter);
-        const XMVECTOR lowerPart = tfp.r[2] * XMVectorSplatZ(sphereCenter) +
-                                   tfp.r[3];
-        const XMVECTOR distances = upperPart + lowerPart;
-        // Test the distances against the (negated) radius of the bounding sphere.
-        const XMVECTOR outsideTests = XMVectorLess(distances, negSphereRadius);
-        // Check if at least one of the 'outside' tests passed.
-        if (XMVector4NotEqualInt(outsideTests, XMVectorFalseInt())) {
-            // Clear the 'object visible' flag.
-            objects.visibilityBits.clearBit(i);
-            --visObjCnt;
-        } else {
-            // Test whether the object is in front of the camera.
-            // Our projection matrix is reversed, so we use the far plane.
-            const XMVECTOR distance = SSE4::XMVector4Dot(farPlane, XMVectorSetW(sphereCenter, 1.f));
-            // Test the distance against the (negated) radius of the bounding sphere.
-            if (XMVectorGetIntX(XMVectorLess(distance, negSphereRadius))) {
-                // Clear the 'object visible' flag.
-                objects.visibilityBits.clearBit(i);
-                --visObjCnt;
-            }
-        }
-    }
-    return static_cast<float>(visObjCnt) / static_cast<float>(objects.count);
 }

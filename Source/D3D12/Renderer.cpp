@@ -2,7 +2,6 @@
 #include <d3dcompiler.h>
 #include <d3dx12.h>
 #include <tuple>
-#include "HelperStructs.hpp"
 #include "Renderer.hpp"
 #include "..\Common\Buffer.h"
 #include "..\Common\Camera.h"
@@ -751,10 +750,13 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene::Obj
     // Define the input geometry.
     graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     graphicsCommandList->IASetVertexBuffers(0, 3, objects.vertexAttrBuffers.views.get());
+    // Compute the viewing frustum.
+    Frustum frustum = pCam.computeViewFrustum();
     // Issue draw calls.
     uint16 matId = UINT16_MAX;
     for (uint i = 0; i < objects.count; ++i) {
-        if (objects.visibilityBits.testBit(i)) {
+        // Test the object for visibility.
+        if (frustum.intersects(objects.boundingSpheres[i])) {
             if (matId != objects.materialIndices[i]) {
                 matId  = objects.materialIndices[i];
                 // Set the object's material index.

@@ -2,9 +2,9 @@
 
 #include <DirectXMathSSE4.h>
 #include "HelperStructs.h"
-#include "..\Common\Constants.h"
-#include "..\Common\DynBitSet.h"
 #include "..\Common\Scene.h"
+
+class PerspectiveCamera;
 
 namespace D3D12 {
     class Renderer {
