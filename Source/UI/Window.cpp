@@ -21,9 +21,8 @@ LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
         case WM_KEYDOWN:
             if (VK_ESCAPE == wParam) {
                 DestroyWindow(hWnd);
-                return 0;
             }
-            // Otherwise fall through to DefWindowProc().
+            return 0;
         default:
             return DefWindowProc(hWnd, message, wParam, lParam);
     }
