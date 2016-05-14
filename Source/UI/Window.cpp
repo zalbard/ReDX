@@ -15,13 +15,13 @@ RECT Window::m_rect   = {};
 LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
                             const WPARAM wParam, const LPARAM lParam) {
     switch (message) {
-        case WM_DESTROY:
-            PostQuitMessage(0);
-            return 0;
         case WM_KEYDOWN:
             if (VK_ESCAPE == wParam) {
                 DestroyWindow(hWnd);
             }
+            return 0;
+        case WM_DESTROY:
+            PostQuitMessage(0);
             return 0;
         default:
             return DefWindowProc(hWnd, message, wParam, lParam);
