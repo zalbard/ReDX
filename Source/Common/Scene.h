@@ -24,14 +24,15 @@ public:
     explicit Scene(const char* path, const char* objFileName, D3D12::Renderer& engine);
 public:
     struct Objects {
-        uint                      count;                // Number of objects
-        std::unique_ptr<Sphere[]> boundingSpheres;
-        D3D12::VertexBufferSoA    vertexAttrBuffers;    // Positions, normals, UVs
-        D3D12::IndexBufferSoA     indexBuffers;
-        std::unique_ptr<uint16[]> materialIndices;
-    }                             objects;
-    uint                          matCount;             // Number of materials
-    std::unique_ptr<Material[]>   materials;
-    uint                          texCount;             // Number of textures
-    D3D12::TextureSoA             textures;
+        uint                       count;                // Number of objects
+        std::unique_ptr<Sphere[]>  boundingSpheres;      // Per object
+        D3D12::StructuredBufferSoA triTanFrameBuffers;   // Per object per triangle
+        D3D12::IndexBufferSoA      indexBuffers;         // Per object
+        std::unique_ptr<uint16[]>  materialIndices;      // Per object
+    }                              objects;
+    D3D12::VertexBufferSoA         vertexAttrBuffers;    // Positions, UVs
+    uint                           matCount;             // Number of materials
+    std::unique_ptr<Material[]>    materials;
+    uint                           texCount;             // Number of textures
+    D3D12::TextureSoA              textures;
 };

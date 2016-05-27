@@ -1,5 +1,10 @@
 #pragma once
 
+// Typedefs for dxgitype.h.
+using BOOL   = int;
+using BYTE   = unsigned char;
+using UINT   = unsigned int;
+
 #include <dxgitype.h>
 #include "Definitions.h"
 
@@ -39,14 +44,14 @@ constexpr uint  RTV_CNT         = BUF_CNT + 4 * FRAME_CNT;
 constexpr uint  VSYNC_INTERVAL  = 0;
 // Software rendering flag.
 constexpr bool  USE_WARP_DEVICE = false;
-// Normal vector texture format.
-constexpr auto  FORMAT_NORMAL   = DXGI_FORMAT_R16G16_SNORM;
+// Tangent frame texture format.
+constexpr auto  FORMAT_TANFRAME = DXGI_FORMAT_R10G10B10A2_UNORM;
 // UV coordinate texture format.
 constexpr auto  FORMAT_UVCOORD  = DXGI_FORMAT_R16G16_UNORM;
 // UV gradient texture format.
 constexpr auto  FORMAT_UVGRAD   = DXGI_FORMAT_R16G16B16A16_SNORM;
 // Material ID texture format.
-constexpr auto  FORMAT_MAT_ID   = DXGI_FORMAT_R16_UINT;
+constexpr auto  FORMAT_MATID    = DXGI_FORMAT_R16_UINT;
 // Swap chain buffer format.
 constexpr auto  FORMAT_SC       = DXGI_FORMAT_R8G8B8A8_UNORM;
 // Primary render target view format.

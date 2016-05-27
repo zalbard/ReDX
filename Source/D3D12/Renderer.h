@@ -18,6 +18,10 @@ namespace D3D12 {
                                                  const uint mipCount, const void* data);
         // Returns the index of the SRV within the texture pool.
         uint getTextureIndex(const Texture& texture) const;
+        // Creates a constant buffer for the data of the specified size (in bytes).
+        ConstantBuffer createConstantBuffer(const uint size, const void* data = nullptr);
+        // Creates a structured buffer for the data of the specified size (in bytes).
+        StructuredBuffer createStructuredBuffer(const uint size, const void* data = nullptr);
         // Creates an index buffer for the index array with the specified number of indices.
         IndexBuffer createIndexBuffer(const uint count, const uint* indices);
         // Creates a vertex attribute buffer for the vertex array of 'count' elements.
@@ -35,7 +39,7 @@ namespace D3D12 {
         void executeCopyCommands(const bool immediateCopy = false);
         // Records commands within the G-buffer generation pass.
         // Input: the camera and opaque scene objects.
-        void recordGBufferPass(const PerspectiveCamera& pCam, const Scene::Objects& objects);
+        void recordGBufferPass(const PerspectiveCamera& pCam, const Scene& scene);
         // Records commands within the shading pass.
         void recordShadingPass();
         // Starts the frame rendering process.
@@ -48,7 +52,7 @@ namespace D3D12 {
         struct FrameResource {
             ConstantBuffer         transformBuffer;
             ComPtr<ID3D12Resource> depthBuffer; 
-            ComPtr<ID3D12Resource> normalBuffer, uvCoordBuffer, uvGradBuffer, matIdBuffer;
+            ComPtr<ID3D12Resource> tanFrameBuffer, uvCoordBuffer, uvGradBuffer, matIdBuffer;
             uint                   firstRtvIndex;
             uint                   firstTexIndex;
             void getTransitionBarriersToWritableState(D3D12_RESOURCE_BARRIER* barriers,
@@ -70,10 +74,6 @@ namespace D3D12 {
         // Creates a render buffer with descriptors in both RTV and texture pools.
         ComPtr<ID3D12Resource> createRenderBuffer(const uint width, const uint height,
                                                   const DXGI_FORMAT format);
-        // Creates a constant buffer for the data of the specified size (in bytes).
-        ConstantBuffer createConstantBuffer(const uint size, const void* data = nullptr);
-        // Creates a structured buffer for the data of the specified size (in bytes).
-        StructuredBuffer createStructuredBuffer(const uint size, const void* data = nullptr);
         // Copies the data of the specified size (in bytes) and alignment into the upload buffer.
         // Returns the offset into the upload buffer which corresponds to the location of the data.
         template<uint alignment>

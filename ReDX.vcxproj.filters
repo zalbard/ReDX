@@ -126,6 +126,9 @@
     <None Include="Source\ThirdParty\DirectXTex\DirectXTex.inl">
       <Filter>Source Files\ThirdParty</Filter>
     </None>
+    <None Include="Source\Shaders\ShaderMath.hlsl">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Source\Shaders\GBufferPS.hlsl">

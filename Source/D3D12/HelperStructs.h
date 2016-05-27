@@ -99,9 +99,11 @@ namespace D3D12 {
         std::unique_ptr<View[]>     views;           // Descriptor [handle] array
     };
 
-    using VertexBufferSoA = ResourceViewSoA<VertexBuffer>;
-    using IndexBufferSoA  = ResourceViewSoA<IndexBuffer>;
-    using TextureSoA      = ResourceViewSoA<Texture>;
+    using VertexBufferSoA     = ResourceViewSoA<VertexBuffer>;
+    using IndexBufferSoA      = ResourceViewSoA<IndexBuffer>;
+    using ConstantBufferSoA   = ResourceViewSoA<ConstantBuffer>;
+    using StructuredBufferSoA = ResourceViewSoA<StructuredBuffer>;
+    using TextureSoA          = ResourceViewSoA<Texture>;
 
     // Corresponds to Direct3D descriptor types.
     enum class DescType {

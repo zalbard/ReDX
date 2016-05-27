@@ -54,8 +54,9 @@ XMMATRIX PerspectiveCamera::computeViewMatrix() const {
     return XMMatrixAffineTransformation(scale, m_position, invOrient, translation);
 }
 
+// See "Fast Extraction of Viewing Frustum Planes from the WorldView-Projection Matrix"
+// by Gil Gribb and Klaus Hartmann.
 Frustum PerspectiveCamera::computeViewFrustum() const {
-    // See "Fast Extraction of Viewing Frustum Planes from the WorldView-Projection Matrix".
     Frustum  frustum;
     XMMATRIX frustumPlanes;
     const XMMATRIX tViewProj = XMMatrixTranspose(computeViewProjMatrix());

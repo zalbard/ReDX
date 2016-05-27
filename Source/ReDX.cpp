@@ -100,7 +100,7 @@ int __cdecl main(const int argc, const char* argv[]) {
         });
         auto asyncRec0 = std::async(std::launch::async, [&engine, &pCam, &scene](){
             // Thread 2.
-            engine.recordGBufferPass(pCam, scene.objects);
+            engine.recordGBufferPass(pCam, scene);
         });
         auto asyncRec1 = std::async(std::launch::async, [&engine](){
             // Thread 3.

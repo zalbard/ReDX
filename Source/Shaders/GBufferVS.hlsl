@@ -8,13 +8,11 @@ cbuffer ViewProj : register(b1) {
 
 struct InputVS {
     float3 position : Position;
-    float3 normal   : Normal;
     float2 uvCoord  : TexCoord;
 };
 
 struct InputPS {
     float4 position : SV_Position;
-    float3 normal   : Normal1;
     float2 uvCoord  : TexCoord1;
 };
 
@@ -30,7 +28,6 @@ InputPS main(const InputVS input) {
     };
     InputPS result;
     result.position = mul(float4(input.position, 1.f), constViewProj);
-    result.normal   = input.normal;
     result.uvCoord  = input.uvCoord;
     return result;
 }
