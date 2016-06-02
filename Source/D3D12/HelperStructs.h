@@ -221,7 +221,6 @@ namespace D3D12 {
         void createCommandContext(CommandContext<T, N, L>* commandContext, 
                                   const bool isHighPriority    = false, 
                                   const bool disableGpuTimeout = false);
-
         // Creates a descriptor pool of type T and size (descriptor count) N.
         template <DescType T, uint N>
         void createDescriptorPool(DescriptorPool<T, N>* descriptorPool);
