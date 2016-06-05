@@ -64,7 +64,6 @@ static inline auto log2u(const uint v)
     return r;
 }
 
-
 namespace DirectX {
     // Returns the value of the largest component of 'v' in all 4 components of the result.
     static inline auto XMVector4Max(FXMVECTOR v)
