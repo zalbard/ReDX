@@ -9,10 +9,10 @@ namespace D3D12 { class Renderer; }
 struct Material {
     uint metalTexId;        // Metallicness map index
     uint baseTexId;         // Base color texture index
-    uint normalTexId;       // Normal map index
+    uint bumpTexId;         // Bump map index
     uint maskTexId;         // Alpha mask index
     uint roughTexId;        // Roughness map index
-    uint pad0, pad1, pad2;  // 16 byte alignment
+    uint pad[3];            // 16 byte alignment
 };
 
 // 3D scene representation.
@@ -26,11 +26,10 @@ public:
     struct Objects {
         uint                       count;                // Number of objects
         std::unique_ptr<Sphere[]>  boundingSpheres;      // Per object
-        D3D12::StructuredBufferSoA triTanFrameBuffers;   // Per object per triangle
         D3D12::IndexBufferSoA      indexBuffers;         // Per object
         std::unique_ptr<uint16[]>  materialIndices;      // Per object
     }                              objects;
-    D3D12::VertexBufferSoA         vertexAttrBuffers;    // Positions, UVs
+    D3D12::VertexBufferSoA         vertexAttrBuffers;    // Positions, normals, UV coordinates
     uint                           matCount;             // Number of materials
     std::unique_ptr<Material[]>    materials;
     uint                           texCount;             // Number of textures

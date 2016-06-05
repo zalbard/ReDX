@@ -51,8 +51,8 @@ namespace D3D12 {
     private:
         struct FrameResource {
             ConstantBuffer         transformBuffer;
-            ComPtr<ID3D12Resource> depthBuffer; 
-            ComPtr<ID3D12Resource> tanFrameBuffer, uvCoordBuffer, uvGradBuffer, matIdBuffer;
+            ComPtr<ID3D12Resource> depthStencilBuffer; 
+            ComPtr<ID3D12Resource> normalBuffer, uvCoordBuffer, uvGradBuffer, matIdBuffer;
             uint                   firstRtvIndex;
             uint                   firstTexIndex;
             void getTransitionBarriersToWritableState(D3D12_RESOURCE_BARRIER* barriers,

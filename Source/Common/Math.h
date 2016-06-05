@@ -146,11 +146,12 @@ namespace DirectX {
 
     // Computes the tangent frame of the triangle aligned with the U and V axes.
     // Input:  triangle vertex positions and UV coordinates.
+    // Degenerate inputs will produce incorrect results! No checks are performed.
     // Output: 3x3 matrix with rows containing the tangent, the normal and the bitangent.
     // The tangent frame is also not necessarily orthogonal.
+    // See "Computing Tangent Space Basis Vectors for an Arbitrary Mesh" by Eric Lengyel.
     static inline auto ComputeTangentFrame(FXMVECTOR pts[3], HXMVECTOR uvs[3])
     -> XMMATRIX {
-        // Implemented as per http://www.terathon.com/code/tangent.html
         const XMVECTOR e1  = pts[1] - pts[0];
         const XMVECTOR e2  = pts[2] - pts[0];
         const XMVECTOR st1 = uvs[1] - uvs[0];
@@ -197,10 +198,9 @@ namespace DirectX {
         // Check whether the input frame is already orthogonal.
         constexpr float    eps   = 0.0001f;
         constexpr XMVECTOR vEps  = {eps, eps, eps, eps};
-        const     XMVECTOR vZero = XMVectorZero();
         const     XMVECTOR vTrue = XMVectorTrueInt();
         const     XMVECTOR cosA  = SSE4::XMVector3Dot(tangent, bitangent);
-        if (XMVectorGetX(XMVectorNearEqual(cosA, vZero, vEps))) {
+        if (XMVectorGetX(XMVectorNearEqual(cosA, XMVectorZero(), vEps))) {
             return frame;
         }
         // Compute the median between the tangent and the bitangent.

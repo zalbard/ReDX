@@ -158,15 +158,15 @@ Renderer::Renderer()
             m_frameResouces[i].firstRtvIndex = m_rtvPool.size;
             m_frameResouces[i].firstTexIndex = m_texPool.size;
             // Create a depth buffer.
-            m_frameResouces[i].depthBuffer    = createDepthBuffer(width, height, FORMAT_DSV);
+            m_frameResouces[i].depthStencilBuffer = createDepthBuffer(width, height, FORMAT_DSV);
             // Create a normal vector buffer.
-            m_frameResouces[i].tanFrameBuffer = createRenderBuffer(width, height, FORMAT_TANFRAME);
+            m_frameResouces[i].normalBuffer  = createRenderBuffer(width, height, FORMAT_NORMAL);
             // Create a UV coordinate buffer.
-            m_frameResouces[i].uvCoordBuffer  = createRenderBuffer(width, height, FORMAT_UVCOORD);
+            m_frameResouces[i].uvCoordBuffer = createRenderBuffer(width, height, FORMAT_UVCOORD);
             // Create a UV gradient buffer.
-            m_frameResouces[i].uvGradBuffer   = createRenderBuffer(width, height, FORMAT_UVGRAD);
+            m_frameResouces[i].uvGradBuffer  = createRenderBuffer(width, height, FORMAT_UVGRAD);
             // Create a material ID buffer.
-            m_frameResouces[i].matIdBuffer    = createRenderBuffer(width, height, FORMAT_MATID);
+            m_frameResouces[i].matIdBuffer   = createRenderBuffer(width, height, FORMAT_MAT_ID);
         }
     }
     // Create a persistently mapped buffer on the upload heap.
@@ -247,10 +247,19 @@ void D3D12::Renderer::configureGBufferPass() {
         /* InstanceDataStepRate */  0
         },
         {
+        /* SemanticName */          "Normal",
+        /* SemanticIndex */         0,
+        /* Format */                DXGI_FORMAT_R32G32B32_FLOAT,
+        /* InputSlot */             1,
+        /* AlignedByteOffset */     0,
+        /* InputSlotClass */        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+        /* InstanceDataStepRate */  0
+        },
+        {
         /* SemanticName */          "TexCoord",
         /* SemanticIndex */         0,
         /* Format */                DXGI_FORMAT_R32G32_FLOAT,
-        /* InputSlot */             1,
+        /* InputSlot */             2,
         /* AlignedByteOffset */     0,
         /* InputSlotClass */        D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
         /* InstanceDataStepRate */  0
@@ -274,7 +283,7 @@ void D3D12::Renderer::configureGBufferPass() {
         /* IBStripCutValue */       D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
         /* PrimitiveTopologyType */ D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
         /* NumRenderTargets */      4,
-        /* RTVFormats[8] */         {FORMAT_TANFRAME, FORMAT_UVCOORD, FORMAT_UVGRAD, FORMAT_MATID},
+        /* RTVFormats[8] */         {FORMAT_NORMAL, FORMAT_UVCOORD, FORMAT_UVGRAD, FORMAT_MAT_ID},
         /* DSVFormat */             FORMAT_DSV,
         /* SampleDesc */            SAMPLE_DEFAULT,
         /* NodeMask */              m_device->nodeMask,
@@ -358,12 +367,12 @@ ComPtr<ID3D12Resource> Renderer::createDepthBuffer(const uint width, const uint 
         /* Format */           format,
         /* Depth, Stencil */   0, 0
     };
-    ComPtr<ID3D12Resource> depthBuffer;
+    ComPtr<ID3D12Resource> depthStencilBuffer;
     // Allocate the depth buffer on the default heap.
     const CD3DX12_HEAP_PROPERTIES heapProperties{D3D12_HEAP_TYPE_DEFAULT};
     CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE,
                                                  &resourceDesc, D3D12_RESOURCE_STATE_DEPTH_WRITE,
-                                                 &clearValue, IID_PPV_ARGS(&depthBuffer)),
+                                                 &clearValue, IID_PPV_ARGS(&depthStencilBuffer)),
                "Failed to allocate a depth buffer.");
     // Initialize the depth-stencil view.
     const D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {
@@ -372,13 +381,13 @@ ComPtr<ID3D12Resource> Renderer::createDepthBuffer(const uint width, const uint 
         /* Flags */            D3D12_DSV_FLAG_NONE,
         /* MipSlice */         0
     };
-    m_device->CreateDepthStencilView(depthBuffer.Get(), &dsvDesc,
+    m_device->CreateDepthStencilView(depthStencilBuffer.Get(), &dsvDesc,
                                      m_dsvPool.cpuHandle(m_dsvPool.size++));
     // Initialize the shader resource view.
     const D3D12_TEX2D_SRV_DESC srvDesc{getResourceFormat(format), 1};
-    m_device->CreateShaderResourceView(depthBuffer.Get(), &srvDesc,
+    m_device->CreateShaderResourceView(depthStencilBuffer.Get(), &srvDesc,
                                        m_texPool.cpuHandle(m_texPool.size++));
-    return depthBuffer;
+    return depthStencilBuffer;
 }
 
 ComPtr<ID3D12Resource> Renderer::createRenderBuffer(const uint width, const uint height,
@@ -667,10 +676,10 @@ void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
 void Renderer::FrameResource::getTransitionBarriersToWritableState(
                               D3D12_RESOURCE_BARRIER* barriers,                          
                               const D3D12_RESOURCE_BARRIER_FLAGS flag) {
-    barriers[0] = D3D12_TRANSITION_BARRIER{depthBuffer.Get(),
+    barriers[0] = D3D12_TRANSITION_BARRIER{depthStencilBuffer.Get(),
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                                            D3D12_RESOURCE_STATE_DEPTH_WRITE,   flag};
-    barriers[1] = D3D12_TRANSITION_BARRIER{tanFrameBuffer.Get(),
+    barriers[1] = D3D12_TRANSITION_BARRIER{normalBuffer.Get(),
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                                            D3D12_RESOURCE_STATE_RENDER_TARGET, flag};
     barriers[2] = D3D12_TRANSITION_BARRIER{uvCoordBuffer.Get(),
@@ -687,10 +696,10 @@ void Renderer::FrameResource::getTransitionBarriersToWritableState(
 void Renderer::FrameResource::getTransitionBarriersToReadableState(
                               D3D12_RESOURCE_BARRIER* barriers,                          
                               const D3D12_RESOURCE_BARRIER_FLAGS flag) {
-    barriers[0] = D3D12_TRANSITION_BARRIER{depthBuffer.Get(),
+    barriers[0] = D3D12_TRANSITION_BARRIER{depthStencilBuffer.Get(),
                                            D3D12_RESOURCE_STATE_DEPTH_WRITE,
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
-    barriers[1] = D3D12_TRANSITION_BARRIER{tanFrameBuffer.Get(),
+    barriers[1] = D3D12_TRANSITION_BARRIER{normalBuffer.Get(),
                                            D3D12_RESOURCE_STATE_RENDER_TARGET,
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
     barriers[2] = D3D12_TRANSITION_BARRIER{uvCoordBuffer.Get(),
@@ -710,6 +719,8 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     graphicsCommandList->RSSetViewports(1, &m_viewport);
     graphicsCommandList->RSSetScissorRects(1, &m_scissorRect);
     graphicsCommandList->SetGraphicsRootSignature(m_gBufferPass.rootSignature.Get());
+    ID3D12DescriptorHeap* texHeap = m_texPool.descriptorHeap();
+    graphicsCommandList->SetDescriptorHeaps(1, &texHeap);
     // Finish the transition of the frame resources to the writable state.
     D3D12_RESOURCE_BARRIER barriers[5];
     FrameResource& frameRes = m_frameResouces[m_frameIndex];
@@ -741,7 +752,7 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     graphicsCommandList->ClearDepthStencilView(dsvHandle, clearFlags, 0, 0, 0, nullptr);
     // Define the input geometry.
     graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    graphicsCommandList->IASetVertexBuffers(0, 2, scene.vertexAttrBuffers.views.get());
+    graphicsCommandList->IASetVertexBuffers(0, 3, scene.vertexAttrBuffers.views.get());
     // Compute the viewing frustum.
     Frustum frustum = pCam.computeViewFrustum();
     // Issue draw calls.
@@ -749,13 +760,18 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     for (size_t i = 0, n = scene.objects.count; i < n; ++i) {
         // Test the object for visibility.
         if (frustum.intersects(scene.objects.boundingSpheres[i])) {
-            // Set the structured buffer SRV with per-triangle tangent frames.
-            const D3D12_GPU_VIRTUAL_ADDRESS sbView = scene.objects.triTanFrameBuffers.views[i];
-            graphicsCommandList->SetGraphicsRootShaderResourceView(0, sbView);
             if (matId != scene.objects.materialIndices[i]) {
                 matId  = scene.objects.materialIndices[i];
-                // Set the object's material index.
-                graphicsCommandList->SetGraphicsRoot32BitConstant(1, matId, 0);
+                // Check whether the material has a valid bump map.
+                uint bumpMapFlag = 0;
+                const uint texId = scene.materials[matId].bumpTexId;
+                if (texId < UINT_MAX) {
+                    bumpMapFlag = 1u << 31;
+                    const D3D12_GPU_DESCRIPTOR_HANDLE texHandle = m_texPool.gpuHandle(texId);
+                    graphicsCommandList->SetGraphicsRootDescriptorTable(0, texHandle);
+                }
+                // Set the bump map flag and the material index.
+                graphicsCommandList->SetGraphicsRoot32BitConstant(1, bumpMapFlag | matId, 0);
             }
             // Draw the object.
             const uint count = scene.objects.indexBuffers.views[i].SizeInBytes / sizeof(uint);

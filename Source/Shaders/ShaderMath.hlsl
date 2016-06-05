@@ -121,6 +121,30 @@ float3x3 convertQuaternionToTangentFrame(const float4 q) {
     return float3x3(T, N, B);
 }
 
+// Perturbs the normalized surface normal using bump mapping technique.
+// The value of the bump map at the surface position 'pos' is denoted by 'height'.
+// See "Bump Mapping Unparametrized Surfaces on the GPU" by Morten Mikkelsen.
+float3 perturbNormal(const float3 normal, const float3 pos, const float height) {
+    // Compute the tangent frame.
+    const float3 tangent   = ddx(pos);
+    const float3 bitangent = ddy(pos);
+    // Orthogonalize the tangent vectors with respect to the normal.
+    const float3 vS = cross(bitangent, normal);
+    const float3 vT = cross(normal, tangent);
+    // Compute the determinant. Why not cross(tangent, bitangent) ??
+    const float det = dot(tangent, vS);
+    // Compute partial derivatives of the height (bump) map.
+    const float hS = ddx_fine(height);
+    const float hT = ddy_fine(height);
+    // Compute the surface gradient.
+    // We avoid the division by the determinant and instead only apply its sign.
+    const float  signDet  = (det >= 0.f) ? 1.f : -1.f;
+    const float3 surfGrad = signDet * (hS * vS + hT * vT);
+    // Compute the normal.
+    // We apply scaling by the value of the determinant here.
+    return normalize(normal * abs(det) - surfGrad);
+}
+
 // Evaluates Schlick's approximation of the full Fresnel equations.
 float3 evalFresnelSchlick(const float3 F0, const float3 L, const float3 H) {
     const float cosLH = saturate(dot(L, H));

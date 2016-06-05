@@ -22,7 +22,7 @@ constexpr float M_2_PI          = 0.636619747f;  // 2/pi
 constexpr float M_2_SQRTPI      = 1.12837923f;   // 2/sqrt(pi)
 constexpr float M_SQRT2         = 1.41421354f;   // sqrt(2)
 constexpr float M_SQRT1_2       = 0.707106769f;  // 1/sqrt(2)
-// Opaque black RGBA color.
+// Transparent black RGBA color.
 constexpr float FLOAT4_BLACK[]  = {0.f, 0.f, 0.f, 0.f};
 // Horizontal rendering resolution.
 constexpr long  RES_X           = 1280;
@@ -44,14 +44,14 @@ constexpr uint  RTV_CNT         = BUF_CNT + 4 * FRAME_CNT;
 constexpr uint  VSYNC_INTERVAL  = 0;
 // Software rendering flag.
 constexpr bool  USE_WARP_DEVICE = false;
-// Tangent frame texture format.
-constexpr auto  FORMAT_TANFRAME = DXGI_FORMAT_R10G10B10A2_UNORM;
+// Normal texture format.
+constexpr auto  FORMAT_NORMAL   = DXGI_FORMAT_R16G16_SNORM;
 // UV coordinate texture format.
 constexpr auto  FORMAT_UVCOORD  = DXGI_FORMAT_R16G16_UNORM;
 // UV gradient texture format.
 constexpr auto  FORMAT_UVGRAD   = DXGI_FORMAT_R16G16B16A16_SNORM;
 // Material ID texture format.
-constexpr auto  FORMAT_MATID    = DXGI_FORMAT_R16_UINT;
+constexpr auto  FORMAT_MAT_ID   = DXGI_FORMAT_R16_UINT;
 // Swap chain buffer format.
 constexpr auto  FORMAT_SC       = DXGI_FORMAT_R8G8B8A8_UNORM;
 // Primary render target view format.

@@ -68,51 +68,8 @@ static inline void convertToUtf8(const std::string& str, const uint wideStrLen,
     }
 }
 
-// Map where Key = texture name, Value = pair (texture : texture index).
+// Map where Key = texture name, Value = pair {texture : texture index}.
 using TextureMap = std::unordered_map<std::string, std::pair<D3D12::Texture, uint>>;
-
-// Verifies vertex position and texture coordinates of the triangle.
-// Returns 'false' in case the configuration is degenerate.
-static inline auto verifyTriangleCoordinates(const XMFLOAT3(&pts)[3], const XMFLOAT2(&uvs)[3])
--> bool {
-    constexpr float    eps   = 0.0001f;
-    constexpr XMVECTOR vEps  = {eps, eps, eps, eps};
-    constexpr XMVECTOR vOne  = {1.f, 1.f, 1.f, 1.f};
-    const     XMVECTOR vTrue = XMVectorTrueInt();
-    // Verify vertex position uniqueness.
-    const XMVECTOR pt0 = XMLoadFloat3(&pts[0]);
-    const XMVECTOR pt1 = XMLoadFloat3(&pts[1]);
-    const XMVECTOR pt2 = XMLoadFloat3(&pts[2]);
-    if (XMVector4EqualInt(vTrue, XMVectorNearEqual(pt0, pt1, vEps)) ||
-        XMVector4EqualInt(vTrue, XMVectorNearEqual(pt1, pt2, vEps)) ||
-        XMVector4EqualInt(vTrue, XMVectorNearEqual(pt0, pt2, vEps))) {
-        return false;
-    }
-    // Verify that triangle position edges are not collinear.
-    const XMVECTOR ep1 = SSE4::XMVector3Normalize(pt1 - pt0);
-    const XMVECTOR ep2 = SSE4::XMVector3Normalize(pt2 - pt0);
-    const XMVECTOR epD = XMVectorAbs(SSE4::XMVector3Dot(ep1, ep2));
-    if (XMVectorGetX(XMVectorNearEqual(epD, vOne, vEps))) {
-        return false;
-    }
-    // Verify vertex texture coordinate uniqueness.
-    const XMVECTOR uv0 = XMLoadFloat2(&uvs[0]);
-    const XMVECTOR uv1 = XMLoadFloat2(&uvs[1]);
-    const XMVECTOR uv2 = XMLoadFloat2(&uvs[2]);
-    if (XMVector4EqualInt(vTrue, XMVectorNearEqual(uv0, uv1, vEps)) ||
-        XMVector4EqualInt(vTrue, XMVectorNearEqual(uv1, uv2, vEps)) ||
-        XMVector4EqualInt(vTrue, XMVectorNearEqual(uv0, uv2, vEps))) {
-        return false;
-    }
-    // Verify that triangle edges in texture space are not collinear.
-    const XMVECTOR et1 = SSE4::XMVector2Normalize(uv1 - uv0);
-    const XMVECTOR et2 = SSE4::XMVector2Normalize(uv2 - uv0);
-    const XMVECTOR etD = XMVectorAbs(SSE4::XMVector2Dot(et1, et2));
-    if (XMVectorGetX(XMVectorNearEqual(etD, vOne, vEps))) {
-        return false;
-    }
-    return true;
-}
 
 Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine) {
     assert(path && objFileName);
@@ -153,17 +110,8 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
                 for (int i = 1, n = face.index_count - 1; i < n; ++i) {
                     const auto i2 = face.indices[i + 1];
                     const uint v2 = indexMap[i2];
-                    // Get vertex positions and texture coordinates.
-                    const XMFLOAT3 pts[] = {objFile.vertices[i0.v],
-                                            objFile.vertices[i1.v],
-                                            objFile.vertices[i2.v]};
-                    const XMFLOAT2 uvs[] = {objFile.texcoords[i0.t],
-                                            objFile.texcoords[i1.t],
-                                            objFile.texcoords[i2.t]};
-                    if (verifyTriangleCoordinates(pts, uvs)) {
-                        const uint indices[] = {v0, v1, v2};
-                        currObject->indices.insert(currObject->indices.end(), indices, indices + 3);
-                    }
+                    const uint indices[] = {v0, v1, v2};
+                    currObject->indices.insert(currObject->indices.end(), indices, indices + 3);
                     i1 = i2;
                     v1 = v2;
                 }
@@ -171,32 +119,30 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
         }
     }
     /* TODO: implement mesh decimation. */
-    // Remove empty objects.
-    indexedObjects.erase(std::remove_if(indexedObjects.begin(), indexedObjects.end(),
-                                        [](const IndexedObject& io) { return io.indices.empty(); }),
-                                        indexedObjects.end());
     // Sort objects by material.
     std::sort(indexedObjects.begin(), indexedObjects.end(), std::greater<IndexedObject>());
     // Allocate memory.
     objects.count           = static_cast<uint>(indexedObjects.size());
     objects.boundingSpheres = std::make_unique<Sphere[]>(objects.count);
     objects.materialIndices = std::make_unique<uint16[]>(objects.count);
-    objects.triTanFrameBuffers.allocate(objects.count);
     objects.indexBuffers.allocate(objects.count);
-    vertexAttrBuffers.allocate(2);
+    vertexAttrBuffers.allocate(3);
     matCount  = static_cast<uint>(objFile.materials.size());
     materials = std::make_unique<Material[]>(matCount);
     // Create vertex attribute buffers.
     const uint numVertices = static_cast<uint>(indexMap.size());
     std::vector<XMFLOAT3> positions{numVertices};
+    std::vector<XMFLOAT3> normals{numVertices};
     std::vector<XMFLOAT2> uvCoords{numVertices};
     for (const auto& entry : indexMap) {
         const uint vertId = entry.second;
         positions[vertId] = objFile.vertices[entry.first.v];
+        normals[vertId]   = objFile.normals[entry.first.n];
         uvCoords[vertId]  = objFile.texcoords[entry.first.t];
     }
     vertexAttrBuffers.assign(0, engine.createVertexBuffer(numVertices, positions.data()));
-    vertexAttrBuffers.assign(1, engine.createVertexBuffer(numVertices, uvCoords.data()));
+    vertexAttrBuffers.assign(1, engine.createVertexBuffer(numVertices, normals.data()));
+    vertexAttrBuffers.assign(2, engine.createVertexBuffer(numVertices, uvCoords.data()));
     // Create index buffers.
     for (uint i = 0; i < objects.count; ++i) {
         const auto& indices = indexedObjects[i].indices;
@@ -206,39 +152,6 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
     for (uint i = 0; i < objects.count; ++i) {
         // Store material indices.
         objects.materialIndices[i] = static_cast<uint16>(indexedObjects[i].material);
-    }
-    // Compute tangent frames.
-    std::vector<XMFLOAT4A> tanFrames;
-    for (uint i = 0, n = objects.count; i < n; ++i) {
-        const IndexedObject& object   = indexedObjects[i];
-        const size_t         triCount = object.indices.size() / 3;
-        tanFrames.clear();
-        tanFrames.resize(triCount);
-        for (size_t t = 0; t < triCount; ++t) {
-            const uint     ids[3] = {object.indices[3 * t + 0],
-                                     object.indices[3 * t + 1],
-                                     object.indices[3 * t + 2]};
-            const XMVECTOR pts[3] = {XMLoadFloat3(&positions[ids[0]]),
-                                     XMLoadFloat3(&positions[ids[1]]),
-                                     XMLoadFloat3(&positions[ids[2]])};
-            const XMVECTOR uvs[3] = {XMLoadFloat2(&uvCoords[ids[0]]),
-                                     XMLoadFloat2(&uvCoords[ids[1]]),
-                                     XMLoadFloat2(&uvCoords[ids[2]])};
-            // Compute an orthogonal tangent frame.
-            const XMMATRIX mFrame = OrthogonalizeTangentFrame(ComputeTangentFrame(pts, uvs));
-            // Encode the tangent frame as a quaternion.
-            XMVECTOR qFrame = XMQuaternionRotationMatrix(mFrame);
-            // Performance optimization for decoding:
-            // make sure the largest component is non-negative.
-            const uint cId = XMVector4MaxComponent(XMVectorAbs(qFrame));
-            if (XMVectorGetByIndex(qFrame, cId) < 0.f) {
-                // The negated quaternion represents the same rotation.
-                qFrame = -qFrame;
-            }
-            XMStoreFloat4A(&tanFrames[t], qFrame);
-        }
-        const uint size = static_cast<uint>(triCount * sizeof(XMFLOAT4A));
-        objects.triTanFrameBuffers.assign(i, engine.createStructuredBuffer(size, tanFrames.data()));
     }
     // Copy scene geometry to the GPU.
     engine.executeCopyCommands();
@@ -323,18 +236,17 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
             // Currently, only glossy and specular materials are supported.
             assert(2 == material.illum);
             // Metallicness map. TODO: get rid of constant color textures.
-            materials[i].metalTexId  = acquireTexureIndex(material.map_ka);
-            assert(materials[i].metalTexId != UINT_MAX);
+            materials[i].metalTexId = acquireTexureIndex(material.map_ka);
             // Base color texture.
-            materials[i].baseTexId   = acquireTexureIndex(material.map_kd);
-            assert(materials[i].baseTexId != UINT_MAX);
-            // Normal map.
-            materials[i].normalTexId = acquireTexureIndex(material.map_bump);
-            assert(materials[i].normalTexId != UINT_MAX);
-            // Alpha mask. It's optional - opaque geometry doesn't need one.
-            materials[i].maskTexId   = acquireTexureIndex(material.map_d);
+            materials[i].baseTexId  = acquireTexureIndex(material.map_kd);
+            // Bump map (optional).
+            materials[i].bumpTexId  = acquireTexureIndex(material.map_bump);
+            // Alpha mask (optional - opaque geometry doesn't need one).
+            materials[i].maskTexId  = acquireTexureIndex(material.map_d);
             // Roughness map.
-            materials[i].roughTexId  = acquireTexureIndex(material.map_ns);
+            materials[i].roughTexId = acquireTexureIndex(material.map_ns);
+            assert(materials[i].metalTexId != UINT_MAX);
+            assert(materials[i].baseTexId  != UINT_MAX);
             assert(materials[i].roughTexId != UINT_MAX);
             // Copy textures to the GPU.
             engine.executeCopyCommands();
