@@ -11,21 +11,31 @@ public:
     explicit PerspectiveCamera(const long width, const long height, const float vFoV,
                                DirectX::FXMVECTOR pos, DirectX::FXMVECTOR dir,
                                DirectX::FXMVECTOR up);
-    // Returns the wold-space position of the camera.
+    // Returns the position of the camera.
     DirectX::XMVECTOR position() const;
+    // Sets the position of the camera.
+    void setPosition(DirectX::FXMVECTOR pos);
+    // Returns the world-space up vector of the camera.
+    DirectX::XMVECTOR upVector() const;
+    // Sets the world-space up vector of the camera.
+    void setUpVector(DirectX::FXMVECTOR up);
+    // Returns the orientation as a rotation matrix.
+    DirectX::XMMATRIX orientationMatrix() const;
+    // Returns the orientation as a quaternion.
+    DirectX::XMVECTOR orientationQuaternion() const;
+    // Sets the orientation defined by a quaternion.
+    void setOrientation(DirectX::FXMVECTOR orientQuat);
     // Returns the projection matrix.
     DirectX::XMMATRIX projectionMatrix() const;
-    // Returns the orientation defined as a quaternion.
-    DirectX::XMVECTOR orientation() const;
-    // Returns the width and the height of the camera sensor.
-    // The sensor is the top (smaller) rectangular base of the view frustum.
-    DirectX::XMFLOAT2 sensorDimensions() const;
     // Returns the normalized direction along the optical axis.
     DirectX::XMVECTOR computeForwardDir() const;
-    // Returns the view-projection matrix (and, optionally, the view matrix).
-    DirectX::XMMATRIX computeViewProjMatrix(DirectX::XMMATRIX* viewMat = nullptr) const;
     // Returns the view matrix.
     DirectX::XMMATRIX computeViewMatrix() const;
+    // Returns the view-projection matrix (and, optionally, the view matrix).
+    DirectX::XMMATRIX computeViewProjMatrix(DirectX::XMMATRIX* viewMat = nullptr) const;
+    // Returns a 4x4 transformation matrix which transforms
+    // raster coordinates (x, y, 1) into the raster-to-camera direction in world space.
+    DirectX::XMMATRIX computeRasterToWorldDirMatrix() const;
     // Computes the viewing frustum bounded by the far/left/right/top/bottom planes.
     Frustum computeViewFrustum() const;
     // Moves the camera forward by 'dist' meters.
@@ -44,9 +54,10 @@ public:
     // moves it along the forward direction by 'dist' meters.
     void rotateAndMoveForward(const float pitch, const float yaw, const float dist);
 private:
-    DirectX::XMVECTOR m_position;       // World-space position
-    DirectX::XMVECTOR m_worldUp;        // World-space up vector
-    DirectX::XMVECTOR m_orientQuat;     // Orientation defined as a quaternion
-    DirectX::XMMATRIX m_projMat;        // Projection matrix
-    DirectX::XMFLOAT2 m_sensorDims;     // Sensor dimensions
+    DirectX::XMFLOAT3A   m_position;    // Position
+    DirectX::XMFLOAT3A   m_up;          // World-space up vector
+    DirectX::XMFLOAT4A   m_orientQuat;  // Orientation (quaternion)
+    DirectX::XMFLOAT4X4A m_projMat;     // Projection matrix
+    DirectX::XMFLOAT2    m_sensorDims;  // Sensor dimensions
+    DirectX::XMINT2      m_resolution;  // Viewport dimensions
 };

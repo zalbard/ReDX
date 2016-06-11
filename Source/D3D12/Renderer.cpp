@@ -618,25 +618,7 @@ void Renderer::setMaterials(const uint count, const Material* materials) {
 }
 
 void Renderer::setCameraTransforms(const PerspectiveCamera& pCam) {
-    // Compose the transformation matrix 'rasterToViewDir', which transforms
-    // the raster coordinates (x, y, 1) into the raster-to-camera-center direction in view space.
-    // Dir = -(X, Y, Z), s.t. X = (x / resX - 0.5) * width, Y = (0.5 - y / resY) * height, Z = 1.
-    // -X = x * (-width / resX) + 0.5 * width  = x * m00 + m20.
-    // -Y = y * (height / resY) - 0.5 * height = y * m11 + m21.
-    const XMFLOAT2 sensorDims = pCam.sensorDimensions();
-    const float m00 = sensorDims.x / -m_viewport.Width;
-    const float m20 = sensorDims.x * 0.5f;
-    const float m11 = sensorDims.y / m_viewport.Height;
-    const float m21 = sensorDims.y * -0.5f;
-    // Compose the matrix.
-    const XMMATRIX rasterToViewDir = {m00, 0.f,  0.f, 0.f,
-                                      0.f, m11,  0.f, 0.f,
-                                      m20, m21, -1.f, 0.f,
-                                      0.f, 0.f,  0.f, 0.f};
-    // Compute the rotation matrix from view to world space.
-    const XMMATRIX cameraRotationMat = XMMatrixRotationQuaternion(pCam.orientation());
-    // Concatenate the transformations and transpose the result.
-    const XMMATRIX tRasterToWorldDir = XMMatrixTranspose(rasterToViewDir * cameraRotationMat);
+    const XMMATRIX tRasterToWorldDir = XMMatrixTranspose(pCam.computeRasterToWorldDirMatrix());
     // Copy the data into the upload buffer.
     constexpr uint alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     constexpr uint size      = 3 * sizeof(XMVECTOR);
