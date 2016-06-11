@@ -72,6 +72,8 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <CallingConvention>VectorCall</CallingConvention>
       <EnableParallelCodeGeneration>false</EnableParallelCodeGeneration>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DisableSpecificWarnings>4324</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -94,6 +96,8 @@
       <MinimalRebuild>true</MinimalRebuild>
       <CallingConvention>VectorCall</CallingConvention>
       <EnableParallelCodeGeneration>false</EnableParallelCodeGeneration>
+      <DisableSpecificWarnings>4324</DisableSpecificWarnings>
+      <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
