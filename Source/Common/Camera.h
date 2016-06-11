@@ -33,7 +33,7 @@ public:
     DirectX::XMMATRIX computeViewMatrix() const;
     // Returns the view-projection matrix (and, optionally, the view matrix).
     DirectX::XMMATRIX computeViewProjMatrix(DirectX::XMMATRIX* viewMat = nullptr) const;
-    // Returns a 4x4 transformation matrix which transforms
+    // Returns a 3x3 transformation matrix which transforms
     // raster coordinates (x, y, 1) into the raster-to-camera direction in world space.
     DirectX::XMMATRIX computeRasterToCameraDirMatrix() const;
     // Computes the viewing frustum bounded by the far/left/right/top/bottom planes.
