@@ -93,23 +93,17 @@ int __cdecl main(const int argc, const char* argv[]) {
             pCam.rotateAndMoveForward(totalPitch, totalYaw, totalDist);
         }
         // --> Fork engine tasks.
-        auto asyncCopy = std::async(std::launch::async, [&engine, &pCam](){
-            // Thread 1.
-            engine.setCameraTransforms(pCam);
-            engine.executeCopyCommands();
-        });
         auto asyncRec0 = std::async(std::launch::async, [&engine, &pCam, &scene](){
-            // Thread 2.
+            // Thread 1.
             engine.recordGBufferPass(pCam, scene);
         });
-        auto asyncRec1 = std::async(std::launch::async, [&engine](){
-            // Thread 3.
-            engine.recordShadingPass();
+        auto asyncRec1 = std::async(std::launch::async, [&engine, &pCam](){
+            // Thread 2.
+            engine.recordShadingPass(pCam);
         });
         // <-- Join engine tasks.
         asyncRec0.wait();
         asyncRec1.wait();
-        asyncCopy.wait();
         engine.renderFrame();
         // Update the timings.
         {

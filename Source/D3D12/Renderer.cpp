@@ -617,18 +617,6 @@ void Renderer::setMaterials(const uint count, const Material* materials) {
                                                    m_uploadBuffer.resource.Get(), offset, size);
 }
 
-void Renderer::setCameraTransforms(const PerspectiveCamera& pCam) {
-    const XMMATRIX tRasterToWorldDir = XMMatrixTranspose(pCam.computeRasterToCameraDirMatrix());
-    // Copy the data into the upload buffer.
-    constexpr uint alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
-    constexpr uint size      = 3 * sizeof(XMVECTOR);
-    const     uint offset    = copyToUploadBuffer<alignment>(size, &tRasterToWorldDir);
-    // Copy the data from the upload buffer into the video memory buffer.
-    ID3D12Resource* transformBuffer = m_frameResouces[m_frameIndex].transformBuffer.resource.Get();
-    m_copyContext.commandList(0)->CopyBufferRegion(transformBuffer, 0,
-                                                   m_uploadBuffer.resource.Get(), offset, size);
-}
-
 void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
     // Finalize and execute the command list.
     ID3D12Fence* insertedFence;
@@ -708,7 +696,7 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     FrameResource& frameRes = m_frameResouces[m_frameIndex];
     frameRes.getTransitionBarriersToWritableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
     graphicsCommandList->ResourceBarrier(5, barriers);
-    // Dump the columns 0, 1 and 3 of the view-projection matrix.
+    // Store columns 0, 1 and 3 of the view-projection matrix.
     const XMMATRIX tViewProj = XMMatrixTranspose(pCam.computeViewProjMatrix());
     XMFLOAT4A matCols[3];
     XMStoreFloat4A(&matCols[0], tViewProj.r[0]);
@@ -763,7 +751,7 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     }
 }
 
-void Renderer::recordShadingPass() {
+void Renderer::recordShadingPass(const PerspectiveCamera& pCam) {
     ID3D12GraphicsCommandList* graphicsCommandList = m_graphicsContext.commandList(1);
     // Set the necessary command list state.
     graphicsCommandList->RSSetViewports(1, &m_viewport);
@@ -780,8 +768,11 @@ void Renderer::recordShadingPass() {
     barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer, D3D12_RESOURCE_STATE_PRESENT,
                                                        D3D12_RESOURCE_STATE_RENDER_TARGET};
     graphicsCommandList->ResourceBarrier(6, barriers);
+    // Store the 3x3 part of the raster to camera direction matrix.
+    XMFLOAT3X3 rasterToCamDir;
+    XMStoreFloat3x3(&rasterToCamDir, pCam.computeRasterToCameraDirMatrix());
     // Set the root arguments.
-    graphicsCommandList->SetGraphicsRootConstantBufferView(0, frameRes.transformBuffer.view);
+    graphicsCommandList->SetGraphicsRoot32BitConstants(0, 9, &rasterToCamDir, 0);
     graphicsCommandList->SetGraphicsRootShaderResourceView(1, m_materialBuffer.view);
     // Set the SRVs of the frame resources.
     const D3D12_GPU_DESCRIPTOR_HANDLE firstTexHandle = m_texPool.gpuHandle(frameRes.firstTexIndex);

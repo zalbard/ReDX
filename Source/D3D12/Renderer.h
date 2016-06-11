@@ -29,8 +29,6 @@ namespace D3D12 {
         VertexBuffer createVertexBuffer(const uint count, const T* elements);
         // Sets materials (represented by texture indices) in shaders.
         void setMaterials(const uint count, const Material* materials);
-        // Sets camera-related transformations in shaders.
-        void setCameraTransforms(const PerspectiveCamera& pCam);
         // Submits all pending copy commands for execution, and begins a new segment
         // of the upload buffer. As a result, the previous segment of the buffer becomes
         // available for writing. 'immediateCopy' flag ensures that all copies from the
@@ -41,7 +39,7 @@ namespace D3D12 {
         // Input: the camera and opaque scene objects.
         void recordGBufferPass(const PerspectiveCamera& pCam, const Scene& scene);
         // Records commands within the shading pass.
-        void recordShadingPass();
+        void recordShadingPass(const PerspectiveCamera& pCam);
         // Starts the frame rendering process.
         void renderFrame();
         // Returns the current time of the CPU thread and the GPU queue in microseconds.

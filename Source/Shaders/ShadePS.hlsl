@@ -4,13 +4,6 @@
 static const float3 radiance = float3(2.2f, 2.f, 1.8f);
 static const float3 L        = normalize(float3(0.f, 0.90f, 0.42f));
 
-// TODO: move to root constants
-cbuffer Transforms : register(b0) {
-    float3x3 rasterToWorldDir;  // Transforms the raster coordinates (x, y, 1) into
-    float    pad;               // the raster-to-camera-center direction in world space.
-}
-
-// Contains texture array indices.
 struct Material {
     uint metalTexId;            // Metallicness map index
     uint baseTexId;             // Base color texture index
@@ -20,13 +13,28 @@ struct Material {
     uint pad[3];                // 16 byte alignment
 };
 
-StructuredBuffer<Material> materials : register(t0);
+cbuffer RasterToCamDir : register(b0) {
+    float m00, m01, m02,
+          m10, m11, m12,
+          m20, m21, m22;
+};
 
+// Transforms raster coordinates (x, y, 1) into the raster-to-camera direction in world space.
+static const float3x3 rasterToCamDir = {
+    m00, m01, m02,
+    m10, m11, m12,
+    m20, m21, m22
+};
+
+// Contains texture array indices.
+StructuredBuffer<Material> materials : register(t0);
+// G-buffer.
 Texture2D<uint2>  depthStencilBuffer : register(t1);
 Texture2D<float2> normalBuffer       : register(t2);
 Texture2D<float2> uvCoordBuffer      : register(t3);
 Texture2D<float4> uvGradBuffer       : register(t4);
 Texture2D<uint>   matIdBuffer        : register(t5);
+// All textures.
 Texture2D         textures[]         : register(t6);
 
 SamplerState      af4Samp            : register(s0);
@@ -58,7 +66,7 @@ float4 main(const float4 position : SV_Position) : SV_Target {
         const float roughness = textures[NonUniformResourceIndex(texId)].SampleGrad(af4Samp,
                                 uvCoord, uvGrad.xy, uvGrad.zw).r;
         // Evaluate the metallic (GGX) part.
-        const float3 V = normalize(mul(float3(position.xy, 1.f), rasterToWorldDir));
+        const float3 V = normalize(mul(float3(position.xy, 1.f), rasterToCamDir));
         const float3 specularReflectance = metallicness * baseColor;
         brdf += evalGGX(specularReflectance, roughness, N, L, V);
     }
