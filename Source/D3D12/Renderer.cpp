@@ -153,7 +153,6 @@ Renderer::Renderer()
     {
         assert(m_dsvPool.size == 0);
         for (uint i = 0; i < FRAME_CNT; ++i) {
-            m_frameResouces[i].transformBuffer = createConstantBuffer(3 * sizeof(XMVECTOR));
             // Store the descriptor indices before we populate the pools.
             m_frameResouces[i].firstRtvIndex = m_rtvPool.size;
             m_frameResouces[i].firstTexIndex = m_texPool.size;

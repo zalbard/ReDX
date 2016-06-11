@@ -48,7 +48,6 @@ namespace D3D12 {
         void stop();
     private:
         struct FrameResource {
-            ConstantBuffer         transformBuffer;
             ComPtr<ID3D12Resource> depthStencilBuffer; 
             ComPtr<ID3D12Resource> normalBuffer, uvCoordBuffer, uvGradBuffer, matIdBuffer;
             uint                   firstRtvIndex;
