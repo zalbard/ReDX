@@ -71,8 +71,8 @@ XMMATRIX PerspectiveCamera::computeViewProjMatrix(XMMATRIX* viewMat) const {
     return viewMatrix * projectionMatrix();
 }
 
-XMMATRIX PerspectiveCamera::computeRasterToWorldDirMatrix() const {
-    // Compose the 3x3 transformation matrix 'rasterToViewDir', which transforms
+XMMATRIX PerspectiveCamera::computeRasterToCameraDirMatrix() const {
+    // Compose the 3x3 transformation matrix 'rasterToCamView', which transforms
     // raster coordinates (x, y, 1) into the raster-to-camera direction in view space.
     // Dir = -(X, Y, Z), s.t. X = (x / resX - 0.5) * width, Y = (0.5 - y / resY) * height, Z = 1.
     // -X = x * (-width / resX) + 0.5 * width  = x * m00 + m20.
@@ -82,12 +82,12 @@ XMMATRIX PerspectiveCamera::computeRasterToWorldDirMatrix() const {
     const float m11 = m_sensorDims.y / m_resolution.y;
     const float m21 = m_sensorDims.y * -0.5f;
     // Compose the matrix.
-    const XMMATRIX rasterToViewDir = {m00, 0.f,  0.f, 0.f,
+    const XMMATRIX rasterToCamView = {m00, 0.f,  0.f, 0.f,
                                       0.f, m11,  0.f, 0.f,
                                       m20, m21, -1.f, 0.f,
                                       0.f, 0.f,  0.f, 1.f};
     // Concatenate the result with the transformation from view to world space.
-    return rasterToViewDir * orientationMatrix();
+    return rasterToCamView * orientationMatrix();
 }
 
 // See "Fast Extraction of Viewing Frustum Planes from the WorldView-Projection Matrix"

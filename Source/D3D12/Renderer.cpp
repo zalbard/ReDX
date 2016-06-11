@@ -618,7 +618,7 @@ void Renderer::setMaterials(const uint count, const Material* materials) {
 }
 
 void Renderer::setCameraTransforms(const PerspectiveCamera& pCam) {
-    const XMMATRIX tRasterToWorldDir = XMMatrixTranspose(pCam.computeRasterToWorldDirMatrix());
+    const XMMATRIX tRasterToWorldDir = XMMatrixTranspose(pCam.computeRasterToCameraDirMatrix());
     // Copy the data into the upload buffer.
     constexpr uint alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
     constexpr uint size      = 3 * sizeof(XMVECTOR);
