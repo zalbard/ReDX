@@ -1,9 +1,9 @@
 #pragma once
 
 // Typedefs for dxgitype.h.
-using BOOL   = int;
-using BYTE   = unsigned char;
-using UINT   = unsigned int;
+using BOOL = int;
+using BYTE = unsigned char;
+using UINT = unsigned int;
 
 #include <dxgitype.h>
 #include "Definitions.h"
