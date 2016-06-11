@@ -13,14 +13,14 @@ struct Material {
     uint pad[3];                // 16 byte alignment
 };
 
-cbuffer RasterToCamDir : register(b0) {
+cbuffer RasterToViewDir : register(b0) {
     float m00, m01, m02,
           m10, m11, m12,
           m20, m21, m22;
 };
 
 // Transforms raster coordinates (x, y, 1) into the raster-to-camera direction in world space.
-static const float3x3 rasterToCamDir = {
+static const float3x3 rasterToViewDir = {
     m00, m01, m02,
     m10, m11, m12,
     m20, m21, m22
@@ -66,7 +66,7 @@ float4 main(const float4 position : SV_Position) : SV_Target {
         const float roughness = textures[NonUniformResourceIndex(texId)].SampleGrad(af4Samp,
                                 uvCoord, uvGrad.xy, uvGrad.zw).r;
         // Evaluate the metallic (GGX) part.
-        const float3 V = normalize(mul(float3(position.xy, 1.f), rasterToCamDir));
+        const float3 V = normalize(mul(float3(position.xy, 1.f), rasterToViewDir));
         const float3 specularReflectance = metallicness * baseColor;
         brdf += evalGGX(specularReflectance, roughness, N, L, V);
     }

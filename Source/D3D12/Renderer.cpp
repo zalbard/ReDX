@@ -768,11 +768,11 @@ void Renderer::recordShadingPass(const PerspectiveCamera& pCam) {
     barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer, D3D12_RESOURCE_STATE_PRESENT,
                                                        D3D12_RESOURCE_STATE_RENDER_TARGET};
     graphicsCommandList->ResourceBarrier(6, barriers);
-    // Store the 3x3 part of the raster to camera direction matrix.
-    XMFLOAT3X3 rasterToCamDir;
-    XMStoreFloat3x3(&rasterToCamDir, pCam.computeRasterToCameraDirMatrix());
+    // Store the 3x3 part of the raster-to-view-direction matrix.
+    XMFLOAT3X3 rasterToViewDir;
+    XMStoreFloat3x3(&rasterToViewDir, pCam.computeRasterToViewDirMatrix());
     // Set the root arguments.
-    graphicsCommandList->SetGraphicsRoot32BitConstants(0, 9, &rasterToCamDir, 0);
+    graphicsCommandList->SetGraphicsRoot32BitConstants(0, 9, &rasterToViewDir, 0);
     graphicsCommandList->SetGraphicsRootShaderResourceView(1, m_materialBuffer.view);
     // Set the SRVs of the frame resources.
     const D3D12_GPU_DESCRIPTOR_HANDLE firstTexHandle = m_texPool.gpuHandle(frameRes.firstTexIndex);

@@ -35,7 +35,7 @@ public:
     DirectX::XMMATRIX computeViewProjMatrix(DirectX::XMMATRIX* viewMat = nullptr) const;
     // Returns a 3x3 transformation matrix which transforms
     // raster coordinates (x, y, 1) into the raster-to-camera direction in world space.
-    DirectX::XMMATRIX computeRasterToCameraDirMatrix() const;
+    DirectX::XMMATRIX computeRasterToViewDirMatrix() const;
     // Computes the viewing frustum bounded by the far/left/right/top/bottom planes.
     Frustum computeViewFrustum() const;
     // Moves the camera forward by 'dist' meters.
