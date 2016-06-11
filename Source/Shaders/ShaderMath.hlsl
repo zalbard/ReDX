@@ -126,8 +126,8 @@ float3x3 convertQuaternionToTangentFrame(const float4 q) {
 // See "Bump Mapping Unparametrized Surfaces on the GPU" by Morten Mikkelsen.
 float3 perturbNormal(const float3 normal, const float3 pos, const float height) {
     // Compute the tangent frame.
-    const float3 tangent   = ddx(pos);
-    const float3 bitangent = ddy(pos);
+    const float3 tangent   = ddx_fine(pos);
+    const float3 bitangent = ddy_fine(pos);
     // Orthogonalize the tangent vectors with respect to the normal.
     const float3 vS = cross(bitangent, normal);
     const float3 vT = cross(normal, tangent);
