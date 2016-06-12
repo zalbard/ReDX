@@ -31,6 +31,13 @@ static inline auto createHardwareDevice(IDXGIFactory4* factory)
             printError("Direct3D 12 device not found.");
             TERMINATE();
         }
+        // Query the adapter info.
+        DXGI_ADAPTER_DESC adapterDesc;
+        adapter->GetDesc(&adapterDesc);
+        // Skip the Intel GPU.
+        if (adapterDesc.VendorId == 0x8086) {
+            continue;
+        }
         // Check whether the adapter supports Direct3D 12.
         if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
                                         _uuidof(ID3D12Device), nullptr))) {
@@ -39,6 +46,16 @@ static inline auto createHardwareDevice(IDXGIFactory4* factory)
             CHECK_CALL(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
                                          IID_PPV_ARGS(&device)),
                        "Failed to create a Direct3D device.");
+            // Convert the wide description string.
+            char adapterDescString[32];
+            wcstombs_s(nullptr, adapterDescString, 32, adapterDesc.Description, 31);
+            // Print the graphics adapter details.
+            printInfo("Graphics adapter: %s",       adapterDescString);
+            printInfo("- Vendor id:      %u",       adapterDesc.VendorId);
+            printInfo("- Device id:      %u",       adapterDesc.DeviceId);
+            printInfo("- Dedicated VRAM: %llu MiB", adapterDesc.DedicatedVideoMemory / 1048576);
+            printInfo("- Dedicated RAM:  %llu MiB", adapterDesc.DedicatedSystemMemory / 1048576);
+            printInfo("- Shared RAM:     %llu MiB", adapterDesc.SharedSystemMemory / 1048576);
             return device;
         }
     }
