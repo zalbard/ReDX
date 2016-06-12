@@ -47,7 +47,7 @@ namespace D3D12 {
         // Terminates the rendering process.
         void stop();
     private:
-        struct FrameResource {
+        struct FrameResources {
             ComPtr<ID3D12Resource> depthStencilBuffer; 
             ComPtr<ID3D12Resource> normalBuffer, uvCoordBuffer, uvGradBuffer, matIdBuffer;
             uint                   firstRtvIndex;

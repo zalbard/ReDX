@@ -38,7 +38,7 @@ constexpr uint  MAT_CNT         = 32;
 constexpr uint  BUF_CNT         = 3;
 // Maximal rendering queue depth (determines the frame latency).
 constexpr uint  FRAME_CNT       = 2;
-// Total number of render target views. Depends on the definition of 'FrameResource'.
+// Total number of render target views. Depends on the definition of 'FrameResources'.
 constexpr uint  RTV_CNT         = BUF_CNT + 4 * FRAME_CNT;
 // Vertical blank count after which the synchronization is performed.
 constexpr uint  VSYNC_INTERVAL  = 0;
@@ -64,5 +64,5 @@ constexpr uint  UPLOAD_BUF_SIZE = 32 * 1024 * 1024;
 constexpr float CAM_SPEED       = 500.f;
 // Camera's angular speed (in radians/sec).
 constexpr float CAM_ANG_SPEED   = 2.0f;
-// Default, single sample mode (no multi-sampling).
-constexpr auto  SAMPLE_DEFAULT  = DXGI_SAMPLE_DESC{1, 0};
+// Default sampling mode (no multi-sampling).
+constexpr auto  SINGLE_SAMPLE   = DXGI_SAMPLE_DESC{1, 0};

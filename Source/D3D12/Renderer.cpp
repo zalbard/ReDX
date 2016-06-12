@@ -125,7 +125,7 @@ Renderer::Renderer()
             /* Height */      height,
             /* Format */      FORMAT_SC,
             /* Stereo */      0,
-            /* SampleDesc */  SAMPLE_DEFAULT,
+            /* SampleDesc */  SINGLE_SAMPLE,
             /* BufferUsage */ DXGI_USAGE_RENDER_TARGET_OUTPUT,
             /* BufferCount */ BUF_CNT,
             /* Scaling */     DXGI_SCALING_NONE,
@@ -154,9 +154,9 @@ Renderer::Renderer()
             /* MipSlice */      0,
             /* PlaneSlice */    0
         };
-        CHECK_CALL(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_renderTargets[i])),
+        CHECK_CALL(m_swapChain->GetBuffer(i, IID_PPV_ARGS(&m_swapChainBuffers[i])),
                    "Failed to acquire a swap chain buffer.");
-        m_device->CreateRenderTargetView(m_renderTargets[i].Get(), &rtvDesc,
+        m_device->CreateRenderTargetView(m_swapChainBuffers[i].Get(), &rtvDesc,
                                          m_rtvPool.cpuHandle(m_rtvPool.size++));
     }
     // Configure render passes.
@@ -301,7 +301,7 @@ void D3D12::Renderer::configureGBufferPass() {
         /* NumRenderTargets */      4,
         /* RTVFormats[8] */         {FORMAT_NORMAL, FORMAT_UVCOORD, FORMAT_UVGRAD, FORMAT_MAT_ID},
         /* DSVFormat */             FORMAT_DSV,
-        /* SampleDesc */            SAMPLE_DEFAULT,
+        /* SampleDesc */            SINGLE_SAMPLE,
         /* NodeMask */              m_device->nodeMask,
         /* CachedPSO */             {},
         /* Flags */                 D3D12_PIPELINE_STATE_FLAG_NONE
@@ -354,7 +354,7 @@ void Renderer::configureShadingPass() {
         /* NumRenderTargets */      1,
         /* RTVFormats[8] */         {FORMAT_RTV},
         /* DSVFormat */             DXGI_FORMAT_UNKNOWN,
-        /* SampleDesc */            SAMPLE_DEFAULT,
+        /* SampleDesc */            SINGLE_SAMPLE,
         /* NodeMask */              m_device->nodeMask,
         /* CachedPSO */             {},
         /* Flags */                 D3D12_PIPELINE_STATE_FLAG_NONE
@@ -375,7 +375,7 @@ ComPtr<ID3D12Resource> Renderer::createDepthBuffer(const uint width, const uint 
         /* DepthOrArraySize */ 1,
         /* MipLevels */        1,
         /* Format */           format,
-        /* SampleDesc */       SAMPLE_DEFAULT,
+        /* SampleDesc */       SINGLE_SAMPLE,
         /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
         /* Flags */            D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
     };
@@ -416,7 +416,7 @@ ComPtr<ID3D12Resource> Renderer::createRenderBuffer(const uint width, const uint
         /* DepthOrArraySize */ 1,
         /* MipLevels */        1,
         /* Format */           format,
-        /* SampleDesc */       SAMPLE_DEFAULT,
+        /* SampleDesc */       SINGLE_SAMPLE,
         /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
         /* Flags */            D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET
     };
@@ -457,7 +457,7 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
         /* DepthOrArraySize */ static_cast<uint16>(footprint.Depth),
         /* MipLevels */        static_cast<uint16>(mipCount),
         /* Format */           footprint.Format,
-        /* SampleDesc */       SAMPLE_DEFAULT,
+        /* SampleDesc */       SINGLE_SAMPLE,
         /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
         /* Flags */            D3D12_RESOURCE_FLAG_NONE
     };
@@ -659,9 +659,9 @@ void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
     m_uploadBuffer.currSegStart = m_uploadBuffer.offset;
 }
 
-void Renderer::FrameResource::getTransitionBarriersToWritableState(
-                              D3D12_RESOURCE_BARRIER* barriers,                          
-                              const D3D12_RESOURCE_BARRIER_FLAGS flag) {
+void Renderer::FrameResources::getTransitionBarriersToWritableState(
+                               D3D12_RESOURCE_BARRIER* barriers,                          
+                               const D3D12_RESOURCE_BARRIER_FLAGS flag) {
     barriers[0] = D3D12_TRANSITION_BARRIER{depthStencilBuffer.Get(),
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                                            D3D12_RESOURCE_STATE_DEPTH_WRITE,   flag};
@@ -679,9 +679,9 @@ void Renderer::FrameResource::getTransitionBarriersToWritableState(
                                            D3D12_RESOURCE_STATE_RENDER_TARGET, flag};
 }
 
-void Renderer::FrameResource::getTransitionBarriersToReadableState(
-                              D3D12_RESOURCE_BARRIER* barriers,                          
-                              const D3D12_RESOURCE_BARRIER_FLAGS flag) {
+void Renderer::FrameResources::getTransitionBarriersToReadableState(
+                               D3D12_RESOURCE_BARRIER* barriers,                          
+                               const D3D12_RESOURCE_BARRIER_FLAGS flag) {
     barriers[0] = D3D12_TRANSITION_BARRIER{depthStencilBuffer.Get(),
                                            D3D12_RESOURCE_STATE_DEPTH_WRITE,
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
@@ -709,7 +709,7 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     graphicsCommandList->SetDescriptorHeaps(1, &texHeap);
     // Finish the transition of the frame resources to the writable state.
     D3D12_RESOURCE_BARRIER barriers[5];
-    FrameResource& frameRes = m_frameResouces[m_frameIndex];
+    FrameResources& frameRes = m_frameResouces[m_frameIndex];
     frameRes.getTransitionBarriersToWritableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
     graphicsCommandList->ResourceBarrier(5, barriers);
     // Store columns 0, 1 and 3 of the view-projection matrix.
@@ -777,10 +777,10 @@ void Renderer::recordShadingPass(const PerspectiveCamera& pCam) {
     graphicsCommandList->SetDescriptorHeaps(1, &texHeap);
     // Transition the frame resources to the readable state.
     D3D12_RESOURCE_BARRIER barriers[6];
-    FrameResource& frameRes = m_frameResouces[m_frameIndex];
+    FrameResources& frameRes = m_frameResouces[m_frameIndex];
     frameRes.getTransitionBarriersToReadableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_NONE);
     // Transition the state of the back buffer: Presenting -> Render Target.
-    ID3D12Resource* backBuffer = m_renderTargets[m_backBufferIndex].Get();
+    ID3D12Resource* backBuffer = m_swapChainBuffers[m_backBufferIndex].Get();
     barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer, D3D12_RESOURCE_STATE_PRESENT,
                                                        D3D12_RESOURCE_STATE_RENDER_TARGET};
     graphicsCommandList->ResourceBarrier(6, barriers);
