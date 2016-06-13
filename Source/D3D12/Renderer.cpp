@@ -609,7 +609,7 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
                                            D3D12_RESOURCE_STATE_INDEX_BUFFER};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     // Copy indices into the upload buffer.
-    constexpr uint alignment = 4;
+    constexpr uint alignment = D3D12_STANDARD_MAXIMUM_ELEMENT_ALIGNMENT_BYTE_MULTIPLE;
     const     uint offset    = copyToUploadBuffer<alignment>(size, indices);
     // Copy the data from the upload buffer into the video memory buffer.
     m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
