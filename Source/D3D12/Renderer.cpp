@@ -451,7 +451,7 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
                                                    const uint mipCount, const void* data) {
     const D3D12_RESOURCE_DESC resourceDesc = {
         /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-        /* Alignment */        D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+        /* Alignment */        0,   // Automatic
         /* Width */            footprint.Width,
         /* Height */           footprint.Height,
         /* DepthOrArraySize */ static_cast<uint16>(footprint.Depth),
@@ -478,27 +478,27 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
-        constexpr uint   pitchAlignment = D3D12_TEXTURE_DATA_PITCH_ALIGNMENT;
-        constexpr uint64 placeAlignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
-        assert(0 == footprint.RowPitch % pitchAlignment);
+        assert(0 == footprint.RowPitch % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
         // Upload MIP levels one by one.
         for (uint i = 0; i < mipCount; ++i) {
             const uint width     = std::max(1u, footprint.Width >> i);
             const uint height    = std::max(1u, footprint.Height >> i);
             const uint dataPitch = std::max(1u, footprint.RowPitch >> i);
-            const uint rowPitch  = align<pitchAlignment>(dataPitch);
+            const uint rowPitch  = align<D3D12_TEXTURE_DATA_PITCH_ALIGNMENT>(dataPitch);
             const uint size      = rowPitch * height;
+            // Linear subresource copying must be aligned to 512 bytes.
+            constexpr uint64 alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
             uint offset;
             // Check whether pitched copying is required.
             if (dataPitch == rowPitch) {
                 // Copy the entire MIP level at once.
-                offset = copyToUploadBuffer<placeAlignment>(size, data);
+                offset = copyToUploadBuffer<alignment>(size, data);
                 // Advance the data pointer to the next MIP level.
                 data = static_cast<const byte*>(data) + size;
             } else {
                 // Reserve a chunk of memory for the entire MIP level.
                 byte* address;
-                std::tie(address, offset) = reserveChunkOfUploadBuffer<placeAlignment>(size);
+                std::tie(address, offset) = reserveChunkOfUploadBuffer<alignment>(size);
                 // Copy the MIP level one row at a time.
                 for (uint row = 0; row < height; ++row) {
                     memcpy(address, data, dataPitch);
@@ -550,8 +550,8 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data)
                                            D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
-        // Copy the data into the upload buffer.
-        constexpr uint alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+        // Linear subresource copying must be aligned to 512 bytes.
+        constexpr uint alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
         const     uint offset    = copyToUploadBuffer<alignment>(size, data);
         // Copy the data from the upload buffer into the video memory buffer.
         m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
@@ -579,8 +579,8 @@ StructuredBuffer Renderer::createStructuredBuffer(const uint size, const void* d
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
-        // Copy the data into the upload buffer.
-        constexpr uint alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+        // Linear subresource copying must be aligned to 512 bytes.
+        constexpr uint alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
         const     uint offset    = copyToUploadBuffer<alignment>(size, data);
         // Copy the data from the upload buffer into the video memory buffer.
         m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
@@ -608,8 +608,8 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
                                            D3D12_RESOURCE_STATE_COMMON,
                                            D3D12_RESOURCE_STATE_INDEX_BUFFER};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
-    // Copy indices into the upload buffer.
-    constexpr uint alignment = D3D12_STANDARD_MAXIMUM_ELEMENT_ALIGNMENT_BYTE_MULTIPLE;
+    // Linear subresource copying must be aligned to 512 bytes.
+    constexpr uint alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
     const     uint offset    = copyToUploadBuffer<alignment>(size, indices);
     // Copy the data from the upload buffer into the video memory buffer.
     m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
@@ -624,8 +624,8 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
 
 void Renderer::setMaterials(const uint count, const Material* materials) {
     assert(count <= MAT_CNT);
-    // Copy the data into the upload buffer.
-    constexpr uint alignment = D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT;
+    // Linear subresource copying must be aligned to 512 bytes.
+    constexpr uint alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
     const     uint size      = count * sizeof(Material);
     const     uint offset    = copyToUploadBuffer<alignment>(size, materials);
     // Copy the data from the upload buffer into the video memory buffer.
