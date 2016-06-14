@@ -87,8 +87,8 @@ namespace D3D12 {
         GraphicsContext<FRAME_CNT, 2> m_graphicsContext;
         uint                          m_frameIndex;
         uint                          m_backBufferIndex;
-        ComPtr<ID3D12Resource>        m_renderTargets[BUF_CNT];
-        FrameResource                 m_frameResouces[FRAME_CNT];
+        ComPtr<ID3D12Resource>        m_swapChainBuffers[BUF_CNT];
+        FrameResources                m_frameResouces[FRAME_CNT];
         RtvPool<RTV_CNT>              m_rtvPool;
         DsvPool<FRAME_CNT>            m_dsvPool;
         CbvSrvUavPool<TEX_CNT>        m_texPool;
