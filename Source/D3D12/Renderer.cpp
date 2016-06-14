@@ -743,7 +743,7 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     Frustum frustum = pCam.computeViewFrustum();
     // Issue draw calls.
     uint16 matId = UINT16_MAX;
-    for (size_t i = 0, n = scene.objects.count; i < n; ++i) {
+    for (uint64 i = 0, n = scene.objects.count; i < n; ++i) {
         // Test the object for visibility.
         if (frustum.intersects(scene.objects.boundingSpheres[i])) {
             if (matId != scene.objects.materialIndices[i]) {
