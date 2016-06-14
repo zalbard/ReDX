@@ -35,7 +35,8 @@ public:
     // Returns 'true' if the sphere overlaps the frustum, 'false' otherwise.
     bool intersects(const Sphere sphere) const;
 private:
+    DirectX::XMFLOAT4X4A m_tPlanes;  // Transposed equations of the left/right/top/bottom planes
+    DirectX::XMFLOAT4A   m_farPlane; // Equation of the far plane
+	/* Accessors */
     friend class PerspectiveCamera;
-    DirectX::XMMATRIX tPlanes;  // Transposed equations of the left/right/top/bottom planes
-    DirectX::XMVECTOR farPlane; // Equation of the far plane
 };

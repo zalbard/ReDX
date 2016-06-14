@@ -92,7 +92,6 @@ XMMATRIX PerspectiveCamera::computeRasterToViewDirMatrix() const {
 // See "Fast Extraction of Viewing Frustum Planes from the WorldView-Projection Matrix"
 // by Gil Gribb and Klaus Hartmann.
 Frustum PerspectiveCamera::computeViewFrustum() const {
-    Frustum  frustum;
     XMMATRIX frustumPlanes;
     const XMMATRIX tViewProj = XMMatrixTranspose(computeViewProjMatrix());
     // Left plane.
@@ -104,21 +103,23 @@ Frustum PerspectiveCamera::computeViewFrustum() const {
     // Bottom plane.
     frustumPlanes.r[3] = tViewProj.r[3] + tViewProj.r[1];
     // Far plane.
-    frustum.farPlane   = tViewProj.r[3] - tViewProj.r[2];
+    XMVECTOR farPlane  = tViewProj.r[3] - tViewProj.r[2];
     // Compute the inverse magnitudes.
-    frustum.tPlanes    = XMMatrixTranspose(frustumPlanes);
-    const XMVECTOR magsSq  = sq(frustum.tPlanes.r[0])
-                           + sq(frustum.tPlanes.r[1])
-                           + sq(frustum.tPlanes.r[2]);
+    XMMATRIX tPlanes   = XMMatrixTranspose(frustumPlanes);
+    const XMVECTOR magsSq  = sq(tPlanes.r[0]) + sq(tPlanes.r[1]) + sq(tPlanes.r[2]);
     const XMVECTOR invMags = XMVectorReciprocalSqrt(magsSq);
     // Normalize the plane equations.
     frustumPlanes.r[0] *= XMVectorSplatX(invMags);
     frustumPlanes.r[1] *= XMVectorSplatY(invMags);
     frustumPlanes.r[2] *= XMVectorSplatZ(invMags);
     frustumPlanes.r[3] *= XMVectorSplatW(invMags);
-    frustum.farPlane    = XMPlaneNormalize(frustum.farPlane);
+    farPlane = XMPlaneNormalize(farPlane);
     // Transpose the normalized plane equations.
-    frustum.tPlanes = XMMatrixTranspose(frustumPlanes);
+    tPlanes  = XMMatrixTranspose(frustumPlanes);
+	// Store the results.
+    Frustum frustum;
+	XMStoreFloat4x4A(&frustum.m_tPlanes, tPlanes);
+	XMStoreFloat4A(&frustum.m_farPlane, farPlane);
     return frustum;
 }
 

@@ -26,6 +26,8 @@ AABox::AABox(const XMFLOAT3& pMin, const float (&dims)[3])
 bool Frustum::intersects(const Sphere sphere) const {
     const XMVECTOR sphereCenter    =  sphere.center();
     const XMVECTOR negSphereRadius = -sphere.radius();
+	const XMMATRIX tPlanes  = XMLoadFloat4x4A(&m_tPlanes);
+	const XMVECTOR farPlane = XMLoadFloat4A(&m_farPlane);
     // Compute the distances to the left/right/top/bottom frustum planes.
     const XMVECTOR upperPart = tPlanes.r[0] * XMVectorSplatX(sphereCenter)
                              + tPlanes.r[1] * XMVectorSplatY(sphereCenter);
