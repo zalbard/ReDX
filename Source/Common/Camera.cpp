@@ -11,11 +11,6 @@ PerspectiveCamera::PerspectiveCamera(const long width, const long height, const 
         setOrientation(XMQuaternionRotationMatrix(RotationMatrixLH(dir, up)));
         // Compute the infinite reversed projection matrix.
         XMStoreFloat4x4A(&m_projMat, InfRevProjMatLH(width, height, vFoV));
-        // The sensor lies on the far plane, at the distance of 1.
-        const float sensorHeight = 2.f * tanf(0.5f * vFoV);
-        const float aspectRatio  = static_cast<float>(width) / static_cast<float>(height);
-        const float sensorWidth  = sensorHeight * aspectRatio;
-        m_sensorDims = {sensorWidth, sensorHeight};
 }
 
 XMVECTOR PerspectiveCamera::position() const {
@@ -73,13 +68,19 @@ XMMATRIX PerspectiveCamera::computeViewProjMatrix(XMMATRIX* viewMat) const {
 
 XMMATRIX PerspectiveCamera::computeRasterToViewDirMatrix() const {
     // Compose the view space version first.
-    // Dir = -(X, Y, Z), s.t. X = (x / resX - 0.5) * width, Y = (0.5 - y / resY) * height, Z = 1.
-    // -X = x * (-width / resX) + 0.5 * width  = x * m00 + m20.
-    // -Y = y * (height / resY) - 0.5 * height = y * m11 + m21.
-    const float m00 = m_sensorDims.x / -m_resolution.x;
-    const float m20 = m_sensorDims.x * 0.5f;
-    const float m11 = m_sensorDims.y / m_resolution.y;
-    const float m21 = m_sensorDims.y * -0.5f;
+    // Dir = -(X, Y, Z), s.t. Z = 1,
+    //  X = (2x / resX - 1) * tan(vFoV / 2) * ar = (2x / resX - 1) / p00,
+    //  Y = (1 - 2y / resY) * tan(vFoV / 2) = (1 - 2y / resY) / p11.
+    // -X = x * (-2 / p00 / resX) + ( 1 / p00) = x * m00 + m20
+    // -Y = y * ( 2 / p11 / resY) + (-1 / p11) = y * m11 + m21
+    // Additional derivation details are available in the chapter 17.1 of
+    // "Introduction to 3D Game Programming with DirectX 12" by Frank Luna.
+    const float p00 = m_projMat.m[0][0];
+    const float p11 = m_projMat.m[1][1];
+    const float m20 =  1.f / p00;
+    const float m21 = -1.f / p11;
+    const float m00 = -2.f * m20 / m_resolution.x;
+    const float m11 = -2.f * m21 / m_resolution.y;
     // Compose the matrix.
     const XMMATRIX viewSpaceRasterTransform = {m00, 0.f,  0.f, 0.f,
                                                0.f, m11,  0.f, 0.f,

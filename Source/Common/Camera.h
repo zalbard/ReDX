@@ -58,6 +58,5 @@ private:
     DirectX::XMFLOAT3A   m_up;          // World-space up vector
     DirectX::XMFLOAT4A   m_orientQuat;  // Orientation (quaternion)
     DirectX::XMFLOAT4X4A m_projMat;     // Projection matrix
-    DirectX::XMFLOAT2    m_sensorDims;  // Sensor dimensions
     DirectX::XMINT2      m_resolution;  // Viewport dimensions
 };
