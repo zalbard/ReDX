@@ -23,7 +23,7 @@ AABox::AABox(const XMFLOAT3& pMin, const float (&dims)[3])
 			 pMin.y + dims[1],
 			 pMin.z + dims[2]} {}
 
-bool Frustum::intersects(const Sphere sphere) const {
+bool Frustum::intersects(const Sphere& sphere) const {
     const XMVECTOR sphereCenter    =  sphere.center();
     const XMVECTOR negSphereRadius = -sphere.radius();
 	const XMMATRIX tPlanes  = XMLoadFloat4x4A(&m_tPlanes);
