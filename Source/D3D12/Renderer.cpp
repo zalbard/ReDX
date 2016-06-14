@@ -533,7 +533,6 @@ uint Renderer::getTextureIndex(const Texture& texture) const {
     return m_texPool.computeIndex(texture.view);
 }
 
-
 ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data) {
     assert(!data || size >= 4);
     ConstantBuffer buffer;
