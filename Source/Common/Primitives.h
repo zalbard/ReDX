@@ -30,6 +30,7 @@ private:
     DirectX::XMFLOAT3 m_pMin, m_pMax;
 };
 
+// Frustum represented by 5 plane equations with normals pointing inwards.
 class Frustum {
 public:
     // Returns 'true' if the sphere overlaps the frustum, 'false' otherwise.
