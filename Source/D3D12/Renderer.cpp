@@ -487,7 +487,7 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
             const uint rowPitch  = align<D3D12_TEXTURE_DATA_PITCH_ALIGNMENT>(dataPitch);
             const uint size      = rowPitch * height;
             // Linear subresource copying must be aligned to 512 bytes.
-            constexpr uint64 alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+            constexpr uint alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
             uint offset;
             // Check whether pitched copying is required.
             if (dataPitch == rowPitch) {
