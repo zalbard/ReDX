@@ -720,20 +720,19 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     // Set the root arguments.
     graphicsCommandList->SetGraphicsRoot32BitConstants(2, 12, matCols, 0);
     // Set the RTVs and the DSV.
-    const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[4] = {
-        m_rtvPool.cpuHandle(frameRes.firstRtvIndex),
-        m_rtvPool.cpuHandle(frameRes.firstRtvIndex + 1),
-        m_rtvPool.cpuHandle(frameRes.firstRtvIndex + 2),
-        m_rtvPool.cpuHandle(frameRes.firstRtvIndex + 3),
+    const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2] = {
+        m_rtvPool.cpuHandle(frameRes.firstRtvIndex),    // Normal RTV	
+        m_rtvPool.cpuHandle(frameRes.firstRtvIndex + 3) // Material RTV
     };
     const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_dsvPool.cpuHandle(m_frameIndex);
     graphicsCommandList->OMSetRenderTargets(4, rtvHandles, true, &dsvHandle);
-    // Clear the RTVs and the DSV.
-    constexpr D3D12_CLEAR_FLAGS clearFlags = D3D12_CLEAR_FLAG_DEPTH;
-    graphicsCommandList->ClearRenderTargetView(rtvHandles[0], FLOAT4_BLACK, 0, nullptr);
+    // Only the material buffer needs to be cleared, the rest of the RTs can be discarded.
+    graphicsCommandList->DiscardResource(frameRes.normalBuffer.Get(), nullptr);
+    graphicsCommandList->DiscardResource(frameRes.uvCoordBuffer.Get(), nullptr);
+    graphicsCommandList->DiscardResource(frameRes.uvGradBuffer.Get(), nullptr);
     graphicsCommandList->ClearRenderTargetView(rtvHandles[1], FLOAT4_BLACK, 0, nullptr);
-    graphicsCommandList->ClearRenderTargetView(rtvHandles[2], FLOAT4_BLACK, 0, nullptr);
-    graphicsCommandList->ClearRenderTargetView(rtvHandles[3], FLOAT4_BLACK, 0, nullptr);
+    // Clear the the DSV.
+    const D3D12_CLEAR_FLAGS clearFlags = D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL;
     graphicsCommandList->ClearDepthStencilView(dsvHandle, clearFlags, 0, 0, 0, nullptr);
     // Define the input geometry.
     graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -794,10 +793,11 @@ void Renderer::recordShadingPass(const PerspectiveCamera& pCam) {
     graphicsCommandList->SetGraphicsRootDescriptorTable(2, firstTexHandle);
     // Set the SRVs of all textures.
     graphicsCommandList->SetGraphicsRootDescriptorTable(3, m_texPool.gpuHandle(0));
-    // Set and clear the RTV.
+    // Set the RTV.
     const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvPool.cpuHandle(m_backBufferIndex);
     graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
-    graphicsCommandList->ClearRenderTargetView(rtvHandle, FLOAT4_BLACK, 0, nullptr);
+    // The back buffer will be completely overwritten, so discarding it is sufficient.
+    graphicsCommandList->DiscardResource(backBuffer, nullptr);
     // Perform the screen space pass using a single triangle.
     graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     graphicsCommandList->DrawInstanced(3, 1, 0, 0);
