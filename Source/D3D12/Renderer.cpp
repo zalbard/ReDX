@@ -107,9 +107,6 @@ Renderer::Renderer()
         // Use hardware acceleration.
         m_device = createHardwareDevice(factory.Get());
     }
-    // Make sure the GPU time stamp counter does not stop ticking during idle periods.
-    CHECK_CALL(m_device->SetStablePowerState(true),
-               "Failed to enable the stable GPU power state.");
     // Create command contexts.
     m_device->createCommandContext(&m_copyContext);
     m_device->createCommandContext(&m_graphicsContext);
