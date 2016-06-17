@@ -61,8 +61,7 @@ static inline auto createHardwareDevice(IDXGIFactory4* factory)
     }
 }
 
-Renderer::Renderer()
-    : m_frameIndex{0} {
+Renderer::Renderer() {
     // Configure the scissor rectangle used for clipping.
     m_scissorRect = D3D12_RECT{
         /* left */     0,
@@ -166,24 +165,20 @@ Renderer::Renderer()
     m_copyContext.resetCommandList(0, nullptr);
     m_graphicsContext.resetCommandList(0, m_gBufferPass.pipelineState.Get());
     m_graphicsContext.resetCommandList(1, m_shadingPass.pipelineState.Get());
-    // Create resources for each frame.
+    // Create the G-buffer resources.
     {
         assert(m_dsvPool.size == 0);
-        for (uint i = 0; i < FRAME_CNT; ++i) {
-            // Store the descriptor indices before we populate the pools.
-            m_frameResouces[i].firstRtvIndex = m_rtvPool.size;
-            m_frameResouces[i].firstTexIndex = m_texPool.size;
-            // Create a depth buffer.
-            m_frameResouces[i].depthStencilBuffer = createDepthBuffer(width, height, FORMAT_DSV);
-            // Create a normal vector buffer.
-            m_frameResouces[i].normalBuffer  = createRenderBuffer(width, height, FORMAT_NORMAL);
-            // Create a UV coordinate buffer.
-            m_frameResouces[i].uvCoordBuffer = createRenderBuffer(width, height, FORMAT_UVCOORD);
-            // Create a UV gradient buffer.
-            m_frameResouces[i].uvGradBuffer  = createRenderBuffer(width, height, FORMAT_UVGRAD);
-            // Create a material ID buffer.
-            m_frameResouces[i].matIdBuffer   = createRenderBuffer(width, height, FORMAT_MAT_ID);
-        }
+        assert(m_rtvPool.size == BUF_CNT);
+        // Create a depth buffer.
+        m_gBuffer.depthBuffer   = createDepthBuffer(width, height, FORMAT_DSV);
+        // Create a normal vector buffer.
+        m_gBuffer.normalBuffer  = createRenderBuffer(width, height, FORMAT_NORMAL);
+        // Create a UV coordinate buffer.
+        m_gBuffer.uvCoordBuffer = createRenderBuffer(width, height, FORMAT_UVCOORD);
+        // Create a UV gradient buffer.
+        m_gBuffer.uvGradBuffer  = createRenderBuffer(width, height, FORMAT_UVGRAD);
+        // Create a material ID buffer.
+        m_gBuffer.matIdBuffer   = createRenderBuffer(width, height, FORMAT_MAT_ID);
     }
     // Create a persistently mapped buffer on the upload heap.
     {
@@ -658,10 +653,9 @@ void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
     m_uploadBuffer.currSegStart = m_uploadBuffer.offset;
 }
 
-void Renderer::FrameResources::getTransitionBarriersToWritableState(
-                               D3D12_RESOURCE_BARRIER* barriers,                          
-                               const D3D12_RESOURCE_BARRIER_FLAGS flag) {
-    barriers[0] = D3D12_TRANSITION_BARRIER{depthStencilBuffer.Get(),
+void Renderer::GBuffer::getTransitionBarriersToWritableState(D3D12_RESOURCE_BARRIER* barriers,                          
+                                                             D3D12_RESOURCE_BARRIER_FLAGS flag) {
+    barriers[0] = D3D12_TRANSITION_BARRIER{depthBuffer.Get(),
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                                            D3D12_RESOURCE_STATE_DEPTH_WRITE,   flag};
     barriers[1] = D3D12_TRANSITION_BARRIER{normalBuffer.Get(),
@@ -678,10 +672,9 @@ void Renderer::FrameResources::getTransitionBarriersToWritableState(
                                            D3D12_RESOURCE_STATE_RENDER_TARGET, flag};
 }
 
-void Renderer::FrameResources::getTransitionBarriersToReadableState(
-                               D3D12_RESOURCE_BARRIER* barriers,                          
-                               const D3D12_RESOURCE_BARRIER_FLAGS flag) {
-    barriers[0] = D3D12_TRANSITION_BARRIER{depthStencilBuffer.Get(),
+void Renderer::GBuffer::getTransitionBarriersToReadableState(D3D12_RESOURCE_BARRIER* barriers,                          
+                                                             D3D12_RESOURCE_BARRIER_FLAGS flag) {
+    barriers[0] = D3D12_TRANSITION_BARRIER{depthBuffer.Get(),
                                            D3D12_RESOURCE_STATE_DEPTH_WRITE,
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
     barriers[1] = D3D12_TRANSITION_BARRIER{normalBuffer.Get(),
@@ -706,10 +699,9 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     graphicsCommandList->SetGraphicsRootSignature(m_gBufferPass.rootSignature.Get());
     ID3D12DescriptorHeap* texHeap = m_texPool.descriptorHeap();
     graphicsCommandList->SetDescriptorHeaps(1, &texHeap);
-    // Finish the transition of the frame resources to the writable state.
+    // Finish the transition of the G-buffer to the writable state.
     D3D12_RESOURCE_BARRIER barriers[5];
-    FrameResources& frameRes = m_frameResouces[m_frameIndex];
-    frameRes.getTransitionBarriersToWritableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
+    m_gBuffer.getTransitionBarriersToWritableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
     graphicsCommandList->ResourceBarrier(5, barriers);
     // Store columns 0, 1 and 3 of the view-projection matrix.
     const XMMATRIX tViewProj = XMMatrixTranspose(pCam.computeViewProjMatrix());
@@ -721,15 +713,15 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     graphicsCommandList->SetGraphicsRoot32BitConstants(2, 12, matCols, 0);
     // Set the RTVs and the DSV.
     const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2] = {
-        m_rtvPool.cpuHandle(frameRes.firstRtvIndex),    // Normal RTV	
-        m_rtvPool.cpuHandle(frameRes.firstRtvIndex + 3) // Material RTV
+        m_rtvPool.cpuHandle(BUF_CNT),    // Normal RTV    
+        m_rtvPool.cpuHandle(BUF_CNT + 3) // Material RTV
     };
-    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_dsvPool.cpuHandle(m_frameIndex);
-    graphicsCommandList->OMSetRenderTargets(4, rtvHandles, true, &dsvHandle);
+    const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_dsvPool.cpuHandle(0);
+    graphicsCommandList->OMSetRenderTargets(4, &rtvHandles[0], true, &dsvHandle);
     // Only the material buffer needs to be cleared, the rest of the RTs can be discarded.
-    graphicsCommandList->DiscardResource(frameRes.normalBuffer.Get(), nullptr);
-    graphicsCommandList->DiscardResource(frameRes.uvCoordBuffer.Get(), nullptr);
-    graphicsCommandList->DiscardResource(frameRes.uvGradBuffer.Get(), nullptr);
+    graphicsCommandList->DiscardResource(m_gBuffer.normalBuffer.Get(),  nullptr);
+    graphicsCommandList->DiscardResource(m_gBuffer.uvCoordBuffer.Get(), nullptr);
+    graphicsCommandList->DiscardResource(m_gBuffer.uvGradBuffer.Get(),  nullptr);
     graphicsCommandList->ClearRenderTargetView(rtvHandles[1], FLOAT4_BLACK, 0, nullptr);
     // Clear the the DSV.
     const D3D12_CLEAR_FLAGS clearFlags = D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL;
@@ -773,10 +765,9 @@ void Renderer::recordShadingPass(const PerspectiveCamera& pCam) {
     graphicsCommandList->SetGraphicsRootSignature(m_shadingPass.rootSignature.Get());
     ID3D12DescriptorHeap* texHeap = m_texPool.descriptorHeap();
     graphicsCommandList->SetDescriptorHeaps(1, &texHeap);
-    // Transition the frame resources to the readable state.
+    // Transition the G-buffer to the readable state.
     D3D12_RESOURCE_BARRIER barriers[6];
-    FrameResources& frameRes = m_frameResouces[m_frameIndex];
-    frameRes.getTransitionBarriersToReadableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_NONE);
+    m_gBuffer.getTransitionBarriersToReadableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_NONE);
     // Transition the state of the back buffer: Presenting -> Render Target.
     ID3D12Resource* backBuffer = m_swapChainBuffers[m_backBufferIndex].Get();
     barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer, D3D12_RESOURCE_STATE_PRESENT,
@@ -788,9 +779,8 @@ void Renderer::recordShadingPass(const PerspectiveCamera& pCam) {
     // Set the root arguments.
     graphicsCommandList->SetGraphicsRoot32BitConstants(0, 9, &rasterToViewDir, 0);
     graphicsCommandList->SetGraphicsRootShaderResourceView(1, m_materialBuffer.view);
-    // Set the SRVs of the frame resources.
-    const D3D12_GPU_DESCRIPTOR_HANDLE firstTexHandle = m_texPool.gpuHandle(frameRes.firstTexIndex);
-    graphicsCommandList->SetGraphicsRootDescriptorTable(2, firstTexHandle);
+    // Set the SRVs of the G-buffer.
+    graphicsCommandList->SetGraphicsRootDescriptorTable(2, m_texPool.gpuHandle(0));
     // Set the SRVs of all textures.
     graphicsCommandList->SetGraphicsRootDescriptorTable(3, m_texPool.gpuHandle(0));
     // Set the RTV.
@@ -801,8 +791,8 @@ void Renderer::recordShadingPass(const PerspectiveCamera& pCam) {
     // Perform the screen space pass using a single triangle.
     graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     graphicsCommandList->DrawInstanced(3, 1, 0, 0);
-    // Start the transition of the frame resources to the writable state.
-    frameRes.getTransitionBarriersToWritableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY);
+    // Start the transition of the G-buffer to the writable state.
+    m_gBuffer.getTransitionBarriersToWritableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY);
     // Transition the state of the back buffer: Render Target -> Presenting.
     barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET,
                                                        D3D12_RESOURCE_STATE_PRESENT};
@@ -815,8 +805,8 @@ void Renderer::renderFrame() {
     // Present the frame, and update the index of the render (back) buffer.
     CHECK_CALL(m_swapChain->Present(VSYNC_INTERVAL, 0), "Failed to display the frame buffer.");
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
-    // Reset the graphics command (frame) allocator, and update the frame index.
-    m_frameIndex = m_graphicsContext.resetCommandAllocators();
+    // Reset the graphics command (frame) allocator.
+    m_graphicsContext.resetCommandAllocators();
     // Reset command lists to their initial states.
     m_graphicsContext.resetCommandList(0, m_gBufferPass.pipelineState.Get());
     m_graphicsContext.resetCommandList(1, m_shadingPass.pipelineState.Get());

@@ -36,10 +36,12 @@ constexpr uint  TEX_CNT         = 256;
 constexpr uint  MAT_CNT         = 32;
 // Double/triple buffering.
 constexpr uint  BUF_CNT         = 3;
+// Total number of render targets the G-buffer is composed of.
+constexpr uint  G_BUFFER_SIZE   = 4;
+// Total number of render target views.
+constexpr uint  RTV_CNT         = BUF_CNT + G_BUFFER_SIZE;
 // Maximal rendering queue depth (determines the frame latency).
 constexpr uint  FRAME_CNT       = 2;
-// Total number of render target views. Depends on the definition of 'FrameResources'.
-constexpr uint  RTV_CNT         = BUF_CNT + 4 * FRAME_CNT;
 // Vertical blank count after which the synchronization is performed.
 constexpr uint  VSYNC_INTERVAL  = 0;
 // Software rendering flag.

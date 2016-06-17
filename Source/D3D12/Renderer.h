@@ -47,15 +47,13 @@ namespace D3D12 {
         // Terminates the rendering process.
         void stop();
     private:
-        struct FrameResources {
-            ComPtr<ID3D12Resource> depthStencilBuffer; 
+        struct GBuffer {
+            ComPtr<ID3D12Resource> depthBuffer; 
             ComPtr<ID3D12Resource> normalBuffer, uvCoordBuffer, uvGradBuffer, matIdBuffer;
-            uint                   firstRtvIndex;
-            uint                   firstTexIndex;
             void getTransitionBarriersToWritableState(D3D12_RESOURCE_BARRIER* barriers,
-                                                      const D3D12_RESOURCE_BARRIER_FLAGS flag);
+                                                      D3D12_RESOURCE_BARRIER_FLAGS flag);
             void getTransitionBarriersToReadableState(D3D12_RESOURCE_BARRIER* barriers,
-                                                      const D3D12_RESOURCE_BARRIER_FLAGS flag);
+                                                      D3D12_RESOURCE_BARRIER_FLAGS flag);
         };
         struct RenderPassConfig {
             ComPtr<ID3D12RootSignature> rootSignature;
@@ -85,10 +83,9 @@ namespace D3D12 {
         D3D12_VIEWPORT                m_viewport;
         D3D12_RECT                    m_scissorRect;
         GraphicsContext<FRAME_CNT, 2> m_graphicsContext;
-        uint                          m_frameIndex;
         uint                          m_backBufferIndex;
         ComPtr<ID3D12Resource>        m_swapChainBuffers[BUF_CNT];
-        FrameResources                m_frameResouces[FRAME_CNT];
+        GBuffer                       m_gBuffer;
         RtvPool<RTV_CNT>              m_rtvPool;
         DsvPool<FRAME_CNT>            m_dsvPool;
         CbvSrvUavPool<TEX_CNT>        m_texPool;

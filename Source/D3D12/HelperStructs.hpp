@@ -254,8 +254,7 @@ namespace D3D12 {
     }
 
     template<CmdType T, uint N, uint L>
-    inline auto CommandContext<T, N, L>::resetCommandAllocators()
-    -> uint {
+    inline void CommandContext<T, N, L>::resetCommandAllocators() {
         // Update the value of the last inserted fence for the current allocator set.
         m_lastFenceValues[m_frameAllocatorSet] = m_fenceValue;
         // Switch to the allocator set for the next frame.
@@ -269,7 +268,6 @@ namespace D3D12 {
             CHECK_CALL(m_commandAllocators[nextAllocatorSet][i]->Reset(),
                        "Failed to reset the command list allocator.");
         }
-        return nextAllocatorSet;
     }
 
     template<CmdType T, uint N, uint L>
