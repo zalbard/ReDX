@@ -50,10 +50,12 @@ namespace D3D12 {
         struct GBuffer {
             ComPtr<ID3D12Resource> depthBuffer; 
             ComPtr<ID3D12Resource> normalBuffer, uvCoordBuffer, uvGradBuffer, matIdBuffer;
-            void getTransitionBarriersToWritableState(D3D12_RESOURCE_BARRIER* barriers,
-                                                      D3D12_RESOURCE_BARRIER_FLAGS flag);
-            void getTransitionBarriersToReadableState(D3D12_RESOURCE_BARRIER* barriers,
-                                                      D3D12_RESOURCE_BARRIER_FLAGS flag);
+            // Sets transition barriers to the write-only (RTV or DSV) states.
+            void setWriteBarriers(D3D12_RESOURCE_BARRIER* barriers,
+                                  const D3D12_RESOURCE_BARRIER_FLAGS flag);
+            // Sets transition barriers to the read-only (SRV) state.
+            void setReadBarriers(D3D12_RESOURCE_BARRIER* barriers,
+                                 const D3D12_RESOURCE_BARRIER_FLAGS flag);
         };
         struct RenderPassConfig {
             ComPtr<ID3D12RootSignature> rootSignature;

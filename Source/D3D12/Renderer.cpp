@@ -653,8 +653,8 @@ void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
     m_uploadBuffer.currSegStart = m_uploadBuffer.offset;
 }
 
-void Renderer::GBuffer::getTransitionBarriersToWritableState(D3D12_RESOURCE_BARRIER* barriers,                          
-                                                             D3D12_RESOURCE_BARRIER_FLAGS flag) {
+void Renderer::GBuffer::setWriteBarriers(D3D12_RESOURCE_BARRIER* barriers,                          
+                                         const D3D12_RESOURCE_BARRIER_FLAGS flag) {
     barriers[0] = D3D12_TRANSITION_BARRIER{depthBuffer.Get(),
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                                            D3D12_RESOURCE_STATE_DEPTH_WRITE,   flag};
@@ -672,8 +672,8 @@ void Renderer::GBuffer::getTransitionBarriersToWritableState(D3D12_RESOURCE_BARR
                                            D3D12_RESOURCE_STATE_RENDER_TARGET, flag};
 }
 
-void Renderer::GBuffer::getTransitionBarriersToReadableState(D3D12_RESOURCE_BARRIER* barriers,                          
-                                                             D3D12_RESOURCE_BARRIER_FLAGS flag) {
+void Renderer::GBuffer::setReadBarriers(D3D12_RESOURCE_BARRIER* barriers,                          
+                                        const D3D12_RESOURCE_BARRIER_FLAGS flag) {
     barriers[0] = D3D12_TRANSITION_BARRIER{depthBuffer.Get(),
                                            D3D12_RESOURCE_STATE_DEPTH_WRITE,
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
@@ -701,7 +701,7 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     graphicsCommandList->SetDescriptorHeaps(1, &texHeap);
     // Finish the transition of the G-buffer to the writable state.
     D3D12_RESOURCE_BARRIER barriers[5];
-    m_gBuffer.getTransitionBarriersToWritableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
+    m_gBuffer.setWriteBarriers(barriers, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
     graphicsCommandList->ResourceBarrier(5, barriers);
     // Store columns 0, 1 and 3 of the view-projection matrix.
     const XMMATRIX tViewProj = XMMatrixTranspose(pCam.computeViewProjMatrix());
@@ -723,7 +723,7 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     graphicsCommandList->DiscardResource(m_gBuffer.uvCoordBuffer.Get(), nullptr);
     graphicsCommandList->DiscardResource(m_gBuffer.uvGradBuffer.Get(),  nullptr);
     graphicsCommandList->ClearRenderTargetView(rtvHandles[1], FLOAT4_BLACK, 0, nullptr);
-    // Clear the the DSV.
+    // Clear the DSV.
     const D3D12_CLEAR_FLAGS clearFlags = D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL;
     graphicsCommandList->ClearDepthStencilView(dsvHandle, clearFlags, 0, 0, 0, nullptr);
     // Define the input geometry.
@@ -767,7 +767,7 @@ void Renderer::recordShadingPass(const PerspectiveCamera& pCam) {
     graphicsCommandList->SetDescriptorHeaps(1, &texHeap);
     // Transition the G-buffer to the readable state.
     D3D12_RESOURCE_BARRIER barriers[6];
-    m_gBuffer.getTransitionBarriersToReadableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_NONE);
+    m_gBuffer.setReadBarriers(barriers, D3D12_RESOURCE_BARRIER_FLAG_NONE);
     // Transition the state of the back buffer: Presenting -> Render Target.
     ID3D12Resource* backBuffer = m_swapChainBuffers[m_backBufferIndex].Get();
     barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer, D3D12_RESOURCE_STATE_PRESENT,
@@ -792,7 +792,7 @@ void Renderer::recordShadingPass(const PerspectiveCamera& pCam) {
     graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     graphicsCommandList->DrawInstanced(3, 1, 0, 0);
     // Start the transition of the G-buffer to the writable state.
-    m_gBuffer.getTransitionBarriersToWritableState(barriers, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY);
+    m_gBuffer.setWriteBarriers(barriers, D3D12_RESOURCE_BARRIER_FLAG_BEGIN_ONLY);
     // Transition the state of the back buffer: Render Target -> Presenting.
     barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET,
                                                        D3D12_RESOURCE_STATE_PRESENT};
