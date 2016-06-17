@@ -304,7 +304,7 @@ namespace D3D12 {
                                                          const DXGI_SWAP_CHAIN_DESC1& swapChainDesc)
     -> ComPtr<IDXGISwapChain3> {
         ComPtr<IDXGISwapChain3> swapChain;
-        const auto swapChainAddr = reinterpret_cast<IDXGISwapChain1**>(swapChain.GetAddressOf());
+        IDXGISwapChain1** swapChainAddr = reinterpret_cast<IDXGISwapChain1**>(swapChain.GetAddressOf());
         CHECK_CALL(factory->CreateSwapChainForHwnd(m_commandQueue.Get(), hWnd, &swapChainDesc, 
                                                    nullptr, nullptr, swapChainAddr),
                    "Failed to create a swap chain.");
