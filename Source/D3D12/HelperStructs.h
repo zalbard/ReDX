@@ -181,6 +181,7 @@ namespace D3D12 {
         // Returns the current time of the CPU thread and the GPU queue in microseconds.
         std::pair<uint64, uint64> getTime() const;
         // Creates a swap chain for the window handle 'wHnd' according to the specified description.
+        // The swap chain needs the command queue in order to be able to flush the latter.
         // Wraps around IDXGIFactory2::CreateSwapChainForHwnd().
         ComPtr<IDXGISwapChain3> createSwapChain(IDXGIFactory4* factory, const HWND hWnd,
                                                 const DXGI_SWAP_CHAIN_DESC1& swapChainDesc);
