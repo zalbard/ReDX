@@ -713,7 +713,7 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     graphicsCommandList->SetGraphicsRoot32BitConstants(2, 12, matCols, 0);
     // Set the RTVs and the DSV.
     const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2] = {
-        m_rtvPool.cpuHandle(BUF_CNT),    // Normal RTV    
+        m_rtvPool.cpuHandle(BUF_CNT),    // First G-buffer RTV    
         m_rtvPool.cpuHandle(BUF_CNT + 3) // Material RTV
     };
     const D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = m_dsvPool.cpuHandle(0);
