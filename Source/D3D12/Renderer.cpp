@@ -360,13 +360,13 @@ void Renderer::configureShadingPass() {
                "Failed to create a graphics pipeline state object.");
 }
 
-ComPtr<ID3D12Resource> Renderer::createDepthBuffer(const size_t width, const size_t height,
+ComPtr<ID3D12Resource> Renderer::createDepthBuffer(const uint32_t width, const uint32_t height,
                                                    const DXGI_FORMAT format) {
     const D3D12_RESOURCE_DESC resourceDesc = {
         /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
         /* Alignment */        0,   // Automatic
         /* Width */            width,
-        /* Height */           static_cast<uint32_t>(height),
+        /* Height */           height,
         /* DepthOrArraySize */ 1,
         /* MipLevels */        1,
         /* Format */           format,
@@ -401,13 +401,13 @@ ComPtr<ID3D12Resource> Renderer::createDepthBuffer(const size_t width, const siz
     return depthStencilBuffer;
 }
 
-ComPtr<ID3D12Resource> Renderer::createRenderBuffer(const size_t width, const size_t height,
+ComPtr<ID3D12Resource> Renderer::createRenderBuffer(const uint32_t width, const uint32_t height,
                                                     const DXGI_FORMAT format) {
     const D3D12_RESOURCE_DESC resourceDesc = {
         /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
         /* Alignment */        0,   // Automatic,
         /* Width */            width,
-        /* Height */           static_cast<uint32_t>(height),
+        /* Height */           height,
         /* DepthOrArraySize */ 1,
         /* MipLevels */        1,
         /* Format */           format,
@@ -443,7 +443,7 @@ ComPtr<ID3D12Resource> Renderer::createRenderBuffer(const size_t width, const si
 }
 
 Texture Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTPRINT& footprint,
-                                  const size_t mipCount, const void* data) {
+                                  const uint32_t mipCount, const void* data) {
     const D3D12_RESOURCE_DESC resourceDesc = {
         /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
         /* Alignment */        0,   // Automatic

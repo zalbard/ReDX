@@ -14,7 +14,7 @@ namespace D3D12 {
         // Creates a 2D texture according to the provided description of the base MIP image.
         // Multi-sample textures and texture arrays are not supported.
         Texture createTexture2D(const D3D12_SUBRESOURCE_FOOTPRINT& footprint,
-                                const size_t mipCount, const void* data);
+                                const uint32_t mipCount, const void* data);
         // Returns the index of the SRV within the texture pool.
         size_t getTextureIndex(const Texture& texture) const;
         // Creates a constant buffer for the data of the specified size (in bytes).
@@ -65,10 +65,10 @@ namespace D3D12 {
         // Configures the shading pass.
         void configureShadingPass();
         // Creates a depth buffer with descriptors in both DSV and texture pools.
-        ComPtr<ID3D12Resource> createDepthBuffer(const size_t width, const size_t height,
+        ComPtr<ID3D12Resource> createDepthBuffer(const uint32_t width, const uint32_t height,
                                                  const DXGI_FORMAT format);
         // Creates a render buffer with descriptors in both RTV and texture pools.
-        ComPtr<ID3D12Resource> createRenderBuffer(const size_t width, const size_t height,
+        ComPtr<ID3D12Resource> createRenderBuffer(const uint32_t width, const uint32_t height,
                                                   const DXGI_FORMAT format);
         // Copies the data of the specified size (in bytes) and alignment into the upload buffer.
         // Returns the offset into the upload buffer which corresponds to the location of the data.

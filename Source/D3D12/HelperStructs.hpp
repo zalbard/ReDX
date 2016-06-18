@@ -29,17 +29,17 @@ namespace D3D12 {
     }
 
     inline D3D12_TEX2D_SRV_DESC::D3D12_TEX2D_SRV_DESC(const DXGI_FORMAT format,
-                                                      const size_t   mipCount,
-                                                      const size_t   mostDetailedMip,
-                                                      const size_t   planeSlice,
+                                                      const uint32_t mipCount,
+                                                      const uint32_t mostDetailedMip,
+                                                      const uint32_t planeSlice,
                                                       const float    resourceMinLODClamp,
                                                       const uint32_t shader4ComponentMapping) {
         Format                        = format;
         ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
         Shader4ComponentMapping       = shader4ComponentMapping;
-        Texture2D.MostDetailedMip     = static_cast<uint32_t>(mostDetailedMip);
-        Texture2D.MipLevels           = static_cast<uint32_t>(mipCount);
-        Texture2D.PlaneSlice          = static_cast<uint32_t>(planeSlice);
+        Texture2D.MipLevels           = mipCount;
+        Texture2D.MostDetailedMip     = mostDetailedMip;
+        Texture2D.PlaneSlice          = planeSlice;
         Texture2D.ResourceMinLODClamp = resourceMinLODClamp;
     }
 

@@ -208,10 +208,11 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
                 /* Depth */    static_cast<uint32_t>(info.depth),
                 /* RowPitch */ static_cast<uint32_t>(mipChain.GetImages()->rowPitch)
             };
+            const uint32_t mipCount = static_cast<uint32_t>(info.mipLevels);
             // Create a texture.
-            D3D12::Texture texture = engine.createTexture2D(footprint, info.mipLevels,
-                                                            mipChain.GetPixels());
-            const uint32_t index   = static_cast<uint32_t>(engine.getTextureIndex(texture));
+            D3D12::Texture texture  = engine.createTexture2D(footprint, mipCount,
+                                                             mipChain.GetPixels());
+            const uint32_t index    = static_cast<uint32_t>(engine.getTextureIndex(texture));
             // Add the texture to the library.
             texLib.emplace(texName, std::make_pair(std::move(texture), index));
             return index;
