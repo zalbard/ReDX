@@ -8,7 +8,7 @@ public:
     // Ctor. Parameters: the width and the height of the sensor (in pixels),
     // the vertical field of view 'vFoV' (in radians),
     // the position 'pos', the viewing direction 'dir' and the 'up' vector.
-    explicit PerspectiveCamera(const long width, const long height, const float vFoV,
+    explicit PerspectiveCamera(const float width, const float height, const float vFoV,
                                DirectX::FXMVECTOR pos, DirectX::FXMVECTOR dir,
                                DirectX::FXMVECTOR up);
     // Returns the position of the camera.
@@ -58,5 +58,5 @@ private:
     DirectX::XMFLOAT3A   m_up;          // World-space up vector
     DirectX::XMFLOAT4A   m_orientQuat;  // Orientation (quaternion)
     DirectX::XMFLOAT4X4A m_projMat;     // Projection matrix
-    DirectX::XMINT2      m_resolution;  // Viewport dimensions
+    DirectX::XMFLOAT2A   m_resolution;  // Viewport dimensions
 };

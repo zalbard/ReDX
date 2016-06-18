@@ -24,7 +24,7 @@ static inline auto createWarpDevice(IDXGIFactory4* factory)
 
 static inline auto createHardwareDevice(IDXGIFactory4* factory)
 -> ComPtr<ID3D12DeviceEx> {
-    for (uint adapterIndex = 0; ; ++adapterIndex) {
+    for (uint32_t adapterIndex = 0; ; ++adapterIndex) {
         ComPtr<IDXGIAdapter1> adapter;
         if (DXGI_ERROR_NOT_FOUND == factory->EnumAdapters1(adapterIndex, &adapter)) {
             // No more adapters to enumerate.
@@ -38,9 +38,9 @@ static inline auto createHardwareDevice(IDXGIFactory4* factory)
         if (adapterDesc.VendorId == 0x8086) {
             continue;
         }
-        // Check whether the adapter supports Direct3D 12.
+        // Check whether the adapter supports the required D3D feature level.
         if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
-                                        _uuidof(ID3D12Device), nullptr))) {
+                                        IID_PPV_ARGS(static_cast<ID3D12Device**>(nullptr))))) {
             // It does -> create a Direct3D device.
             ComPtr<ID3D12DeviceEx> device;
             CHECK_CALL(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
@@ -50,12 +50,12 @@ static inline auto createHardwareDevice(IDXGIFactory4* factory)
             char adapterDescString[32];
             wcstombs_s(nullptr, adapterDescString, 32, adapterDesc.Description, 31);
             // Print the graphics adapter details.
-            printInfo("Graphics adapter: %s",       adapterDescString);
-            printInfo("- Vendor id:      %u",       adapterDesc.VendorId);
-            printInfo("- Device id:      %u",       adapterDesc.DeviceId);
-            printInfo("- Dedicated VRAM: %llu MiB", adapterDesc.DedicatedVideoMemory / 1048576);
-            printInfo("- Dedicated RAM:  %llu MiB", adapterDesc.DedicatedSystemMemory / 1048576);
-            printInfo("- Shared RAM:     %llu MiB", adapterDesc.SharedSystemMemory / 1048576);
+            printInfo("Graphics adapter: %s",      adapterDescString);
+            printInfo("- Vendor id:      %u",      adapterDesc.VendorId);
+            printInfo("- Device id:      %u",      adapterDesc.DeviceId);
+            printInfo("- Dedicated VRAM: %zu MiB", adapterDesc.DedicatedVideoMemory / 1048576);
+            printInfo("- Dedicated RAM:  %zu MiB", adapterDesc.DedicatedSystemMemory / 1048576);
+            printInfo("- Shared RAM:     %zu MiB", adapterDesc.SharedSystemMemory / 1048576);
             return device;
         }
     }
@@ -69,8 +69,8 @@ Renderer::Renderer() {
         /* right */    Window::width(),
         /* bottom */   Window::height()
     };
-    const uint width  = static_cast<uint>(m_scissorRect.right);
-    const uint height = static_cast<uint>(m_scissorRect.bottom);
+    const uint32_t width  = static_cast<uint32_t>(m_scissorRect.right);
+    const uint32_t height = static_cast<uint32_t>(m_scissorRect.bottom);
     // Configure the viewport.
     m_viewport = D3D12_VIEWPORT{
         /* TopLeftX */ 0.f,
@@ -146,7 +146,7 @@ Renderer::Renderer() {
         m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
     }
     // Create a render target view (RTV) for each frame buffer.
-    for (uint i = 0; i < BUF_CNT; ++i) {
+    for (uint32_t i = 0; i < BUF_CNT; ++i) {
         constexpr D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {
             /* Format */        FORMAT_RTV,
             /* ViewDimension */ D3D12_RTV_DIMENSION_TEXTURE2D,
@@ -287,7 +287,7 @@ void D3D12::Renderer::configureGBufferPass() {
         /* PS */                    {psByteCode.data(), psByteCode.size},
         /* DS, HS, GS, SO */        {}, {}, {}, {},
         /* BlendState */            CD3DX12_BLEND_DESC{D3D12_DEFAULT},
-        /* SampleMask */            UINT_MAX,
+        /* SampleMask */            UINT32_MAX,
         /* RasterizerState */       rasterizerDesc,
         /* DepthStencilState */     depthStencilDesc,
         /* InputLayout */           inputLayoutDesc,
@@ -340,7 +340,7 @@ void Renderer::configureShadingPass() {
         /* PS */                    {psByteCode.data(), psByteCode.size},
         /* DS, HS, GS, SO */        {}, {}, {}, {},
         /* BlendState */            CD3DX12_BLEND_DESC{D3D12_DEFAULT},
-        /* SampleMask */            UINT_MAX,
+        /* SampleMask */            UINT32_MAX,
         /* RasterizerState */       rasterizerDesc,
         /* DepthStencilState */     {},
         /* InputLayout */           {},
@@ -360,7 +360,7 @@ void Renderer::configureShadingPass() {
                "Failed to create a graphics pipeline state object.");
 }
 
-ComPtr<ID3D12Resource> Renderer::createDepthBuffer(const uint width, const uint height,
+ComPtr<ID3D12Resource> Renderer::createDepthBuffer(const uint32_t width, const uint32_t height,
                                                    const DXGI_FORMAT format) {
     const D3D12_RESOURCE_DESC resourceDesc = {
         /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
@@ -401,7 +401,7 @@ ComPtr<ID3D12Resource> Renderer::createDepthBuffer(const uint width, const uint 
     return depthStencilBuffer;
 }
 
-ComPtr<ID3D12Resource> Renderer::createRenderBuffer(const uint width, const uint height,
+ComPtr<ID3D12Resource> Renderer::createRenderBuffer(const uint32_t width, const uint32_t height,
                                                     const DXGI_FORMAT format) {
     const D3D12_RESOURCE_DESC resourceDesc = {
         /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
@@ -442,15 +442,15 @@ ComPtr<ID3D12Resource> Renderer::createRenderBuffer(const uint width, const uint
     return renderBuffer;
 }
 
-std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTPRINT& footprint,
-                                                   const uint mipCount, const void* data) {
+std::pair<Texture, uint32_t> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTPRINT& footprint,
+                                                       const size_t mipCount, const void* data) {
     const D3D12_RESOURCE_DESC resourceDesc = {
         /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
         /* Alignment */        0,   // Automatic
         /* Width */            footprint.Width,
         /* Height */           footprint.Height,
-        /* DepthOrArraySize */ static_cast<uint16>(footprint.Depth),
-        /* MipLevels */        static_cast<uint16>(mipCount),
+        /* DepthOrArraySize */ static_cast<uint16_t>(footprint.Depth),
+        /* MipLevels */        static_cast<uint16_t>(mipCount),
         /* Format */           footprint.Format,
         /* SampleDesc */       SINGLE_SAMPLE,
         /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
@@ -475,30 +475,30 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
     if (data) {
         assert(0 == footprint.RowPitch % D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
         // Upload MIP levels one by one.
-        for (uint i = 0; i < mipCount; ++i) {
-            const uint width     = std::max(1u, footprint.Width >> i);
-            const uint height    = std::max(1u, footprint.Height >> i);
-            const uint dataPitch = std::max(1u, footprint.RowPitch >> i);
-            const uint rowPitch  = align<D3D12_TEXTURE_DATA_PITCH_ALIGNMENT>(dataPitch);
-            const uint size      = rowPitch * height;
+        for (size_t i = 0; i < mipCount; ++i) {
+            const uint32_t width     = std::max(1u, footprint.Width >> i);
+            const uint32_t height    = std::max(1u, footprint.Height >> i);
+            const size_t   dataPitch = std::max(1u, footprint.RowPitch >> i);
+            const size_t   rowPitch  = align<D3D12_TEXTURE_DATA_PITCH_ALIGNMENT>(dataPitch);
+            const size_t   size      = rowPitch * height;
             // Linear subresource copying must be aligned to 512 bytes.
-            constexpr uint alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
-            uint offset;
+            constexpr size_t alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+            size_t offset;
             // Check whether pitched copying is required.
             if (dataPitch == rowPitch) {
                 // Copy the entire MIP level at once.
                 offset = copyToUploadBuffer<alignment>(size, data);
                 // Advance the data pointer to the next MIP level.
-                data = static_cast<const byte*>(data) + size;
+                data = static_cast<const byte_t*>(data) + size;
             } else {
                 // Reserve a chunk of memory for the entire MIP level.
-                byte* address;
+                byte_t* address;
                 std::tie(address, offset) = reserveChunkOfUploadBuffer<alignment>(size);
                 // Copy the MIP level one row at a time.
-                for (uint row = 0; row < height; ++row) {
+                for (size_t row = 0; row < height; ++row) {
                     memcpy(address, data, dataPitch);
                     address += rowPitch;
-                    data     = static_cast<const byte*>(data) + dataPitch;
+                    data     = static_cast<const byte_t*>(data) + dataPitch;
                 }
             }
             // Copy the data from the upload buffer into the video memory texture.
@@ -508,27 +508,28 @@ std::pair<Texture, uint> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTP
                 /* Width */    width,
                 /* Height */   height,
                 /* Depth */    footprint.Depth,
-                /* RowPitch */ rowPitch
+                /* RowPitch */ static_cast<uint32_t>(rowPitch)
             };
+            const uint32_t subResId = static_cast<uint32_t>(i);
             const CD3DX12_TEXTURE_COPY_LOCATION src{m_uploadBuffer.resource.Get(), levelFootprint};
-            const CD3DX12_TEXTURE_COPY_LOCATION dst{texture.resource.Get(), i};
+            const CD3DX12_TEXTURE_COPY_LOCATION dst{texture.resource.Get(), subResId};
             m_copyContext.commandList(0)->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
         }
     }
     // Initialize the shader resource view.
     const D3D12_TEX2D_SRV_DESC srvDesc{footprint.Format, mipCount};
-    const uint textureId = m_texPool.size;
-    texture.view         = m_texPool.gpuHandle(m_texPool.size);
+    const uint32_t textureId = m_texPool.size++;
     m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc,
-                                       m_texPool.cpuHandle(m_texPool.size++));
+                                       m_texPool.cpuHandle(textureId));
+    texture.view = m_texPool.gpuHandle(textureId);
     return {texture, textureId};
 }
 
-uint Renderer::getTextureIndex(const Texture& texture) const {
+size_t Renderer::getTextureIndex(const Texture& texture) const {
     return m_texPool.computeIndex(texture.view);
 }
 
-ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data) {
+ConstantBuffer Renderer::createConstantBuffer(const size_t size, const void* data) {
     assert(!data || size >= 4);
     ConstantBuffer buffer;
     // Allocate the buffer on the default heap.
@@ -545,8 +546,8 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data)
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
         // Linear subresource copying must be aligned to 512 bytes.
-        constexpr uint alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
-        const     uint offset    = copyToUploadBuffer<alignment>(size, data);
+        constexpr size_t alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+        const     size_t offset    = copyToUploadBuffer<alignment>(size, data);
         // Copy the data from the upload buffer into the video memory buffer.
         m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
                                                        m_uploadBuffer.resource.Get(), offset,
@@ -557,7 +558,7 @@ ConstantBuffer Renderer::createConstantBuffer(const uint size, const void* data)
     return buffer;
 }
 
-StructuredBuffer Renderer::createStructuredBuffer(const uint size, const void* data) {
+StructuredBuffer Renderer::createStructuredBuffer(const size_t size, const void* data) {
     assert(!data || size >= 4);
     StructuredBuffer buffer;
     // Allocate the buffer on the default heap.
@@ -574,8 +575,8 @@ StructuredBuffer Renderer::createStructuredBuffer(const uint size, const void* d
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     if (data) {
         // Linear subresource copying must be aligned to 512 bytes.
-        constexpr uint alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
-        const     uint offset    = copyToUploadBuffer<alignment>(size, data);
+        constexpr size_t alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+        const     size_t offset    = copyToUploadBuffer<alignment>(size, data);
         // Copy the data from the upload buffer into the video memory buffer.
         m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
                                                        m_uploadBuffer.resource.Get(), offset,
@@ -586,9 +587,9 @@ StructuredBuffer Renderer::createStructuredBuffer(const uint size, const void* d
     return buffer;
 }
 
-IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
+IndexBuffer Renderer::createIndexBuffer(const size_t count, const uint32_t* indices) {
     assert(indices && count >= 3);
-    const uint size = count * sizeof(uint);
+    const size_t size = count * sizeof(uint32_t);
     IndexBuffer buffer;
     // Allocate the buffer on the default heap.
     const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_DEFAULT};
@@ -603,25 +604,25 @@ IndexBuffer Renderer::createIndexBuffer(const uint count, const uint* indices) {
                                            D3D12_RESOURCE_STATE_INDEX_BUFFER};
     m_graphicsContext.commandList(0)->ResourceBarrier(1, &barrier);
     // Linear subresource copying must be aligned to 512 bytes.
-    constexpr uint alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
-    const     uint offset    = copyToUploadBuffer<alignment>(size, indices);
+    constexpr size_t alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+    const     size_t offset    = copyToUploadBuffer<alignment>(size, indices);
     // Copy the data from the upload buffer into the video memory buffer.
     m_copyContext.commandList(0)->CopyBufferRegion(buffer.resource.Get(), 0,
                                                    m_uploadBuffer.resource.Get(), offset,
                                                    size);
     // Initialize the index buffer view.
     buffer.view.BufferLocation = buffer.resource->GetGPUVirtualAddress(),
-    buffer.view.SizeInBytes    = size;
+    buffer.view.SizeInBytes    = static_cast<uint32_t>(size);
     buffer.view.Format         = DXGI_FORMAT_R32_UINT;
     return buffer;
 }
 
-void Renderer::setMaterials(const uint count, const Material* materials) {
+void Renderer::setMaterials(const size_t count, const Material* materials) {
     assert(count <= MAT_CNT);
     // Linear subresource copying must be aligned to 512 bytes.
-    constexpr uint alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
-    const     uint size      = count * sizeof(Material);
-    const     uint offset    = copyToUploadBuffer<alignment>(size, materials);
+    constexpr size_t alignment = D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT;
+    const     size_t size      = count * sizeof(Material);
+    const     size_t offset    = copyToUploadBuffer<alignment>(size, materials);
     // Copy the data from the upload buffer into the video memory buffer.
     m_copyContext.commandList(0)->CopyBufferRegion(m_materialBuffer.resource.Get(), 0,
                                                    m_uploadBuffer.resource.Get(), offset, size);
@@ -630,7 +631,7 @@ void Renderer::setMaterials(const uint count, const Material* materials) {
 void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
     // Finalize and execute the command list.
     ID3D12Fence* insertedFence;
-    uint64       insertedValue;
+    uint64_t       insertedValue;
     std::tie(insertedFence, insertedValue) = m_copyContext.executeCommandList(0);
     // Ensure synchronization between the graphics and the copy command queues.
     m_graphicsContext.syncCommandQueue(insertedFence, insertedValue);
@@ -732,16 +733,16 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     // Compute the viewing frustum.
     Frustum frustum = pCam.computeViewFrustum();
     // Issue draw calls.
-    uint16 matId = UINT16_MAX;
-    for (uint64 i = 0, n = scene.objects.count; i < n; ++i) {
+    uint16_t matId = UINT16_MAX;
+    for (size_t i = 0, n = scene.objects.count; i < n; ++i) {
         // Test the object for visibility.
         if (frustum.intersects(scene.objects.boundingSpheres[i])) {
             if (matId != scene.objects.materialIndices[i]) {
                 matId  = scene.objects.materialIndices[i];
                 // Check whether the material has a valid bump map.
-                uint bumpMapFlag = 0;
-                const uint texId = scene.materials[matId].bumpTexId;
-                if (texId < UINT_MAX) {
+                uint32_t bumpMapFlag = 0;
+                const uint32_t texId = scene.materials[matId].bumpTexId;
+                if (texId < UINT32_MAX) {
                     bumpMapFlag = 1u << 31;
                     const D3D12_GPU_DESCRIPTOR_HANDLE texHandle = m_texPool.gpuHandle(texId);
                     graphicsCommandList->SetGraphicsRootDescriptorTable(0, texHandle);
@@ -749,9 +750,11 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
                 // Set the bump map flag and the material index.
                 graphicsCommandList->SetGraphicsRoot32BitConstant(1, bumpMapFlag | matId, 0);
             }
-            // Draw the object.
-            const uint count = scene.objects.indexBuffers.views[i].SizeInBytes / sizeof(uint);
+            // Set the index buffer.
+            const D3D12_INDEX_BUFFER_VIEW ibv = scene.objects.indexBuffers.views[i];
             graphicsCommandList->IASetIndexBuffer(&scene.objects.indexBuffers.views[i]);
+            // Draw the object.
+            const uint32_t count = ibv.SizeInBytes / sizeof(uint32_t);
             graphicsCommandList->DrawIndexedInstanced(count, 1, 0, 0, 0);
         }
     }
@@ -815,7 +818,7 @@ void Renderer::renderFrame() {
     WaitForSingleObject(m_swapChainWaitableObject, INFINITE);
 }
 
-std::pair<uint64, uint64> Renderer::getTime() const {
+std::pair<uint64_t, uint64_t> Renderer::getTime() const {
     return m_graphicsContext.getTime();
 }
 

@@ -18,16 +18,16 @@ Buffer::Buffer(const char* fileWithPath) {
     size = capacity = ftell(file);
     rewind(file);
     // Read the file.
-    ptr = std::make_unique<byte[]>(capacity);
+    ptr = std::make_unique<byte_t[]>(capacity);
     fread(ptr.get(), 1, size, file);
     // Close the file.
     fclose(file);
 }
 
-byte* Buffer::data() {
+byte_t* Buffer::data() {
     return ptr.get();
 }
 
-const byte* Buffer::data() const {
+const byte_t* Buffer::data() const {
     return ptr.get();
 }

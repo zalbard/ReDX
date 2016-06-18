@@ -6,19 +6,18 @@ DynBitSet::DynBitSet()
     , m_bitCount{0}
     , m_dwordCount{0} {}
 
-
-DynBitSet::DynBitSet(const uint size)
-    : m_bits{std::make_unique<uint[]>((size + 31) / 32)}
-    , m_bitCount{size}
-    , m_dwordCount{(size + 31) / 32} {
+DynBitSet::DynBitSet(const size_t size)
+    : m_bits{std::make_unique<uint32_t[]>((size + 31) / 32)}
+    , m_bitCount{static_cast<uint32_t>(size)}
+    , m_dwordCount{static_cast<uint32_t>((size + 31) / 32)} {
     reset(0);
 }
 
 DynBitSet::DynBitSet(const DynBitSet& other)
-    : m_bits{std::make_unique<uint[]>(other.m_dwordCount)}
+    : m_bits{std::make_unique<uint32_t[]>(other.m_dwordCount)}
     , m_bitCount{other.m_bitCount}
     , m_dwordCount{other.m_dwordCount} {
-    memcpy(m_bits.get(), other.m_bits.get(), other.m_dwordCount * sizeof(uint));
+    memcpy(m_bits.get(), other.m_bits.get(), other.m_dwordCount * sizeof(uint32_t));
 }
 
 DynBitSet& DynBitSet::operator=(const DynBitSet& other) {
@@ -29,10 +28,10 @@ DynBitSet& DynBitSet::operator=(const DynBitSet& other) {
             // The size exposed to the user will be identical to 'other'.
         } else {
             // Allocate a bigger buffer.
-            m_bits = std::make_unique<uint[]>(other.m_dwordCount);
+            m_bits = std::make_unique<uint32_t[]>(other.m_dwordCount);
         }
         m_dwordCount = other.m_dwordCount;
-        memcpy(m_bits.get(), other.m_bits.get(), other.m_dwordCount * sizeof(uint));
+        memcpy(m_bits.get(), other.m_bits.get(), other.m_dwordCount * sizeof(uint32_t));
     }
     return *this;
 }
@@ -44,26 +43,26 @@ DynBitSet& DynBitSet::operator=(DynBitSet&& other) noexcept = default;
 DynBitSet::~DynBitSet() noexcept = default;
 
 void DynBitSet::reset(const bool value) {
-    const byte val = value ? 0xFF : 0x0;
-    memset(m_bits.get(), val, m_dwordCount * sizeof(uint));
+    const byte_t val = value ? 0xFF : 0x0;
+    memset(m_bits.get(), val, m_dwordCount * sizeof(uint32_t));
 }
 
-void DynBitSet::clearBit(const uint index) {
+void DynBitSet::clearBit(const size_t index) {
     assert(index < m_bitCount);
     m_bits[index / 32] &= ~(1 << (index % 32));
 }
 
-void DynBitSet::setBit(const uint index) {
+void DynBitSet::setBit(const size_t index) {
     assert(index < m_bitCount);
     m_bits[index / 32] |= 1 << (index % 32);
 }
 
-void DynBitSet::toggleBit(const uint index) {
+void DynBitSet::toggleBit(const size_t index) {
     assert(index < m_bitCount);
     m_bits[index / 32] ^= 1 << (index % 32);
 }
 
-bool DynBitSet::testBit(const uint index) const {
+bool DynBitSet::testBit(const size_t index) const {
     assert(index < m_bitCount);
     return 0 != (m_bits[index / 32] & 1 << (index % 32));
 }

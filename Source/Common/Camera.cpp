@@ -3,14 +3,14 @@
 
 using namespace DirectX;
 
-PerspectiveCamera::PerspectiveCamera(const long width, const long height, const float vFoV,
+PerspectiveCamera::PerspectiveCamera(const float width, const float height, const float vFoV,
                                      FXMVECTOR pos, FXMVECTOR dir, FXMVECTOR up)
     : m_resolution{width, height} {
-        setPosition(pos);
-        setUpVector(up);
-        setOrientation(XMQuaternionRotationMatrix(RotationMatrixLH(dir, up)));
-        // Compute the infinite reversed projection matrix.
-        XMStoreFloat4x4A(&m_projMat, InfRevProjMatLH(width, height, vFoV));
+    setPosition(pos);
+    setUpVector(up);
+    setOrientation(XMQuaternionRotationMatrix(RotationMatrixLH(dir, up)));
+    // Compute the infinite reversed projection matrix.
+    XMStoreFloat4x4A(&m_projMat, InfRevProjMatLH(width, height, vFoV));
 }
 
 XMVECTOR PerspectiveCamera::position() const {

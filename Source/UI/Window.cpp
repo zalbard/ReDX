@@ -77,7 +77,7 @@ long Window::height() {
 }
 
 float Window::aspectRatio() {
-    return static_cast<float>(width())/static_cast<float>(height());
+    return static_cast<float>(m_width)/static_cast<float>(m_height);
 }
 
 void Window::displayInfo(const float cpuFrameTime, const float gpuFrameTime) {

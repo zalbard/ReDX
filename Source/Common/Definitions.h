@@ -1,5 +1,13 @@
 #pragma once
 
+// Fixed width integer types for storage.
+#include <cstdint>
+
+// Fast integer types for compute.
+using byte_t = unsigned char;
+using size_t = size_t;
+using sign_t = ptrdiff_t;
+
 // Declares -default- Dtor, copy/move Ctors and assignment Otors.
 #define RULE_OF_ZERO(T) T(const T&)                = default; \
                         T& operator=(const T&)     = default; \
@@ -38,13 +46,6 @@
                         T(T&&) noexcept            = delete; \
                         T& operator=(T&&) noexcept = delete; \
                         ~T() noexcept              = delete
-
-// Typedefs.
-using byte   = unsigned char;
-using int64  = long long int;
-using uint   = unsigned int;
-using uint16 = unsigned short;
-using uint64 = unsigned long long int;
 
 // Clean up Windows header includes.
 // These are already defined for the entire project!

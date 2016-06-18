@@ -84,7 +84,7 @@ static bool parse_obj(std::istream& stream, obj::File& file) {
     file.objects[0].groups.emplace_back();
 
     // Add an empty material to the scene
-    int cur_mtl = 0;
+    size_t cur_mtl = 0;
     file.materials.emplace_back("");
 
     // Add dummy vertex, normal, and texcoord
@@ -149,7 +149,7 @@ static bool parse_obj(std::istream& stream, obj::File& file) {
             obj::Face f;
 
             f.index_count = 0;
-            f.material = cur_mtl;
+            f.material = static_cast<uint32_t>(cur_mtl);
 
             bool valid = true;
             ptr += 2;
@@ -169,7 +169,7 @@ static bool parse_obj(std::istream& stream, obj::File& file) {
                 err_count++;
             } else {
                 // Convert relative indices to absolute
-                for (int i = 0; i < f.index_count; i++) {
+                for (size_t i = 0; i < f.index_count; i++) {
                     f.indices[i].v = (f.indices[i].v < 0) ? (int)file.vertices.size()  + f.indices[i].v : f.indices[i].v;
                     f.indices[i].t = (f.indices[i].t < 0) ? (int)file.texcoords.size() + f.indices[i].t : f.indices[i].t;
                     f.indices[i].n = (f.indices[i].n < 0) ? (int)file.normals.size()   + f.indices[i].n : f.indices[i].n;
@@ -177,7 +177,7 @@ static bool parse_obj(std::istream& stream, obj::File& file) {
 
                 // Check if the indices are valid or not
                 valid = true;
-                for (int i = 0; i < f.index_count; i++) {
+                for (size_t i = 0; i < f.index_count; i++) {
                     if (f.indices[i].v <= 0 || f.indices[i].t < 0 || f.indices[i].n < 0) {
                         valid = false;
                         break;
@@ -209,8 +209,8 @@ static bool parse_obj(std::istream& stream, obj::File& file) {
 
             const std::string mtl_name(base, ptr);
 
-            cur_mtl = (int)(std::find(file.materials.begin(), file.materials.end(), mtl_name) - file.materials.begin());
-            if (cur_mtl == (int)file.materials.size()) {
+            cur_mtl = std::find(file.materials.begin(), file.materials.end(), mtl_name) - file.materials.begin();
+            if (cur_mtl == file.materials.size()) {
                 file.materials.push_back(mtl_name);            
             }
         } else if (!std::strncmp(ptr, "mtllib", 6) && std::isspace(ptr[6])) {
