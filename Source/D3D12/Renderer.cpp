@@ -62,15 +62,15 @@ static inline auto createHardwareDevice(IDXGIFactory4* factory)
 }
 
 Renderer::Renderer() {
+    const uint32_t width  = Window::width();
+    const uint32_t height = Window::height();
     // Configure the scissor rectangle used for clipping.
     m_scissorRect = D3D12_RECT{
         /* left */     0,
         /* top */      0,
-        /* right */    Window::width(),
-        /* bottom */   Window::height()
+        /* right */    static_cast<long>(width),
+        /* bottom */   static_cast<long>(height)
     };
-    const uint32_t width  = static_cast<uint32_t>(m_scissorRect.right);
-    const uint32_t height = static_cast<uint32_t>(m_scissorRect.bottom);
     // Configure the viewport.
     m_viewport = D3D12_VIEWPORT{
         /* TopLeftX */ 0.f,
@@ -360,13 +360,13 @@ void Renderer::configureShadingPass() {
                "Failed to create a graphics pipeline state object.");
 }
 
-ComPtr<ID3D12Resource> Renderer::createDepthBuffer(const uint32_t width, const uint32_t height,
+ComPtr<ID3D12Resource> Renderer::createDepthBuffer(const size_t width, const size_t height,
                                                    const DXGI_FORMAT format) {
     const D3D12_RESOURCE_DESC resourceDesc = {
         /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
         /* Alignment */        0,   // Automatic
         /* Width */            width,
-        /* Height */           height,
+        /* Height */           static_cast<uint32_t>(height),
         /* DepthOrArraySize */ 1,
         /* MipLevels */        1,
         /* Format */           format,
@@ -401,13 +401,13 @@ ComPtr<ID3D12Resource> Renderer::createDepthBuffer(const uint32_t width, const u
     return depthStencilBuffer;
 }
 
-ComPtr<ID3D12Resource> Renderer::createRenderBuffer(const uint32_t width, const uint32_t height,
+ComPtr<ID3D12Resource> Renderer::createRenderBuffer(const size_t width, const size_t height,
                                                     const DXGI_FORMAT format) {
     const D3D12_RESOURCE_DESC resourceDesc = {
         /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
         /* Alignment */        0,   // Automatic,
         /* Width */            width,
-        /* Height */           height,
+        /* Height */           static_cast<uint32_t>(height),
         /* DepthOrArraySize */ 1,
         /* MipLevels */        1,
         /* Format */           format,

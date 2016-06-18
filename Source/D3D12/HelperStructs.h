@@ -12,12 +12,11 @@ namespace D3D12 {
     using Microsoft::WRL::ComPtr;
 
     struct D3D12_TEX2D_SRV_DESC: public D3D12_SHADER_RESOURCE_VIEW_DESC {
-        explicit D3D12_TEX2D_SRV_DESC(const DXGI_FORMAT format,
-                                      const size_t mipCount,
-                                      const size_t mostDetailedMip         = 0,
-                                      const size_t planeSlice              = 0,
-                                      const float  resourceMinLODClamp     = 0.f,
-                                      const size_t shader4ComponentMapping =
+        explicit D3D12_TEX2D_SRV_DESC(const DXGI_FORMAT format, const size_t mipCount,
+                                      const size_t   mostDetailedMip         = 0,
+                                      const size_t   planeSlice              = 0,
+                                      const float    resourceMinLODClamp     = 0.f,
+                                      const uint32_t shader4ComponentMapping =
                                       D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING);
     };
 

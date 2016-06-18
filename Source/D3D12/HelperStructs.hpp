@@ -29,14 +29,14 @@ namespace D3D12 {
     }
 
     inline D3D12_TEX2D_SRV_DESC::D3D12_TEX2D_SRV_DESC(const DXGI_FORMAT format,
-                                                      const size_t mipCount,
-                                                      const size_t mostDetailedMip,
-                                                      const size_t planeSlice,
-                                                      const float  resourceMinLODClamp,
-                                                      const size_t shader4ComponentMapping) {
+                                                      const size_t   mipCount,
+                                                      const size_t   mostDetailedMip,
+                                                      const size_t   planeSlice,
+                                                      const float    resourceMinLODClamp,
+                                                      const uint32_t shader4ComponentMapping) {
         Format                        = format;
         ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
-        Shader4ComponentMapping       = static_cast<uint32_t>(shader4ComponentMapping);
+        Shader4ComponentMapping       = shader4ComponentMapping;
         Texture2D.MostDetailedMip     = static_cast<uint32_t>(mostDetailedMip);
         Texture2D.MipLevels           = static_cast<uint32_t>(mipCount);
         Texture2D.PlaneSlice          = static_cast<uint32_t>(planeSlice);
@@ -380,11 +380,11 @@ namespace D3D12 {
     inline void ID3D12DeviceEx::createDescriptorPool(DescriptorPool<T, N>* descriptorPool) {
         static_assert(N > 0, "Invalid descriptor pool capacity.");
         assert(descriptorPool);
-        constexpr auto type            = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);
+        constexpr auto heapType        = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);
         constexpr bool isShaderVisible = DescType::CBV_SRV_UAV == T || DescType::SAMPLER == T;
         // Fill out the descriptor heap description.
         const D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {
-            /* Type */           type,
+            /* Type */           heapType,
             /* NumDescriptors */ N,
             /* Flags */          isShaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
                                                  : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
@@ -397,6 +397,6 @@ namespace D3D12 {
         descriptorPool->size = 0;
         descriptorPool->m_cpuBegin = descriptorPool->m_heap->GetCPUDescriptorHandleForHeapStart();
         descriptorPool->m_gpuBegin = descriptorPool->m_heap->GetGPUDescriptorHandleForHeapStart();
-        descriptorPool->m_handleIncrSz = GetDescriptorHandleIncrementSize(type);
+        descriptorPool->m_handleIncrSz = GetDescriptorHandleIncrementSize(heapType);
     }
 } // namespace D3D12

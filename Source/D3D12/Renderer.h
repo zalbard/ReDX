@@ -65,10 +65,10 @@ namespace D3D12 {
         // Configures the shading pass.
         void configureShadingPass();
         // Creates a depth buffer with descriptors in both DSV and texture pools.
-        ComPtr<ID3D12Resource> createDepthBuffer(const uint32_t width, const uint32_t height,
+        ComPtr<ID3D12Resource> createDepthBuffer(const size_t width, const size_t height,
                                                  const DXGI_FORMAT format);
         // Creates a render buffer with descriptors in both RTV and texture pools.
-        ComPtr<ID3D12Resource> createRenderBuffer(const uint32_t width, const uint32_t height,
+        ComPtr<ID3D12Resource> createRenderBuffer(const size_t width, const size_t height,
                                                   const DXGI_FORMAT format);
         // Copies the data of the specified size (in bytes) and alignment into the upload buffer.
         // Returns the offset into the upload buffer which corresponds to the location of the data.

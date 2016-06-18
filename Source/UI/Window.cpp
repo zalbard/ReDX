@@ -6,10 +6,9 @@
 #include "..\Common\Utility.h"
 
 // Perform static member initialization.
-HWND Window::m_hwnd   = nullptr;
-long Window::m_width  = 0;
-long Window::m_height = 0;
-RECT Window::m_rect   = {};
+uint32_t Window::m_width  = 0;
+uint32_t Window::m_height = 0;
+HWND     Window::m_hwnd   = nullptr;
 
 // Main message handler.
 LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
@@ -28,12 +27,12 @@ LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
     }
 }
 
-void Window::open(const long width, const long height) {
+void Window::open(const uint32_t width, const uint32_t height) {
     m_width  = width;
     m_height = height;
     // Set up the rectangle position and dimensions.
-    m_rect = {0, 0, width, height};
-    AdjustWindowRect(&m_rect, WS_OVERLAPPEDWINDOW, FALSE);
+    RECT rect = {0, 0, static_cast<long>(width), static_cast<long>(height)};
+    AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
     // Get the handle to the instance of the application.
     const HINSTANCE appHandle = GetModuleHandle(nullptr);
     // Register the window class.
@@ -51,8 +50,8 @@ void Window::open(const long width, const long height) {
     m_hwnd = CreateWindow(wndClass.lpszClassName, L"ReDX",
                           WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,  // Disable resizing
                           CW_USEDEFAULT, CW_USEDEFAULT,
-                          m_rect.right - m_rect.left,
-                          m_rect.bottom - m_rect.top,
+                          rect.right - rect.left,
+                          rect.bottom - rect.top,
                           nullptr, nullptr,                         // No parent window, no menus
                           appHandle, nullptr);
     if (!m_hwnd) {
@@ -68,16 +67,12 @@ HWND Window::handle() {
     return m_hwnd;
 }
 
-long Window::width() {
+uint32_t Window::width() {
     return m_width;
 }
 
-long Window::height() {
+uint32_t Window::height() {
     return m_height;
-}
-
-float Window::aspectRatio() {
-    return static_cast<float>(m_width)/static_cast<float>(m_height);
 }
 
 void Window::displayInfo(const float cpuFrameTime, const float gpuFrameTime) {
