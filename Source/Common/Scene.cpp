@@ -170,8 +170,8 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
     }
     // Store textures in a map to avoid duplicates.
     TextureMap texLib;
-    // Acquires the texture index by either looking it up
-    // in the texture library, or loading it from disk.
+    // Acquires the texture index by either looking it up in the texture library,
+    // or loading it from disk (and subsequently adding it to the library).
     auto acquireTexureIndex = [&texLib, &pathStr, &engine](const std::string& texName) {
         if (texName.empty()) return UINT32_MAX;
         // Currently, only .tga textures are supported.
@@ -209,12 +209,12 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
                 /* RowPitch */ static_cast<uint32_t>(mipChain.GetImages()->rowPitch)
             };
             // Create a texture.
-            const size_t mipCount = info.mipLevels;
-            const auto res = texLib.emplace(texName, engine.createTexture2D(footprint, mipCount,
-                                                                            mipChain.GetPixels()));
-            // Return the texture index.
-            const auto texIter = res.first;
-            return texIter->second.second;
+            D3D12::Texture texture = engine.createTexture2D(footprint, info.mipLevels,
+                                                            mipChain.GetPixels());
+            const uint32_t index   = static_cast<uint32_t>(engine.getTextureIndex(texture));
+            // Add the texture to the library.
+            texLib.emplace(texName, std::make_pair(std::move(texture), index));
+            return index;
         }
     };
     // Load individual materials.

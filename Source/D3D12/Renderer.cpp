@@ -442,8 +442,8 @@ ComPtr<ID3D12Resource> Renderer::createRenderBuffer(const uint32_t width, const 
     return renderBuffer;
 }
 
-std::pair<Texture, uint32_t> Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTPRINT& footprint,
-                                                       const size_t mipCount, const void* data) {
+Texture Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTPRINT& footprint,
+                                  const size_t mipCount, const void* data) {
     const D3D12_RESOURCE_DESC resourceDesc = {
         /* Dimension */        D3D12_RESOURCE_DIMENSION_TEXTURE2D,
         /* Alignment */        0,   // Automatic
@@ -518,11 +518,10 @@ std::pair<Texture, uint32_t> Renderer::createTexture2D(const D3D12_SUBRESOURCE_F
     }
     // Initialize the shader resource view.
     const D3D12_TEX2D_SRV_DESC srvDesc{footprint.Format, mipCount};
-    const uint32_t textureId = m_texPool.size++;
+    texture.view = m_texPool.gpuHandle(m_texPool.size);
     m_device->CreateShaderResourceView(texture.resource.Get(), &srvDesc,
-                                       m_texPool.cpuHandle(textureId));
-    texture.view = m_texPool.gpuHandle(textureId);
-    return {texture, textureId};
+                                       m_texPool.cpuHandle(m_texPool.size++));
+    return texture;
 }
 
 size_t Renderer::getTextureIndex(const Texture& texture) const {
@@ -631,7 +630,7 @@ void Renderer::setMaterials(const size_t count, const Material* materials) {
 void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
     // Finalize and execute the command list.
     ID3D12Fence* insertedFence;
-    uint64_t       insertedValue;
+    uint64_t     insertedValue;
     std::tie(insertedFence, insertedValue) = m_copyContext.executeCommandList(0);
     // Ensure synchronization between the graphics and the copy command queues.
     m_graphicsContext.syncCommandQueue(insertedFence, insertedValue);

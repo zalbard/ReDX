@@ -13,9 +13,8 @@ namespace D3D12 {
         Renderer();
         // Creates a 2D texture according to the provided description of the base MIP image.
         // Multi-sample textures and texture arrays are not supported.
-        // Returns the texture and the index of the associated SRV within the texture pool.
-        std::pair<Texture, uint32_t> createTexture2D(const D3D12_SUBRESOURCE_FOOTPRINT& footprint,
-                                                     const size_t mipCount, const void* data);
+        Texture createTexture2D(const D3D12_SUBRESOURCE_FOOTPRINT& footprint,
+                                const size_t mipCount, const void* data);
         // Returns the index of the SRV within the texture pool.
         size_t getTextureIndex(const Texture& texture) const;
         // Creates a constant buffer for the data of the specified size (in bytes).
