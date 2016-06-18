@@ -22,24 +22,24 @@ namespace D3D12 {
             format = DXGI_FORMAT_X32_TYPELESS_G8X24_UINT;
             break;
         default:
-            printError("Invalid depth resource format.");
+            printError("Invalid depth format.");
             TERMINATE();
         }
         return format;
     }
 
     inline D3D12_TEX2D_SRV_DESC::D3D12_TEX2D_SRV_DESC(const DXGI_FORMAT format,
-                                                      const uint  mipCount,
-                                                      const uint  mostDetailedMip,
-                                                      const uint  planeSlice,
-                                                      const float resourceMinLODClamp,
-                                                      const uint  shader4ComponentMapping) {
+                                                      const size_t   mipCount,
+                                                      const size_t   mostDetailedMip,
+                                                      const size_t   planeSlice,
+                                                      const float    resourceMinLODClamp,
+                                                      const uint32_t shader4ComponentMapping) {
         Format                        = format;
         ViewDimension                 = D3D12_SRV_DIMENSION_TEXTURE2D;
         Shader4ComponentMapping       = shader4ComponentMapping;
-        Texture2D.MostDetailedMip     = mostDetailedMip;
-        Texture2D.MipLevels           = mipCount;
-        Texture2D.PlaneSlice          = planeSlice;
+        Texture2D.MostDetailedMip     = static_cast<uint32_t>(mostDetailedMip);
+        Texture2D.MipLevels           = static_cast<uint32_t>(mipCount);
+        Texture2D.PlaneSlice          = static_cast<uint32_t>(planeSlice);
         Texture2D.ResourceMinLODClamp = resourceMinLODClamp;
     }
 
@@ -82,15 +82,15 @@ namespace D3D12 {
         , currSegStart{0} {}
 
     inline auto UploadRingBuffer::remainingCapacity() const
-    -> uint {
-        const int dist = prevSegStart - offset;
+    -> size_t {
+        const sign_t dist = prevSegStart - offset;
         // Account for the wrap-around.
         return (prevSegStart <= offset) ? capacity + dist : dist;
     }
 
     inline auto UploadRingBuffer::previousSegmentSize() const
-    -> uint {
-        const int dist = currSegStart - prevSegStart;
+    -> size_t {
+        const sign_t dist = currSegStart - prevSegStart;
         // Account for the wrap-around.
         return (prevSegStart <= currSegStart) ? dist : capacity + dist;
     }
@@ -130,73 +130,59 @@ namespace D3D12 {
     }
 
     template<typename T>
-    inline void ResourceViewSoA<T>::allocate(const uint count) {
+    inline void ResourceViewSoA<T>::allocate(const size_t count) {
         assert(!resources && !views);
         resources = std::make_unique<Resource[]>(count);
         views     = std::make_unique<View[]>(count);
     }
 
     template<typename T>
-    inline void ResourceViewSoA<T>::assign(const uint index, const T& object) {
+    inline void ResourceViewSoA<T>::assign(const size_t index, const T& object) {
         resources[index] = object.resource;
         views[index]     = object.view;
     }
 
     template<typename T>
-    inline void ResourceViewSoA<T>::assign(const uint index, T&& object) {
+    inline void ResourceViewSoA<T>::assign(const size_t index, T&& object) {
         resources[index] = std::move(object.resource);
         views[index]     = std::move(object.view);
     }
 
-    template<DescType T, uint N>
+    template<DescType T, size_t N>
     inline auto DescriptorPool<T, N>::descriptorHeap()
     -> ID3D12DescriptorHeap* {
         return m_heap.Get();
     }
 
-    template<DescType T, uint N>
-    inline auto DescriptorPool<T, N>::cpuHandle(const uint index)
+    template<DescType T, size_t N>
+    inline auto DescriptorPool<T, N>::cpuHandle(const size_t index)
     -> D3D12_CPU_DESCRIPTOR_HANDLE {
         assert(index < capacity);
         return D3D12_CPU_DESCRIPTOR_HANDLE{index * m_handleIncrSz + m_cpuBegin.ptr};
     }
 
-    template<DescType T, uint N>
-    inline auto DescriptorPool<T, N>::cpuHandle(const uint index) const
-        -> const D3D12_CPU_DESCRIPTOR_HANDLE {
-        assert(index < capacity);
-        return D3D12_CPU_DESCRIPTOR_HANDLE{index * m_handleIncrSz + m_cpuBegin.ptr};
-    }
-
-    template<DescType T, uint N>
-    inline auto DescriptorPool<T, N>::gpuHandle(const uint index)
+    template<DescType T, size_t N>
+    inline auto DescriptorPool<T, N>::gpuHandle(const size_t index)
     -> D3D12_GPU_DESCRIPTOR_HANDLE {
         assert(index < capacity);
         return D3D12_GPU_DESCRIPTOR_HANDLE{index * m_handleIncrSz + m_gpuBegin.ptr};
     }
 
-    template<DescType T, uint N>
-    inline auto DescriptorPool<T, N>::gpuHandle(const uint index) const
-    -> const D3D12_GPU_DESCRIPTOR_HANDLE {
-        assert(index < capacity);
-        return D3D12_GPU_DESCRIPTOR_HANDLE{index * m_handleIncrSz + m_gpuBegin.ptr};
-    }
-
-    template<DescType T, uint N>
+    template<DescType T, size_t N>
     inline auto DescriptorPool<T, N>::computeIndex(const D3D12_CPU_DESCRIPTOR_HANDLE handle) const
-    -> uint {
-        return static_cast<uint>((handle.ptr - m_cpuBegin.ptr) / m_handleIncrSz);
+    -> size_t {
+        return (handle.ptr - m_cpuBegin.ptr) / m_handleIncrSz;
     }
 
-    template<DescType T, uint N>
+    template<DescType T, size_t N>
     inline auto DescriptorPool<T, N>::computeIndex(const D3D12_GPU_DESCRIPTOR_HANDLE handle) const
-    -> uint {
-        return static_cast<uint>((handle.ptr - m_gpuBegin.ptr) / m_handleIncrSz);
+    -> size_t {
+        return (handle.ptr - m_gpuBegin.ptr) / m_handleIncrSz;
     }
 
-    template<CmdType T, uint N, uint L>
-    inline auto CommandContext<T, N, L>::executeCommandList(const uint index)
-    -> std::pair<ID3D12Fence*, uint64> {
+    template<CmdType T, size_t N, size_t L>
+    inline auto CommandContext<T, N, L>::executeCommandList(const size_t index)
+    -> std::pair<ID3D12Fence*, uint64_t> {
         assert(index < L);
         // Close the command list.
         CHECK_CALL(m_commandLists[index]->Close(), "Failed to close the command list.");
@@ -206,19 +192,19 @@ namespace D3D12 {
         // Insert a fence (with the updated value) into the command queue.
         // Once we reach the fence in the queue, a signal will go off,
         // which will set the internal value of the fence object to 'value'.
-        ID3D12Fence* fence = m_fence.Get();
-        const uint64 value = ++m_fenceValue;
+        ID3D12Fence*   fence = m_fence.Get();
+        const uint64_t value = ++m_fenceValue;
         CHECK_CALL(m_commandQueue->Signal(fence, value),
                    "Failed to insert a fence into the command queue.");
         return {fence, value};
     }
 
-    template<CmdType T, uint N, uint L>
+    template<CmdType T, size_t N, size_t L>
     inline auto CommandContext<T, N, L>::executeCommandLists()
-    -> std::pair<ID3D12Fence*, uint64> {
+    -> std::pair<ID3D12Fence*, uint64_t> {
         // Close command lists.
         ID3D12CommandList* commandLists[L];
-        for (uint i = 0; i < L; ++i) {
+        for (size_t i = 0; i < L; ++i) {
             commandLists[i] = m_commandLists[i].Get();
             CHECK_CALL(m_commandLists[i]->Close(), "Failed to close the command list.");
         }
@@ -227,15 +213,15 @@ namespace D3D12 {
         // Insert a fence (with the updated value) into the command queue.
         // Once we reach the fence in the queue, a signal will go off,
         // which will set the internal value of the fence object to 'value'.
-        ID3D12Fence* fence = m_fence.Get();
-        const uint64 value = ++m_fenceValue;
+        ID3D12Fence*   fence = m_fence.Get();
+        const uint64_t value = ++m_fenceValue;
         CHECK_CALL(m_commandQueue->Signal(fence, value),
                    "Failed to insert a fence into the command queue.");
         return {fence, value};
     }
 
-    template<CmdType T, uint N, uint L>
-    inline void CommandContext<T, N, L>::syncThread(const uint64 fenceValue) {
+    template<CmdType T, size_t N, size_t L>
+    inline void CommandContext<T, N, L>::syncThread(const uint64_t fenceValue) {
         // fence->GetCompletedValue() returns the value of the fence reached so far.
         // If we haven't reached the fence with 'fenceValue' yet...
         if (m_fence->GetCompletedValue() < fenceValue) {
@@ -246,34 +232,32 @@ namespace D3D12 {
         }
     }
 
-    template<CmdType T, uint N, uint L>
+    template<CmdType T, size_t N, size_t L>
     inline void CommandContext<T, N, L>::syncCommandQueue(ID3D12Fence* fence,
-                                                          const uint64 fenceValue) {
+                                                          const uint64_t fenceValue) {
         CHECK_CALL(m_commandQueue->Wait(fence, fenceValue),
                    "Failed to start waiting for the fence.");
     }
 
-    template<CmdType T, uint N, uint L>
-    inline auto CommandContext<T, N, L>::resetCommandAllocators()
-    -> uint {
+    template<CmdType T, size_t N, size_t L>
+    inline void CommandContext<T, N, L>::resetCommandAllocators() {
         // Update the value of the last inserted fence for the current allocator set.
         m_lastFenceValues[m_frameAllocatorSet] = m_fenceValue;
         // Switch to the allocator set for the next frame.
-        const uint nextAllocatorSet = m_frameAllocatorSet = (m_frameAllocatorSet + 1) % N;
+        const size_t nextAllocatorSet = m_frameAllocatorSet = (m_frameAllocatorSet + 1) % N;
         // Command list allocators can only be reset when the associated 
         // command lists have finished execution on the GPU.
         // Therefore, we have to check the value of the fence, and wait if necessary.
         syncThread(m_lastFenceValues[nextAllocatorSet]);
         // It's now safe to reset the command allocators.
-        for (uint i = 0; i < L; ++i) {
+        for (size_t i = 0; i < L; ++i) {
             CHECK_CALL(m_commandAllocators[nextAllocatorSet][i]->Reset(),
                        "Failed to reset the command list allocator.");
         }
-        return nextAllocatorSet;
     }
 
-    template<CmdType T, uint N, uint L>
-    inline void CommandContext<T, N, L>::resetCommandList(const uint index,
+    template<CmdType T, size_t N, size_t L>
+    inline void CommandContext<T, N, L>::resetCommandList(const size_t index,
                                                           ID3D12PipelineState* state) {
         assert(index < L);
         // After a command list has been executed, it can be then
@@ -283,62 +267,62 @@ namespace D3D12 {
                    "Failed to reset the command list.");
     }
 
-    template<CmdType T, uint N, uint L>
+    template<CmdType T, size_t N, size_t L>
     inline auto CommandContext<T, N, L>::getTime() const
-    -> std::pair<uint64, uint64> {
+    -> std::pair<uint64_t, uint64_t> {
         // Query the frequencies (ticks/second).
-        uint64 cpuFrequency, gpuFrequency;
+        uint64_t cpuFrequency, gpuFrequency;
         QueryPerformanceFrequency(reinterpret_cast<LARGE_INTEGER*>(&cpuFrequency));
         m_commandQueue->GetTimestampFrequency(&gpuFrequency);
         // Sample the time stamp counters.
-        uint64 cpuTimeStamp, gpuTimeStamp;
+        uint64_t cpuTimeStamp, gpuTimeStamp;
         m_commandQueue->GetClockCalibration(&gpuTimeStamp, &cpuTimeStamp);
         // Use the frequencies to perform conversions to microseconds.
-        const uint64 cpuTime = (cpuTimeStamp * 1000000) / cpuFrequency;
-        const uint64 gpuTime = (gpuTimeStamp * 1000000) / gpuFrequency;
+        const uint64_t cpuTime = (cpuTimeStamp * 1000000) / cpuFrequency;
+        const uint64_t gpuTime = (gpuTimeStamp * 1000000) / gpuFrequency;
         return {cpuTime, gpuTime};
     }
 
-    template<CmdType T, uint N, uint L>
+    template<CmdType T, size_t N, size_t L>
     inline auto CommandContext<T, N, L>::createSwapChain(IDXGIFactory4* factory, const HWND hWnd,
                                                          const DXGI_SWAP_CHAIN_DESC1& swapChainDesc)
     -> ComPtr<IDXGISwapChain3> {
         ComPtr<IDXGISwapChain3> swapChain;
-        const auto swapChainAddr = reinterpret_cast<IDXGISwapChain1**>(swapChain.GetAddressOf());
+        auto swapChainAddr = reinterpret_cast<IDXGISwapChain1**>(swapChain.GetAddressOf());
         CHECK_CALL(factory->CreateSwapChainForHwnd(m_commandQueue.Get(), hWnd, &swapChainDesc, 
                                                    nullptr, nullptr, swapChainAddr),
                    "Failed to create a swap chain.");
         return swapChain;
     }
 
-    template<CmdType T, uint N, uint L>
+    template<CmdType T, size_t N, size_t L>
     inline void CommandContext<T, N, L>::destroy() {
         CHECK_CALL(m_commandQueue->Signal(m_fence.Get(), UINT64_MAX),
                    "Failed to insert a fence into the command queue.");
         syncThread(UINT64_MAX);
         CloseHandle(m_syncEvent);
-        for (uint i = 0; i < L; ++i) {
+        for (size_t i = 0; i < L; ++i) {
             // Command lists have to be released before the associated
             // root signatures and pipeline state objects.
             m_commandLists[i].Reset();
         }
     }
 
-    template<CmdType T, uint N, uint L>
-    inline auto CommandContext<T, N, L>::commandList(const uint index)
+    template<CmdType T, size_t N, size_t L>
+    inline auto CommandContext<T, N, L>::commandList(const size_t index)
     -> ID3D12GraphicsCommandList* {
         assert(index < L);
         return m_commandLists[index].Get();
     }
 
-    template<CmdType T, uint N, uint L>
-    inline auto CommandContext<T, N, L>::commandList(const uint index) const
+    template<CmdType T, size_t N, size_t L>
+    inline auto CommandContext<T, N, L>::commandList(const size_t index) const
     -> const ID3D12GraphicsCommandList* {
         assert(index < L);
         return m_commandLists[index].Get();
     }
 
-    template<CmdType T, uint N, uint L>
+    template<CmdType T, size_t N, size_t L>
     inline void ID3D12DeviceEx::createCommandContext(CommandContext<T, N, L>* commandContext,
                                                      const bool isHighPriority,
                                                      const bool disableGpuTimeout) {
@@ -357,8 +341,8 @@ namespace D3D12 {
         CHECK_CALL(CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&commandContext->m_commandQueue)),
                    "Failed to create a command queue.");
         // Create command allocators.
-        for (uint i = 0; i < N; ++i) {
-            for (uint j = 0; j < L; ++j) {
+        for (size_t i = 0; i < N; ++i) {
+            for (size_t j = 0; j < L; ++j) {
                 CHECK_CALL(CreateCommandAllocator(static_cast<D3D12_COMMAND_LIST_TYPE>(T),
                            IID_PPV_ARGS(&commandContext->m_commandAllocators[i][j])),
                            "Failed to create a command list allocator.");
@@ -367,7 +351,7 @@ namespace D3D12 {
         // Set the initial frame allocator set index to 0.
         commandContext->m_frameAllocatorSet = 0;
         // Create command lists in the closed, NULL state using the initial allocator.
-        for (uint i = 0; i < L; ++i) {
+        for (size_t i = 0; i < L; ++i) {
             CHECK_CALL(CreateCommandList(nodeMask, static_cast<D3D12_COMMAND_LIST_TYPE>(T),
                                          commandContext->m_commandAllocators[0][i].Get(), nullptr,
                                          IID_PPV_ARGS(&commandContext->m_commandLists[i])),
@@ -381,7 +365,7 @@ namespace D3D12 {
         CHECK_CALL(CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&commandContext->m_fence)),
                    "Failed to create a fence object.");
         // Set the last fence value for each command allocator to 0.
-        for (uint i = 0; i < N; ++i) {
+        for (size_t i = 0; i < N; ++i) {
             commandContext->m_lastFenceValues[i] = 0;
         }
         // Create a synchronization event.
@@ -392,15 +376,15 @@ namespace D3D12 {
         }
     }
 
-    template<DescType T, uint N>
+    template<DescType T, size_t N>
     inline void ID3D12DeviceEx::createDescriptorPool(DescriptorPool<T, N>* descriptorPool) {
         static_assert(N > 0, "Invalid descriptor pool capacity.");
         assert(descriptorPool);
-        constexpr auto type            = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);
+        constexpr auto heapType        = static_cast<D3D12_DESCRIPTOR_HEAP_TYPE>(T);
         constexpr bool isShaderVisible = DescType::CBV_SRV_UAV == T || DescType::SAMPLER == T;
         // Fill out the descriptor heap description.
         const D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {
-            /* Type */           type,
+            /* Type */           heapType,
             /* NumDescriptors */ N,
             /* Flags */          isShaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
                                                  : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
@@ -410,8 +394,9 @@ namespace D3D12 {
         CHECK_CALL(CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorPool->m_heap)),
                    "Failed to create a descriptor heap.");
         // Query and store the heap properties.
+        descriptorPool->size = 0;
         descriptorPool->m_cpuBegin = descriptorPool->m_heap->GetCPUDescriptorHandleForHeapStart();
         descriptorPool->m_gpuBegin = descriptorPool->m_heap->GetGPUDescriptorHandleForHeapStart();
-        descriptorPool->m_handleIncrSz = GetDescriptorHandleIncrementSize(type);
+        descriptorPool->m_handleIncrSz = GetDescriptorHandleIncrementSize(heapType);
     }
 } // namespace D3D12

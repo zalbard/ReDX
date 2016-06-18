@@ -50,6 +50,9 @@
     <ClCompile Include="Source\Common\Buffer.cpp">
       <Filter>Source Files\Common</Filter>
     </ClCompile>
+    <ClCompile Include="Source\Common\Primitives.cpp">
+      <Filter>Source Files\Common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Source\D3D12\Renderer.h">
@@ -106,6 +109,9 @@
     <ClInclude Include="Source\Common\Buffer.h">
       <Filter>Source Files\Common</Filter>
     </ClInclude>
+    <ClInclude Include="Source\Common\Primitives.h">
+      <Filter>Source Files\Common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitignore">
@@ -119,6 +125,9 @@
     </None>
     <None Include="Source\ThirdParty\DirectXTex\DirectXTex.inl">
       <Filter>Source Files\ThirdParty</Filter>
+    </None>
+    <None Include="Source\Shaders\ShaderMath.hlsl">
+      <Filter>Source Files\Shaders</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

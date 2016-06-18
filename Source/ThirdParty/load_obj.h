@@ -83,10 +83,10 @@ struct CompareIndex {
 };
 
 struct Face {
-    static constexpr int max_indices = 8;
-    Index indices[max_indices];
-    int index_count;
-    int material;
+    static constexpr size_t max_indices = 8;
+    Index    indices[max_indices];
+    uint32_t index_count;
+    uint32_t material;
 };
 
 struct Group {

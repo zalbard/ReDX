@@ -3,20 +3,22 @@
 #include <cwchar>
 #include <Windows.h>
 #include "Window.h"
+#include "..\Common\Utility.h"
 
 // Perform static member initialization.
-HWND Window::m_hwnd   = nullptr;
-long Window::m_width  = 0;
-long Window::m_height = 0;
-RECT Window::m_rect   = {};
+uint32_t Window::m_width  = 0;
+uint32_t Window::m_height = 0;
+HWND     Window::m_hwnd   = nullptr;
 
 // Main message handler.
 LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
                             const WPARAM wParam, const LPARAM lParam) {
     switch (message) {
         case WM_KEYDOWN:
-            if (VK_ESCAPE != wParam) return 0;
-            // Otherwise fall through to WM_DESTROY
+            if (VK_ESCAPE == wParam) {
+                DestroyWindow(hWnd);
+            }
+            return 0;
         case WM_DESTROY:
             PostQuitMessage(0);
             return 0;
@@ -25,29 +27,37 @@ LRESULT CALLBACK WindowProc(const HWND hWnd, const UINT message,
     }
 }
 
-void Window::open(const long width, const long height) {
+void Window::open(const uint32_t width, const uint32_t height) {
     m_width  = width;
     m_height = height;
     // Set up the rectangle position and dimensions.
-    m_rect = {0, 0, width, height};
-    AdjustWindowRect(&m_rect, WS_OVERLAPPEDWINDOW, FALSE);
-    // Set up the window class.
-    WNDCLASSEX wndClass    = {};
-    wndClass.cbSize        = sizeof(WNDCLASSEX);
+    RECT rect = {0, 0, static_cast<long>(width), static_cast<long>(height)};
+    AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
+    // Get the handle to the instance of the application.
+    const HINSTANCE appHandle = GetModuleHandle(nullptr);
+    // Register the window class.
+    WNDCLASS wndClass{};
     wndClass.style         = CS_HREDRAW | CS_VREDRAW;
     wndClass.lpfnWndProc   = WindowProc;
-    wndClass.hInstance     = GetModuleHandle(nullptr);
+    wndClass.hInstance     = appHandle;
     wndClass.hCursor       = LoadCursor(nullptr, IDC_ARROW);
     wndClass.lpszClassName = L"ReDXWindowClass";
-    RegisterClassEx(&wndClass);
+    if (!RegisterClass(&wndClass)) {
+        printError("RegisterClass failed.");
+        TERMINATE();
+    }
     // Create a window and store its handle.
     m_hwnd = CreateWindow(wndClass.lpszClassName, L"ReDX",
                           WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU,  // Disable resizing
                           CW_USEDEFAULT, CW_USEDEFAULT,
-                          m_rect.right - m_rect.left,
-                          m_rect.bottom - m_rect.top,
+                          rect.right - rect.left,
+                          rect.bottom - rect.top,
                           nullptr, nullptr,                         // No parent window, no menus
-                          GetModuleHandle(nullptr), nullptr);
+                          appHandle, nullptr);
+    if (!m_hwnd) {
+        printError("CreateWindow failed.");
+        TERMINATE();
+    }
     // Make the window visible.
     ShowWindow(m_hwnd, SW_SHOWNORMAL);
 }
@@ -57,22 +67,17 @@ HWND Window::handle() {
     return m_hwnd;
 }
 
-long Window::width() {
+uint32_t Window::width() {
     return m_width;
 }
 
-long Window::height() {
+uint32_t Window::height() {
     return m_height;
 }
 
-float Window::aspectRatio() {
-    return static_cast<float>(width())/static_cast<float>(height());
-}
-
-void Window::displayInfo(const float fracObjVis, const float cpuFrameTime,
-                         const float gpuFrameTime) {
-    static wchar_t title[] = L"ReDX | 0.00 | CPU: 00.00 ms, GPU: 00.00 ms";
-    swprintf(title + 7, 36, L"%4.2f | CPU: %5.2f ms, GPU: %5.2f ms",
-             fracObjVis, std::min(cpuFrameTime, 99.99f), std::min(gpuFrameTime, 99.99f));
+void Window::displayInfo(const float cpuFrameTime, const float gpuFrameTime) {
+    static wchar_t title[] = L"ReDX | CPU: 00.00 ms, GPU: 00.00 ms";
+    swprintf(title, _countof(title) + 1, L"ReDX | CPU: %5.2f ms, GPU: %5.2f ms",
+             std::min(cpuFrameTime, 99.99f), std::min(gpuFrameTime, 99.99f));
     SetWindowText(m_hwnd, title);
 }

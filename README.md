@@ -9,6 +9,7 @@ Hardware requirements:
 Software requirements:
 * Windows 10 (64-bit)
 * Visual Studio 2015 (with Universal App Tools and Windows SDK installed)
+* Graphics Tools (aka Graphics Diagnostics Tools)
 
 Important notice:
 * the build version of Windows 10 and the version of Windows SDK must match!
