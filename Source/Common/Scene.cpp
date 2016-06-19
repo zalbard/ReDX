@@ -224,7 +224,7 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
         const auto& matName = objFile.materials[i];
         const auto  matIt   = matLib.find(matName);
         if (matIt == matLib.end()) {
-            printWarning("Material '%s' (index %u) not found.", matName.c_str(), i);
+            printWarning("Material '%s' (index %zu) not found.", matName.c_str(), i);
             // Set all texture indices to 0xFFFFFFFF.
             memset(&materials[i], 0xFF, sizeof(Material));
         } else {
