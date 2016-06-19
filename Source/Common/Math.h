@@ -52,6 +52,14 @@ static inline auto align(void* address)
 }
 
 namespace DirectX {
+    // Returns the value of the smallest component of 'v' in all 4 components of the result.
+    static inline auto XMVector4Min(FXMVECTOR v)
+    -> XMVECTOR {
+        XMVECTOR hMin = XMVectorMin(v, XMVectorSwizzle(v, 1, 2, 3, 0));
+        hMin = XMVectorMin(hMin, XMVectorSwizzle(hMin, 2, 3, 0, 1));
+        return hMin;
+    }
+
     // Returns the value of the largest component of 'v' in all 4 components of the result.
     static inline auto XMVector4Max(FXMVECTOR v)
     -> XMVECTOR {

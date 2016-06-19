@@ -735,7 +735,7 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     uint16_t matId = UINT16_MAX;
     for (size_t i = 0, n = scene.objects.count; i < n; ++i) {
         // Test the object for visibility.
-        if (frustum.intersects(scene.objects.boundingSpheres[i])) {
+        if (frustum.intersects(scene.objects.boundingBoxes[i])) {
             if (matId != scene.objects.materialIndices[i]) {
                 matId  = scene.objects.materialIndices[i];
                 // Check whether the material has a valid bump map.

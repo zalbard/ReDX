@@ -91,9 +91,6 @@
     <ClInclude Include="Source\Common\Camera.h">
       <Filter>Source Files\Common</Filter>
     </ClInclude>
-    <ClInclude Include="Source\ThirdParty\miniball.hpp">
-      <Filter>Source Files\ThirdParty</Filter>
-    </ClInclude>
     <ClInclude Include="Source\D3D12\Renderer.hpp">
       <Filter>Source Files\D3D12</Filter>
     </ClInclude>
