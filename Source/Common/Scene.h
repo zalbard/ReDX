@@ -25,7 +25,7 @@ public:
 public:
     struct Objects {
         size_t                      count;              // Number of objects
-        std::unique_ptr<Sphere[]>   boundingSpheres;    // Per object
+        std::unique_ptr<AABox[]>    boundingBoxes;      // Per object
         D3D12::IndexBufferSoA       indexBuffers;       // Per object
         std::unique_ptr<uint16_t[]> materialIndices;    // Per object
     }                               objects;

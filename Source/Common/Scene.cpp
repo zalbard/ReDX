@@ -1,38 +1,11 @@
 #include <DirectXTex\DirectXTex.h>
 #include <load_obj.h>
-#pragma warning(disable : 4458)
-#include <miniball.hpp>
-#pragma warning(error : 4458)
 #include "Math.h"
 #include "Scene.h"
 #include "Utility.h"
 #include "..\D3D12\Renderer.hpp"
 
 using namespace DirectX;
-
-struct IndexedPointIterator {
-    const float* operator*() const {
-        return reinterpret_cast<const float*>(&positions[*index]);
-    }
-    IndexedPointIterator operator++() {
-        auto old = *this;
-        ++index;
-        return old;
-    }
-    bool operator==(const IndexedPointIterator& other) const {
-        return index == other.index;
-    }
-    bool operator!=(const IndexedPointIterator& other) const {
-        return index != other.index;
-    }
-public:
-    const XMFLOAT3* positions;
-    const uint32_t* index;
-};
-
-using CoordIterator  = const float*;
-using BoundingSphere = Miniball::Miniball<Miniball::CoordAccessor<IndexedPointIterator,
-                                                                  CoordIterator>>;
 
 struct IndexedObject {
     bool operator<(const IndexedObject& other) const {
@@ -118,7 +91,7 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
     std::sort(indexedObjects.begin(), indexedObjects.end(), std::greater<IndexedObject>());
     // Allocate memory.
     objects.count           = indexedObjects.size();
-    objects.boundingSpheres = std::make_unique<Sphere[]>(objects.count);
+    objects.boundingBoxes   = std::make_unique<AABox[]>(objects.count);
     objects.materialIndices = std::make_unique<uint16_t[]>(objects.count);
     objects.indexBuffers.allocate(objects.count);
     vertexAttrBuffers.allocate(3);
@@ -149,15 +122,10 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
     }
     // Copy scene geometry to the GPU.
     engine.executeCopyCommands();
-    // Compute bounding spheres.
-    const XMFLOAT3* positionArray = positions.data();
+    // Compute bounding boxes.
     for (size_t i = 0; i < objects.count; ++i) {
-        const IndexedPointIterator begin = {positionArray, indexedObjects[i].indices.data()};
-        const IndexedPointIterator end   = {positionArray, indexedObjects[i].indices.data() +
-                                                           indexedObjects[i].indices.size()};
-        const BoundingSphere sphere{3, begin, end};
-        objects.boundingSpheres[i] = Sphere{XMFLOAT3{sphere.center()},
-                                            sqrt(sphere.squared_radius())};
+        const IndexedObject& io  = indexedObjects[i];
+        objects.boundingBoxes[i] = AABox{io.indices.size(), io.indices.data(), positions.data()};
     }
     // Load the .mtl files referenced in the .obj file.
     obj::MaterialLib matLib;
@@ -208,10 +176,11 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
                 /* Depth */    static_cast<uint32_t>(info.depth),
                 /* RowPitch */ static_cast<uint32_t>(mipChain.GetImages()->rowPitch)
             };
+            const uint32_t mipCount = static_cast<uint32_t>(info.mipLevels);
             // Create a texture.
-            D3D12::Texture texture = engine.createTexture2D(footprint, info.mipLevels,
-                                                            mipChain.GetPixels());
-            const uint32_t index   = static_cast<uint32_t>(engine.getTextureIndex(texture));
+            D3D12::Texture texture  = engine.createTexture2D(footprint, mipCount,
+                                                             mipChain.GetPixels());
+            const uint32_t index    = static_cast<uint32_t>(engine.getTextureIndex(texture));
             // Add the texture to the library.
             texLib.emplace(texName, std::make_pair(std::move(texture), index));
             return index;
@@ -223,7 +192,7 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
         const auto& matName = objFile.materials[i];
         const auto  matIt   = matLib.find(matName);
         if (matIt == matLib.end()) {
-            printWarning("Material '%s' (index %u) not found.", matName.c_str(), i);
+            printWarning("Material '%s' (index %zu) not found.", matName.c_str(), i);
             // Set all texture indices to 0xFFFFFFFF.
             memset(&materials[i], 0xFF, sizeof(Material));
         } else {

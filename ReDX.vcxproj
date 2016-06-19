@@ -136,7 +136,6 @@
     <ClInclude Include="Source\ThirdParty\DirectXMathSSE4.h" />
     <ClInclude Include="Source\ThirdParty\DirectXTex\DirectXTex.h" />
     <ClInclude Include="Source\ThirdParty\load_obj.h" />
-    <ClInclude Include="Source\ThirdParty\miniball.hpp" />
     <ClInclude Include="Source\UI\Window.h" />
   </ItemGroup>
   <ItemGroup>
