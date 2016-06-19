@@ -88,7 +88,7 @@ namespace D3D12 {
         ComPtr<ID3D12Resource>        m_swapChainBuffers[BUF_CNT];
         GBuffer                       m_gBuffer;
         RtvPool<RTV_CNT>              m_rtvPool;
-        DsvPool<FRAME_CNT>            m_dsvPool;
+        DsvPool<1>                    m_dsvPool;
         CbvSrvUavPool<TEX_CNT>        m_texPool;
         ComPtr<IDXGISwapChain3>       m_swapChain;
         HANDLE                        m_swapChainWaitableObject;
