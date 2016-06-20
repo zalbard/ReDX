@@ -29,7 +29,7 @@ static const float3x3 rasterToViewDir = {
 // Contains texture array indices.
 StructuredBuffer<Material> materials : register(t0);
 // G-buffer.
-Texture2D<uint2>  depthStencilBuffer : register(t1);
+Texture2D<float>  depthBuffer        : register(t1);
 Texture2D<float2> normalBuffer       : register(t2);
 Texture2D<float2> uvCoordBuffer      : register(t3);
 Texture2D<float4> uvGradBuffer       : register(t4);

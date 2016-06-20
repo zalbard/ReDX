@@ -5,24 +5,64 @@
 #include "..\Common\Utility.h"
 
 namespace D3D12 {
-    static inline auto getResourceFormat(const DXGI_FORMAT depthFormat)
+    static inline auto getTypelessFormat(const DXGI_FORMAT dsvFormat)
     -> DXGI_FORMAT {
         DXGI_FORMAT format;
-        switch (depthFormat) {
+        switch (dsvFormat) {
         case DXGI_FORMAT_D16_UNORM:
             format = DXGI_FORMAT_R16_TYPELESS;
             break;
         case DXGI_FORMAT_D24_UNORM_S8_UINT:
-            format = DXGI_FORMAT_X24_TYPELESS_G8_UINT;
+            format = DXGI_FORMAT_R24G8_TYPELESS;
             break;
         case DXGI_FORMAT_D32_FLOAT:
             format = DXGI_FORMAT_R32_TYPELESS;
             break;
         case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+            format = DXGI_FORMAT_R32G8X24_TYPELESS;
+            break;
+        default:
+            printError("The format doesn't contain a depth component.");
+            TERMINATE();
+        }
+        return format;
+    }
+
+    static inline auto getDepthSrvFormat(const DXGI_FORMAT dsvFormat)
+    -> DXGI_FORMAT {
+        DXGI_FORMAT format;
+        switch (dsvFormat) {
+        case DXGI_FORMAT_D16_UNORM:
+            format = DXGI_FORMAT_R16G16_UNORM;
+            break;
+        case DXGI_FORMAT_D24_UNORM_S8_UINT:
+            format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+            break;
+        case DXGI_FORMAT_D32_FLOAT:
+            format = DXGI_FORMAT_R32_FLOAT;
+            break;
+        case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+            format = DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS;
+            break;
+        default:
+            printError("The format doesn't contain a depth component.");
+            TERMINATE();
+        }
+        return format;
+    }
+
+    static inline auto getStencilSrvFormat(const DXGI_FORMAT dsvFormat)
+    -> DXGI_FORMAT {
+        DXGI_FORMAT format;
+        switch (dsvFormat) {
+        case DXGI_FORMAT_D24_UNORM_S8_UINT:
+            format = DXGI_FORMAT_X24_TYPELESS_G8_UINT;
+            break;
+        case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
             format = DXGI_FORMAT_X32_TYPELESS_G8X24_UINT;
             break;
         default:
-            printError("Invalid depth format.");
+            printError("The format doesn't contain a stencil component.");
             TERMINATE();
         }
         return format;

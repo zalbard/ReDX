@@ -369,7 +369,7 @@ ComPtr<ID3D12Resource> Renderer::createDepthBuffer(const uint32_t width, const u
         /* Height */           height,
         /* DepthOrArraySize */ 1,
         /* MipLevels */        1,
-        /* Format */           format,
+        /* Format */           getTypelessFormat(format),
         /* SampleDesc */       SINGLE_SAMPLE,
         /* Layout */           D3D12_TEXTURE_LAYOUT_UNKNOWN,
         /* Flags */            D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
@@ -395,7 +395,7 @@ ComPtr<ID3D12Resource> Renderer::createDepthBuffer(const uint32_t width, const u
     m_device->CreateDepthStencilView(depthStencilBuffer.Get(), &dsvDesc,
                                      m_dsvPool.cpuHandle(m_dsvPool.size++));
     // Initialize the shader resource view.
-    const D3D12_TEX2D_SRV_DESC srvDesc{getResourceFormat(format), 1};
+    const D3D12_TEX2D_SRV_DESC srvDesc{getDepthSrvFormat(format), 1};
     m_device->CreateShaderResourceView(depthStencilBuffer.Get(), &srvDesc,
                                        m_texPool.cpuHandle(m_texPool.size++));
     return depthStencilBuffer;
