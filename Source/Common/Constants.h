@@ -22,7 +22,7 @@ constexpr float M_2_SQRTPI     = 1.12837923f;   // 2/sqrt(pi)
 constexpr float M_SQRT2        = 1.41421354f;   // sqrt(2)
 constexpr float M_SQRT1_2      = 0.707106769f;  // 1/sqrt(2)
 // Transparent black RGBA color.
-constexpr float FLOAT4_BLACK[] = {0.f, 0.f, 0.f, 0.f};
+constexpr float FLOAT4_ZERO[]  = {0.f, 0.f, 0.f, 0.f};
 // Horizontal rendering resolution.
 constexpr auto RES_X           = 1280;
 // Vertical rendering resolution.

@@ -417,7 +417,7 @@ ComPtr<ID3D12Resource> Renderer::createRenderBuffer(const uint32_t width, const 
     };
     const CD3DX12_CLEAR_VALUE clearValue = {
         /* Format */           format,
-        /* Depth */            FLOAT4_BLACK
+        /* Color */            FLOAT4_ZERO
     };
     ComPtr<ID3D12Resource> renderBuffer;
     // Allocate the render buffer on the default heap.
@@ -458,7 +458,7 @@ Texture Renderer::createTexture2D(const D3D12_SUBRESOURCE_FOOTPRINT& footprint,
     };
     const CD3DX12_CLEAR_VALUE clearValue = {
         /* Format */           footprint.Format,
-        /* Depth */            FLOAT4_BLACK
+        /* Color */            FLOAT4_ZERO
     };
     Texture texture;
     // Allocate the texture on the default heap.
@@ -704,7 +704,7 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     // Finish the transition of the G-buffer to the writable state.
     D3D12_RESOURCE_BARRIER barriers[5];
     m_gBuffer.setWriteBarriers(barriers, D3D12_RESOURCE_BARRIER_FLAG_END_ONLY);
-    graphicsCommandList->ResourceBarrier(5, barriers);
+    //graphicsCommandList->ResourceBarrier(5, barriers);
     // Store columns 0, 1 and 3 of the view-projection matrix.
     const XMMATRIX tViewProj = XMMatrixTranspose(pCam.computeViewProjMatrix());
     XMFLOAT4A matCols[3];
@@ -724,7 +724,7 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     graphicsCommandList->DiscardResource(m_gBuffer.normalBuffer.Get(),  nullptr);
     graphicsCommandList->DiscardResource(m_gBuffer.uvCoordBuffer.Get(), nullptr);
     graphicsCommandList->DiscardResource(m_gBuffer.uvGradBuffer.Get(),  nullptr);
-    graphicsCommandList->ClearRenderTargetView(rtvHandles[1], FLOAT4_BLACK, 0, nullptr);
+    graphicsCommandList->ClearRenderTargetView(rtvHandles[1], FLOAT4_ZERO, 0, nullptr);
     // Clear the DSV.
     const D3D12_CLEAR_FLAGS clearFlags = D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL;
     graphicsCommandList->ClearDepthStencilView(dsvHandle, clearFlags, 0, 0, 0, nullptr);
@@ -781,12 +781,12 @@ void Renderer::recordShadingPass(const PerspectiveCamera& pCam) {
     XMFLOAT3X3 rasterToViewDir;
     XMStoreFloat3x3(&rasterToViewDir, pCam.computeRasterToViewDirMatrix());
     // Set the root arguments.
-    graphicsCommandList->SetGraphicsRoot32BitConstants(0, 9, &rasterToViewDir, 0);
-    graphicsCommandList->SetGraphicsRootShaderResourceView(1, m_materialBuffer.view);
+    //graphicsCommandList->SetGraphicsRoot32BitConstants(0, 9, &rasterToViewDir, 0);
+    //graphicsCommandList->SetGraphicsRootShaderResourceView(1, m_materialBuffer.view);
     // Set the SRVs of the G-buffer.
-    graphicsCommandList->SetGraphicsRootDescriptorTable(2, m_texPool.gpuHandle(0));
+    //graphicsCommandList->SetGraphicsRootDescriptorTable(2, m_texPool.gpuHandle(0));
     // Set the SRVs of all textures.
-    graphicsCommandList->SetGraphicsRootDescriptorTable(3, m_texPool.gpuHandle(0));
+    //graphicsCommandList->SetGraphicsRootDescriptorTable(3, m_texPool.gpuHandle(0));
     // Set the RTV.
     const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = m_rtvPool.cpuHandle(m_backBufferIndex);
     graphicsCommandList->OMSetRenderTargets(1, &rtvHandle, false, nullptr);
@@ -800,7 +800,7 @@ void Renderer::recordShadingPass(const PerspectiveCamera& pCam) {
     // Transition the state of the back buffer: Render Target -> Presenting.
     barriers[5] = D3D12_TRANSITION_BARRIER{backBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET,
                                                        D3D12_RESOURCE_STATE_PRESENT};
-    graphicsCommandList->ResourceBarrier(6, barriers);
+    //graphicsCommandList->ResourceBarrier(6, barriers);
 }
 
 void Renderer::renderFrame() {
@@ -810,7 +810,7 @@ void Renderer::renderFrame() {
     CHECK_CALL(m_swapChain->Present(VSYNC_INTERVAL, 0), "Failed to display the frame buffer.");
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
     // Reset the graphics command (frame) allocator.
-    m_graphicsContext.resetCommandAllocators();
+    //m_graphicsContext.resetCommandAllocators();
     // Reset command lists to their initial states.
     m_graphicsContext.resetCommandList(0, m_gBufferPass.pipelineState.Get());
     m_graphicsContext.resetCommandList(1, m_shadingPass.pipelineState.Get());
