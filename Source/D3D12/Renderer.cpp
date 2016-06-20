@@ -656,6 +656,7 @@ void D3D12::Renderer::executeCopyCommands(const bool immediateCopy) {
 void Renderer::GBuffer::setWriteBarriers(D3D12_RESOURCE_BARRIER* barriers,                          
                                          const D3D12_RESOURCE_BARRIER_FLAGS flag) {
     barriers[0] = D3D12_TRANSITION_BARRIER{depthBuffer.Get(),
+                                           D3D12_RESOURCE_STATE_DEPTH_READ |
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
                                            D3D12_RESOURCE_STATE_DEPTH_WRITE,   flag};
     barriers[1] = D3D12_TRANSITION_BARRIER{normalBuffer.Get(),
@@ -676,6 +677,7 @@ void Renderer::GBuffer::setReadBarriers(D3D12_RESOURCE_BARRIER* barriers,
                                         const D3D12_RESOURCE_BARRIER_FLAGS flag) {
     barriers[0] = D3D12_TRANSITION_BARRIER{depthBuffer.Get(),
                                            D3D12_RESOURCE_STATE_DEPTH_WRITE,
+                                           D3D12_RESOURCE_STATE_DEPTH_READ |
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
     barriers[1] = D3D12_TRANSITION_BARRIER{normalBuffer.Get(),
                                            D3D12_RESOURCE_STATE_RENDER_TARGET,
