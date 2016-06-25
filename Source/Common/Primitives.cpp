@@ -140,7 +140,7 @@ XMVECTOR Sphere::radius() const {
     return XMVectorSplatW(XMLoadFloat4A(&m_data));
 }
 
-bool Frustum::intersects(const AABox& aaBox) const {
+bool Frustum::intersects(const AABox& aaBox, float* minDist) const {
     // Test whether the bounding boxes are disjoint.
     const XMVECTOR pMin = aaBox.minPoint();
     const XMVECTOR pMax = aaBox.maxPoint();
@@ -153,8 +153,8 @@ bool Frustum::intersects(const AABox& aaBox) const {
 
     // Test the corners of the box against the left/right/top/bottom frustum planes.
     const XMMATRIX tPlanes = XMLoadFloat4x4A(&m_tPlanes);
-    // Find 4 farthest points along plane normals, transposed.
-    XMVECTOR tFarthestPointsAlongNormal[3];
+    // Find 4 points with largest signed distances along plane normals, transposed.
+    XMVECTOR tLargestSignDistPoints[3];
     // Iterate over X, Y, Z components.
     {
         XMVECTOR pMinSplatC, pMaxSplatC, normalComponentSign;
@@ -164,28 +164,28 @@ bool Frustum::intersects(const AABox& aaBox) const {
         // Determine the sign of the X component of all 4 plane normals.
         normalComponentSign = XMVectorGreaterOrEqual(tPlanes.r[0], g_XMZero);
         // Select the component of 'pMax' if the sign is positive, of 'pMin' otherwise.
-        tFarthestPointsAlongNormal[0] = XMVectorSelect(pMinSplatC, pMaxSplatC, normalComponentSign);
+        tLargestSignDistPoints[0] = XMVectorSelect(pMinSplatC, pMaxSplatC, normalComponentSign);
         // Splat the Y component of 'pMin' and 'pMax'.
         pMinSplatC = XMVectorSplatY(pMin);
         pMaxSplatC = XMVectorSplatY(pMax);
         // Determine the sign of the Y component of all 4 plane normals.
         normalComponentSign = XMVectorGreaterOrEqual(tPlanes.r[1], g_XMZero);
         // Select the component of 'pMax' if the sign is positive, of 'pMin' otherwise.
-        tFarthestPointsAlongNormal[1] = XMVectorSelect(pMinSplatC, pMaxSplatC, normalComponentSign);
+        tLargestSignDistPoints[1] = XMVectorSelect(pMinSplatC, pMaxSplatC, normalComponentSign);
         // Splat the Z component of 'pMin' and 'pMax'.
         pMinSplatC = XMVectorSplatZ(pMin);
         pMaxSplatC = XMVectorSplatZ(pMax);
         // Determine the sign of the Z component of all 4 plane normals.
         normalComponentSign = XMVectorGreaterOrEqual(tPlanes.r[2], g_XMZero);
         // Select the component of 'pMax' if the sign is positive, of 'pMin' otherwise.
-        tFarthestPointsAlongNormal[2] = XMVectorSelect(pMinSplatC, pMaxSplatC, normalComponentSign);
+        tLargestSignDistPoints[2] = XMVectorSelect(pMinSplatC, pMaxSplatC, normalComponentSign);
     }
-    // Determine whether the 4 farthest points along plane normals
+    // Determine whether the 4 points with largest signed distances along plane normals
     // lie inside the positive half-spaces of their respective planes.
     // Compute the signed distances to the left/right/top/bottom frustum planes.
-    const XMVECTOR upperPart = tPlanes.r[0] * tFarthestPointsAlongNormal[0]
-                             + tPlanes.r[1] * tFarthestPointsAlongNormal[1];
-    const XMVECTOR lowerPart = tPlanes.r[2] * tFarthestPointsAlongNormal[2]
+    const XMVECTOR upperPart = tPlanes.r[0] * tLargestSignDistPoints[0]
+                             + tPlanes.r[1] * tLargestSignDistPoints[1];
+    const XMVECTOR lowerPart = tPlanes.r[2] * tLargestSignDistPoints[2]
                              + tPlanes.r[3];
     const XMVECTOR distances = upperPart + lowerPart;
     // Test the distances for being negative.
@@ -195,23 +195,30 @@ bool Frustum::intersects(const AABox& aaBox) const {
         return false;
     }
 
-    // Test whether the object is in front of the camera.
+    // Test whether the box is in front of the camera.
     // Our projection matrix is reversed, so we use the far plane.
     const XMVECTOR farPlane = XMLoadFloat4A(&m_farPlane);
-    // First, we have to find the farthest point along the plane normal.
-    const XMVECTOR normalComponentSign = XMVectorGreaterOrEqual(farPlane, g_XMZero);
-    XMVECTOR farthestPointAlongNormal  = XMVectorSelect(pMin, pMax, normalComponentSign);
-    farthestPointAlongNormal = SSE4::XMVectorSetW(farthestPointAlongNormal, 1.f);
+    // First, we have to find a point with the largest signed distance to the plane.
+    const XMVECTOR normalComponentSign  = XMVectorGreaterOrEqual(farPlane, g_XMZero);
+    XMVECTOR       largestSignDistPoint = XMVectorSelect(pMin, pMax, normalComponentSign);
+    largestSignDistPoint = SSE4::XMVectorSetW(largestSignDistPoint, 1.f);
     // Compute the signed distance to the far plane.
-    const XMVECTOR distance = SSE4::XMVector4Dot(farPlane, farthestPointAlongNormal);
+    const XMVECTOR distance = SSE4::XMVector4Dot(farPlane, largestSignDistPoint);
     // Test the distance for being negative.
     if (XMVectorGetIntX(XMVectorLess(distance, g_XMZero))) {
         return false;
+    } else {
+        // Find a point with the smallest signed distance to the plane.
+        XMVECTOR smallestSignDistPoint = XMVectorSelect(pMax, pMin, normalComponentSign);
+        smallestSignDistPoint = SSE4::XMVectorSetW(largestSignDistPoint, 1.f);
+        // Compute the signed distance to the far plane.
+        const XMVECTOR signDist = SSE4::XMVector4Dot(farPlane, smallestSignDistPoint);
+        *minDist = XMVectorGetX(signDist);
+        return true;
     }
-    return true;
 }
 
-bool Frustum::intersects(const Sphere& sphere) const {
+bool Frustum::intersects(const Sphere& sphere, float* minDist) const {
     const XMVECTOR sphereCenter    =  sphere.centerW1();
     const XMVECTOR negSphereRadius = -sphere.radius();
 
@@ -230,13 +237,17 @@ bool Frustum::intersects(const Sphere& sphere) const {
         return false;
     }
 
-    // Test whether the object is in front of the camera.
+    // Test whether the sphere is in front of the camera.
     // Our projection matrix is reversed, so we use the far plane.
 	const XMVECTOR farPlane = XMLoadFloat4A(&m_farPlane);
     const XMVECTOR distance = SSE4::XMVector4Dot(farPlane, sphereCenter);
     // Test the distance against the (negated) radius of the sphere.
     if (XMVectorGetIntX(XMVectorLess(distance, negSphereRadius))) {
         return false;
+    } else {
+        // Compute the signed distance to the front of the sphere (as seen by the camera).
+        const XMVECTOR signDist = distance + negSphereRadius;
+        *minDist = XMVectorGetX(signDist); 
+        return true;
     }
-    return true;
 }

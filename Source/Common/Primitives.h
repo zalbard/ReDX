@@ -65,9 +65,11 @@ private:
 class Frustum {
 public:
     // Returns 'true' if the axis-aligned box overlaps the frustum, 'false' otherwise.
-    bool intersects(const AABox& aaBox) const;
+    // In case there is an overlap, it also computes the smallest signed distance 'minDist'.
+    bool intersects(const AABox& aaBox, float* minDist) const;
     // Returns 'true' if the sphere overlaps the frustum, 'false' otherwise.
-    bool intersects(const Sphere& sphere) const;
+    // In case there is an overlap, it also computes the smallest signed distance 'minDist'.
+    bool intersects(const Sphere& sphere, float* minDist) const;
 private:
     AABox                m_bBox;        // Bounding box of the frustum
     DirectX::XMFLOAT4X4A m_tPlanes;     // Transposed equations of the left/right/top/bottom planes
