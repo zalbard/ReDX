@@ -117,22 +117,27 @@ Frustum PerspectiveCamera::computeViewFrustum() const {
     farPlane = XMPlaneNormalize(farPlane);
     // Transpose the normalized plane equations.
     tPlanes  = XMMatrixTranspose(frustumPlanes);
-    // Compute the corner points of the sensor located on the far plane.
-    const XMMATRIX invViewProj = XMMatrixInverse(nullptr, computeViewProjMatrix());
-    const XMVECTOR sensorCorners[4] = {
-        XMVector4Transform(XMVECTOR{-1.f, -1.f, 1.f, 1.f}, invViewProj),
-        XMVector4Transform(XMVECTOR{ 1.f, -1.f, 1.f, 1.f}, invViewProj),
-        XMVector4Transform(XMVECTOR{-1.f,  1.f, 1.f, 1.f}, invViewProj),
-        XMVector4Transform(XMVECTOR{ 1.f,  1.f, 1.f, 1.f}, invViewProj)
-    };
 	// Store the results.
     Frustum frustum;
 	XMStoreFloat4x4A(&frustum.m_tPlanes, tPlanes);
 	XMStoreFloat4A(&frustum.m_farPlane, farPlane);
-    XMStoreFloat3A(&frustum.m_sensorCorners[0], sensorCorners[0]);
-    XMStoreFloat3A(&frustum.m_sensorCorners[1], sensorCorners[1]);
-    XMStoreFloat3A(&frustum.m_sensorCorners[2], sensorCorners[2]);
-    XMStoreFloat3A(&frustum.m_sensorCorners[3], sensorCorners[3]);
+    // Compute the corner points of the frustum.
+    const XMMATRIX invViewProj = XMMatrixInverse(nullptr, computeViewProjMatrix());
+    const XMVECTOR frustumCorners[8] = {
+        XMVector4Transform(XMVECTOR{-1.f, -1.f,     1.f, 1.f}, invViewProj),
+        XMVector4Transform(XMVECTOR{ 1.f, -1.f,     1.f, 1.f}, invViewProj),
+        XMVector4Transform(XMVECTOR{-1.f,  1.f,     1.f, 1.f}, invViewProj),
+        XMVector4Transform(XMVECTOR{ 1.f,  1.f,     1.f, 1.f}, invViewProj),
+        XMVector4Transform(XMVECTOR{-1.f, -1.f, FLT_MIN, 1.f}, invViewProj),
+        XMVector4Transform(XMVECTOR{ 1.f, -1.f, FLT_MIN, 1.f}, invViewProj),
+        XMVector4Transform(XMVECTOR{-1.f,  1.f, FLT_MIN, 1.f}, invViewProj),
+        XMVector4Transform(XMVECTOR{ 1.f,  1.f, FLT_MIN, 1.f}, invViewProj)
+    };
+    // Compute the bounding box.
+    frustum.m_bBox = AABox::empty();
+    for (size_t i = 0; i < 8; ++i) {
+        frustum.m_bBox.extend(frustumCorners[i] / XMVectorGetW(frustumCorners[i]));
+    }
     return frustum;
 }
 
