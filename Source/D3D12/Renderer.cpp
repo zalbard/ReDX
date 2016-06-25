@@ -692,6 +692,22 @@ void Renderer::GBuffer::setReadBarriers(D3D12_RESOURCE_BARRIER* barriers,
 }
 
 void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& scene) {
+    // Allocate memory for depth sorting.
+    std::pair<float, uint32_t> distAndObjIds[512];
+    // Compute the viewing frustum.
+    Frustum frustum = pCam.computeViewFrustum();
+    // Perform frustum culling.
+    size_t visObjCount = 0;
+    for (size_t i = 0, n = scene.objects.count; i < n; ++i) {
+        // Test the object for visibility.
+        float distance;
+        if (frustum.intersects(scene.objects.boundingBoxes[i], &distance)) {
+            distAndObjIds[visObjCount++] = {std::max(0.f, distance), static_cast<uint32_t>(i)};
+        }
+    }
+    // Perform depth sorting.
+    std::sort(&distAndObjIds[0], &distAndObjIds[visObjCount],
+              [] (const auto& a, const auto& b) { return a.first < b.first; });
     ID3D12GraphicsCommandList* graphicsCommandList = m_graphicsContext.commandList(0);
     // Set the necessary command list state.
     graphicsCommandList->RSSetViewports(1, &m_viewport);
@@ -729,34 +745,29 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     // Define the input geometry.
     graphicsCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     graphicsCommandList->IASetVertexBuffers(0, 3, scene.vertexAttrBuffers.views.get());
-    // Compute the viewing frustum.
-    Frustum frustum = pCam.computeViewFrustum();
     // Issue draw calls.
     uint16_t matId = UINT16_MAX;
-    for (size_t i = 0, n = scene.objects.count; i < n; ++i) {
-        // Test the object for visibility.
-        float distance;
-        if (frustum.intersects(scene.objects.boundingBoxes[i], &distance)) {
-            if (matId != scene.objects.materialIndices[i]) {
-                matId  = scene.objects.materialIndices[i];
-                // Check whether the material has a valid bump map.
-                uint32_t bumpMapFlag = 0;
-                const uint32_t texId = scene.materials[matId].bumpTexId;
-                if (texId < UINT32_MAX) {
-                    bumpMapFlag = 1u << 31;
-                    const D3D12_GPU_DESCRIPTOR_HANDLE texHandle = m_texPool.gpuHandle(texId);
-                    graphicsCommandList->SetGraphicsRootDescriptorTable(0, texHandle);
-                }
-                // Set the bump map flag and the material index.
-                graphicsCommandList->SetGraphicsRoot32BitConstant(1, bumpMapFlag | matId, 0);
+    for (size_t i = 0; i < visObjCount; ++i) {
+        const size_t objId = distAndObjIds[i].second;
+        if (matId != scene.objects.materialIndices[objId]) {
+            matId = scene.objects.materialIndices[objId];
+            // Check whether the material has a valid bump map.
+            uint32_t bumpMapFlag = 0;
+            const uint32_t texId = scene.materials[matId].bumpTexId;
+            if (texId < UINT32_MAX) {
+                bumpMapFlag = 1u << 31;
+                const D3D12_GPU_DESCRIPTOR_HANDLE texHandle = m_texPool.gpuHandle(texId);
+                graphicsCommandList->SetGraphicsRootDescriptorTable(0, texHandle);
             }
-            // Set the index buffer.
-            const D3D12_INDEX_BUFFER_VIEW ibv = scene.objects.indexBuffers.views[i];
-            graphicsCommandList->IASetIndexBuffer(&scene.objects.indexBuffers.views[i]);
-            // Draw the object.
-            const uint32_t count = ibv.SizeInBytes / sizeof(uint32_t);
-            graphicsCommandList->DrawIndexedInstanced(count, 1, 0, 0, 0);
+            // Set the bump map flag and the material index.
+            graphicsCommandList->SetGraphicsRoot32BitConstant(1, bumpMapFlag | matId, 0);
         }
+        // Set the index buffer.
+        const D3D12_INDEX_BUFFER_VIEW ibv = scene.objects.indexBuffers.views[objId];
+        graphicsCommandList->IASetIndexBuffer(&scene.objects.indexBuffers.views[objId]);
+        // Draw the object.
+        const uint32_t count = ibv.SizeInBytes / sizeof(uint32_t);
+        graphicsCommandList->DrawIndexedInstanced(count, 1, 0, 0, 0);
     }
 }
 
