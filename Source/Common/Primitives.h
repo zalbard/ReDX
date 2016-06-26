@@ -64,6 +64,8 @@ private:
 // Frustum represented by 5 plane equations with normals pointing inwards.
 class Frustum {
 public:
+    RULE_OF_ZERO(Frustum);
+    Frustum() = default;
     // Returns 'true' if the axis-aligned box overlaps the frustum, 'false' otherwise.
     // In case there is an overlap, it also computes the smallest signed distance 'minDist'.
     bool intersects(const AABox& aaBox, float* minDist) const;
