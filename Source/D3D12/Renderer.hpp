@@ -1,8 +1,8 @@
 #pragma once
 
 #include <d3dx12.h>
-#include "Renderer.h"
 #include "HelperStructs.hpp"
+#include "Renderer.h"
 
 namespace D3D12 {
     template <typename T>
