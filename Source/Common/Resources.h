@@ -17,11 +17,11 @@ public:
     // Makes subsequent allocations return pointers to locations within the next buffer.
     void switchToNextBuffer();
 private:
-    // Returns the offset to the end of the current buffer.
-    // It is the same as the beginning of the next buffer if wrap around doesn't occur.
-    size_t computeBufferEndOffset() const;
+    // Returns the pointer to the end of the current buffer.
+    // It coincides with the beginning of the next buffer if wrap around does not occur.
+    const byte_t* computeBufferEnd() const;
 private:
     size_t                    m_size;       // Size of each buffer
-    size_t                    m_offset;     // Offset from the beginning of the heap region
+    byte_t*                   m_current;    // Current (free) position within the heap region
     std::unique_ptr<byte_t[]> m_heapRegion; // Heap region backing N buffers
 };
