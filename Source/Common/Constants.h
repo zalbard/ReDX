@@ -39,28 +39,30 @@ constexpr auto BUF_CNT         = 3;
 constexpr auto G_BUFFER_SIZE   = 4;
 // Total number of render target views.
 constexpr auto RTV_CNT         = BUF_CNT + G_BUFFER_SIZE;
-// Maximal rendering queue depth (determines the frame latency).
+// Maximal depth of the rendering queue (determines the frame latency).
 constexpr auto FRAME_CNT       = 2;
-// Vertical blank count after which the synchronization is performed.
+// Vertical blank count after which the VSync is performed.
 constexpr auto VSYNC_INTERVAL  = 0;
 // Software rendering flag.
 constexpr bool USE_WARP_DEVICE = false;
-// Normal texture format.
+// Normal texture's format.
 constexpr auto FORMAT_NORMAL   = DXGI_FORMAT_R16G16_SNORM;
-// UV coordinate texture format.
+// UV coordinate texture's format.
 constexpr auto FORMAT_UVCOORD  = DXGI_FORMAT_R16G16_UNORM;
-// UV gradient texture format.
+// UV gradient texture's format.
 constexpr auto FORMAT_UVGRAD   = DXGI_FORMAT_R16G16B16A16_SNORM;
-// Material ID texture format.
+// Material ID texture's format.
 constexpr auto FORMAT_MAT_ID   = DXGI_FORMAT_R16_UINT;
-// Swap chain buffer format.
+// Swap chain buffer's format.
 constexpr auto FORMAT_SC       = DXGI_FORMAT_R8G8B8A8_UNORM;
-// Primary render target view format.
+// Primary render target view's format.
 constexpr auto FORMAT_RTV      = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-// Primary depth stencil view format.
+// Primary depth stencil view's format.
 constexpr auto FORMAT_DSV      = DXGI_FORMAT_D24_UNORM_S8_UINT;
 // Upload buffer size (32 MiB).
 constexpr auto UPLOAD_BUF_SIZE = 32 * 1024 * 1024;
+// Frame allocator's buffer size (1 MiB).
+constexpr auto FRAME_DATA_SIZE = 1024 * 1024;
 // Camera's speed (in meters/sec).
 constexpr auto CAM_SPEED       = 500.f;
 // Camera's angular speed (in radians/sec).

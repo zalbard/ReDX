@@ -126,6 +126,8 @@
     <ClInclude Include="Source\Common\DynBitSet.h" />
     <ClInclude Include="Source\Common\Math.h" />
     <ClInclude Include="Source\Common\Primitives.h" />
+    <ClInclude Include="Source\Common\Resources.h" />
+    <ClInclude Include="Source\Common\Resources.hpp" />
     <ClInclude Include="Source\Common\Scene.h" />
     <ClInclude Include="Source\Common\Utility.h" />
     <ClInclude Include="Source\D3D12\HelperStructs.h" />
