@@ -14,8 +14,11 @@ public:
     // Allocates 'size' bytes according to the specified alignment restriction.
     template <size_t alignment>
     void* allocate(const size_t size);
-    // Makes subsequent allocations return pointers to locations within the next buffer.
+    // Sets the internal pointer to the beginning of the next buffer.
+    // Makes subsequent allocations occur within the next buffer.
     void switchToNextBuffer();
+    // Resets the allocator to its initial state.
+    void reset();
 private:
     // Returns the pointer to the end of the current buffer.
     // It coincides with the beginning of the next buffer if wrap around does not occur.
@@ -25,3 +28,5 @@ private:
     byte_t*                   m_current;    // Current (free) position within the heap region
     std::unique_ptr<byte_t[]> m_heapRegion; // Heap region backing N buffers
 };
+
+using LinearAllocator = BufferedLinearAllocator<1>;

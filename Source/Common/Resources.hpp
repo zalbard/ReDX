@@ -49,3 +49,8 @@ inline void BufferedLinearAllocator<N>::switchToNextBuffer() {
     // Store the result.
     m_current = heapBegin + offset;
 }
+
+template <size_t N>
+inline void BufferedLinearAllocator<N>::reset() {
+    m_current = m_heapRegion.get();
+}

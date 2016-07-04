@@ -63,7 +63,7 @@ static inline auto createHardwareDevice(IDXGIFactory4* factory)
 }
 
 Renderer::Renderer()
-    : m_frameAlloca{FRAME_DATA_SIZE} {
+    : m_tempAlloca{TEMP_DATA_SIZE} {
     const uint32_t width  = Window::width();
     const uint32_t height = Window::height();
     // Configure the scissor rectangle used for clipping.
@@ -697,7 +697,7 @@ void Renderer::GBuffer::setReadBarriers(D3D12_RESOURCE_BARRIER* barriers,
 void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& scene) {
     const size_t n = scene.objects.count;
     // Allocate memory for depth sorting.
-    void* buffer = m_frameAlloca.allocate<16>(n * sizeof(std::pair<float, uint32_t>));
+    void* buffer = m_tempAlloca.allocate<16>(n * sizeof(std::pair<float, uint32_t>));
     std::pair<float, uint32_t>* distAndObjIds = static_cast<std::pair<float, uint32_t>*>(buffer);
     // Compute the viewing frustum.
     Frustum frustum = pCam.computeViewFrustum();
@@ -774,6 +774,8 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
         const uint32_t count = ibv.SizeInBytes / sizeof(uint32_t);
         graphicsCommandList->DrawIndexedInstanced(count, 1, 0, 0, 0);
     }
+    // Reset the allocator to reuse the memory.
+    m_tempAlloca.reset();
 }
 
 void Renderer::recordShadingPass(const PerspectiveCamera& pCam) {
@@ -824,8 +826,6 @@ void Renderer::renderFrame() {
     // Present the frame, and update the index of the render (back) buffer.
     CHECK_CALL(m_swapChain->Present(VSYNC_INTERVAL, 0), "Failed to display the frame buffer.");
     m_backBufferIndex = m_swapChain->GetCurrentBackBufferIndex();
-    // Switch to the next buffer of the frame allocator.
-    m_frameAlloca.switchToNextBuffer();
     // Reset the graphics command (frame) allocator.
     m_graphicsContext.resetCommandAllocators();
     // Reset command lists to their initial states.

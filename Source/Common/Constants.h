@@ -61,8 +61,8 @@ constexpr auto FORMAT_RTV      = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 constexpr auto FORMAT_DSV      = DXGI_FORMAT_D24_UNORM_S8_UINT;
 // Upload buffer size (32 MiB).
 constexpr auto UPLOAD_BUF_SIZE = 32 * 1024 * 1024;
-// Frame allocator's buffer size (1 MiB).
-constexpr auto FRAME_DATA_SIZE = 1024 * 1024;
+// Temporary allocator's buffer size (4 KiB).
+constexpr auto TEMP_DATA_SIZE = 4 * 1024;
 // Camera's speed (in meters/sec).
 constexpr auto CAM_SPEED       = 500.f;
 // Camera's angular speed (in radians/sec).

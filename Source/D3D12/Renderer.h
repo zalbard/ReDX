@@ -81,23 +81,27 @@ namespace D3D12 {
         template<size_t alignment>
         std::pair<byte_t*, size_t> reserveChunkOfUploadBuffer(const size_t size);
     private:
-        ComPtr<ID3D12DeviceEx>             m_device;
-        D3D12_VIEWPORT                     m_viewport;
-        D3D12_RECT                         m_scissorRect;
-        GraphicsContext<FRAME_CNT, 2>      m_graphicsContext;
-        size_t                             m_backBufferIndex;
-        ComPtr<ID3D12Resource>             m_swapChainBuffers[BUF_CNT];
-        GBuffer                            m_gBuffer;
-        RtvPool<RTV_CNT>                   m_rtvPool;
-        DsvPool<1>                         m_dsvPool;
-        CbvSrvUavPool<TEX_CNT>             m_texPool;
-        ComPtr<IDXGISwapChain3>            m_swapChain;
-        HANDLE                             m_swapChainWaitableObject;
-        CopyContext<2, 1>                  m_copyContext;
-        UploadRingBuffer                   m_uploadBuffer;
-        StructuredBuffer                   m_materialBuffer;
-        RenderPassConfig                   m_gBufferPass;
-        RenderPassConfig                   m_shadingPass;
-        BufferedLinearAllocator<FRAME_CNT> m_frameAlloca;
+        ComPtr<ID3D12DeviceEx>        m_device;
+        // Swap chain infrastructure.
+        ComPtr<IDXGISwapChain3>       m_swapChain;
+        HANDLE                        m_swapChainWaitableObject;
+        ComPtr<ID3D12Resource>        m_swapChainBuffers[BUF_CNT];
+        size_t                        m_backBufferIndex;
+        // Descriptor pools.
+        RtvPool<RTV_CNT>              m_rtvPool;
+        DsvPool<1>                    m_dsvPool;
+        CbvSrvUavPool<TEX_CNT>        m_texPool;
+        // Rendering infrastructure.
+        GraphicsContext<FRAME_CNT, 2> m_graphicsContext;
+        D3D12_VIEWPORT                m_viewport;
+        D3D12_RECT                    m_scissorRect;
+        GBuffer                       m_gBuffer;
+        StructuredBuffer              m_materialBuffer;
+        LinearAllocator               m_tempAlloca;
+        RenderPassConfig              m_gBufferPass;
+        RenderPassConfig              m_shadingPass;
+        // Copying infrastructure.
+        CopyContext<2, 1>             m_copyContext;
+        UploadRingBuffer              m_uploadBuffer;
     };
 } // namespace D3D12
