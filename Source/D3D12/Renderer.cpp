@@ -194,7 +194,7 @@ Renderer::Renderer()
                                                      IID_PPV_ARGS(&m_uploadBuffer.resource)),
                    "Failed to allocate an upload buffer.");
         // Note: we don't intend to read from this resource on the CPU.
-        constexpr D3D12_RANGE emptyReadRange{0, 0};
+        constexpr D3D12_RANGE emptyReadRange = {0, 0};
         // Map the buffer to a range in the CPU virtual address space.
         CHECK_CALL(m_uploadBuffer.resource->Map(0, &emptyReadRange,
                                                 reinterpret_cast<void**>(&m_uploadBuffer.begin)),
