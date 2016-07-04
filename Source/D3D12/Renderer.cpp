@@ -188,6 +188,7 @@ Renderer::Renderer()
         // Allocate the buffer on the upload heap.
         const auto heapProperties = CD3DX12_HEAP_PROPERTIES{D3D12_HEAP_TYPE_UPLOAD};
         const auto resourceDesc   = CD3DX12_RESOURCE_DESC::Buffer(m_uploadBuffer.capacity);
+        // Upload heaps require the initial resource state to be set to 'GENERIC_READ'.
         CHECK_CALL(m_device->CreateCommittedResource(&heapProperties, D3D12_HEAP_FLAG_NONE, 
                                                      &resourceDesc,
                                                      D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
