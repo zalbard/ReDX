@@ -11,7 +11,7 @@ public:
     // Ctor; takes the minimal and the maximal points as input.
     explicit AABox(const DirectX::XMFLOAT3& pMin, const DirectX::XMFLOAT3& pMax);
     explicit AABox(DirectX::FXMVECTOR pMin, DirectX::FXMVECTOR pMax);
-	// Ctor; takes the minimal point and the X, Y, Z dimensions as input.
+    // Ctor; takes the minimal point and the X, Y, Z dimensions as input.
     explicit AABox(const DirectX::XMFLOAT3& pMin, const float (&dims)[3]);
     // Constructs the bounding box for 'count' points.
     explicit AABox(const size_t count, const DirectX::XMFLOAT3* points);
@@ -58,7 +58,7 @@ public:
     // Returns the radius of the sphere in every component.
     DirectX::XMVECTOR radius() const;
 private:
-	DirectX::XMFLOAT4A m_data;
+    DirectX::XMFLOAT4A m_data;
 };
 
 // Frustum represented by 5 plane equations with normals pointing inwards.
@@ -73,9 +73,11 @@ public:
     // In case there is an overlap, it also computes the smallest signed distance 'minDist'.
     bool intersects(const Sphere& sphere, float* minDist) const;
 private:
-    AABox                m_bBox;        // Bounding box of the frustum
-    DirectX::XMFLOAT4X4A m_tPlanes;     // Transposed equations of the left/right/top/bottom planes
-    DirectX::XMFLOAT4A   m_farPlane;    // Equation of the far plane
-	/* Accessors */
+    AABox                m_bBox;          // Bounding box of the frustum
+    DirectX::XMFLOAT4X4A m_tPlanes;       // Transposed equations of left/right/top/bottom planes
+    DirectX::XMFLOAT4A   m_tPlanesSgn[3]; // Signs of X, Y, Z components of 'm_tPlanes' (cmp >= 0)
+    DirectX::XMFLOAT4A   m_farPlane;      // Equation of the far plane
+    DirectX::XMFLOAT4A   m_farPlaneSgn;   // Signs of X, Y, Z components of 'm_farPlane' (cmp >= 0)
+    /* Accessors */
     friend class PerspectiveCamera;
 };

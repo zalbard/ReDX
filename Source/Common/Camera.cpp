@@ -117,10 +117,21 @@ Frustum PerspectiveCamera::computeViewFrustum() const {
     farPlane = XMPlaneNormalize(farPlane);
     // Transpose the normalized plane equations.
     tPlanes  = XMMatrixTranspose(frustumPlanes);
-	// Store the results.
+    // Determine normal component (X, Y, Z) signs for all 5 plane normals.
+    const XMVECTOR tPlanesSgn[3] = {
+        XMVectorGreaterOrEqual(tPlanes.r[0], g_XMZero),
+        XMVectorGreaterOrEqual(tPlanes.r[1], g_XMZero),
+        XMVectorGreaterOrEqual(tPlanes.r[2], g_XMZero)
+    };
+    const XMVECTOR farPlaneSgn = XMVectorGreaterOrEqual(farPlane, g_XMZero);
+    // Store the results.
     Frustum frustum;
-	XMStoreFloat4x4A(&frustum.m_tPlanes, tPlanes);
-	XMStoreFloat4A(&frustum.m_farPlane, farPlane);
+    XMStoreFloat4x4A(&frustum.m_tPlanes,     tPlanes);
+    XMStoreFloat4A(&frustum.m_tPlanesSgn[0], tPlanesSgn[0]);
+    XMStoreFloat4A(&frustum.m_tPlanesSgn[1], tPlanesSgn[1]);
+    XMStoreFloat4A(&frustum.m_tPlanesSgn[2], tPlanesSgn[2]);
+    XMStoreFloat4A(&frustum.m_farPlane,      farPlane);
+    XMStoreFloat4A(&frustum.m_farPlaneSgn,   farPlaneSgn);
     // Compute the corner points of the frustum.
     const XMMATRIX invViewProj = XMMatrixInverse(nullptr, computeViewProjMatrix());
     const XMVECTOR frustumCorners[8] = {
