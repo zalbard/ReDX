@@ -208,7 +208,7 @@ bool Frustum::intersects(const AABox& aaBox, float* minDist) const {
     } else {
         // Find a point with the smallest signed distance to the plane.
         XMVECTOR smallestSignDistPoint = XMVectorSelect(pMax, pMin, normalComponentSign);
-        smallestSignDistPoint = SSE4::XMVectorSetW(largestSignDistPoint, 1.f);
+        smallestSignDistPoint = SSE4::XMVectorSetW(smallestSignDistPoint, 1.f);
         // Compute the signed distance to the far plane.
         const XMVECTOR signDist = SSE4::XMVector4Dot(farPlane, smallestSignDistPoint);
         *minDist = XMVectorGetX(signDist);
