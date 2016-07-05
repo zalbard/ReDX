@@ -694,25 +694,40 @@ void Renderer::GBuffer::setReadBarriers(D3D12_RESOURCE_BARRIER* barriers,
                                            D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, flag};
 }
 
+union ObjectSortKey {
+    float   depth;  // Always positive, therefore 'number' is always positive
+    int32_t number; // Used for sorting, slightly faster than using floats
+};
+
+struct ObjectSortPair {
+    bool operator<(const ObjectSortPair& other) const {
+        return key.number < other.key.number;
+    }
+public:
+    ObjectSortKey key;
+    uint32_t      index;
+};
+
 void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& scene) {
     const size_t n = scene.objects.count;
     // Allocate memory for depth sorting.
-    void* buffer = m_tempAlloca.allocate<16>(n * sizeof(std::pair<float, uint32_t>));
-    std::pair<float, uint32_t>* distAndObjIds = static_cast<std::pair<float, uint32_t>*>(buffer);
+    void* buffer = m_tempAlloca.allocate<16>(n * sizeof(ObjectSortPair));
+    ObjectSortPair* objSortPairs = static_cast<ObjectSortPair*>(buffer);
     // Compute the viewing frustum.
     Frustum frustum = pCam.computeViewFrustum();
     // Perform frustum culling.
     size_t visObjCount = 0;
     for (size_t i = 0; i < n; ++i) {
         // Test the object for visibility.
-        float distance;
-        if (frustum.intersects(scene.objects.boundingBoxes[i], &distance)) {
-            distAndObjIds[visObjCount++] = {std::max(0.f, distance), static_cast<uint32_t>(i)};
+        float depth;
+        if (frustum.intersects(scene.objects.boundingBoxes[i], &depth)) {
+            ObjectSortKey key;
+            key.depth = depth;
+            objSortPairs[visObjCount++] = {key, static_cast<uint32_t>(i)};
         }
     }
-    // Perform depth sorting.
-    std::sort(&distAndObjIds[0], &distAndObjIds[visObjCount],
-              [] (const auto& a, const auto& b) { return a.first < b.first; });
+    // Sort objects (front to back).
+    std::sort(&objSortPairs[0], &objSortPairs[visObjCount]);
     ID3D12GraphicsCommandList* graphicsCommandList = m_graphicsContext.commandList(0);
     // Set the necessary command list state.
     graphicsCommandList->RSSetViewports(1, &m_viewport);
@@ -753,7 +768,7 @@ void Renderer::recordGBufferPass(const PerspectiveCamera& pCam, const Scene& sce
     // Issue draw calls.
     uint16_t matId = UINT16_MAX;
     for (size_t i = 0; i < visObjCount; ++i) {
-        const size_t objId = distAndObjIds[i].second;
+        const size_t objId = objSortPairs[i].index;
         if (matId != scene.objects.materialIndices[objId]) {
             matId = scene.objects.materialIndices[objId];
             // Check whether the material has a valid bump map.

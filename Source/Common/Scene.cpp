@@ -11,9 +11,6 @@ struct IndexedObject {
     bool operator<(const IndexedObject& other) const {
         return material < other.material;
     }
-    bool operator>(const IndexedObject& other) const {
-        return material > other.material;
-    }
 public:
     size_t                material;
     std::vector<uint32_t> indices;
@@ -88,7 +85,7 @@ Scene::Scene(const char* path, const char* objFileName, D3D12::Renderer& engine)
     }
     /* TODO: implement mesh decimation. */
     // Sort objects by material.
-    std::sort(indexedObjects.begin(), indexedObjects.end(), std::greater<IndexedObject>());
+    std::sort(indexedObjects.begin(), indexedObjects.end());
     // Allocate memory.
     objects.count           = indexedObjects.size();
     objects.boundingBoxes   = std::make_unique<AABox[]>(objects.count);

@@ -140,7 +140,7 @@ XMVECTOR Sphere::radius() const {
     return XMVectorSplatW(XMLoadFloat4A(&m_data));
 }
 
-bool Frustum::intersects(const AABox& aaBox, float* minDist) const {
+bool Frustum::intersects(const AABox& aaBox, float* distance) const {
     // Test whether the bounding boxes are disjoint.
     const XMVECTOR pMin = aaBox.minPoint();
     const XMVECTOR pMax = aaBox.maxPoint();
@@ -185,9 +185,9 @@ bool Frustum::intersects(const AABox& aaBox, float* minDist) const {
                              + tPlanes.r[1] * tLargestSignDistPoints[1];
     const XMVECTOR lowerPart = tPlanes.r[2] * tLargestSignDistPoints[2]
                              + tPlanes.r[3];
-    const XMVECTOR distances = upperPart + lowerPart;
-    // Test the distances for being negative.
-    const XMVECTOR outsideTests = XMVectorLess(distances, g_XMZero);
+    const XMVECTOR signDists = upperPart + lowerPart;
+    // Test the distances for not being strictly positive.
+    const XMVECTOR outsideTests = XMVectorLessOrEqual(signDists, g_XMZero);
     // Check if at least one of the 'outside' tests passed.
     if (XMVector4NotEqualInt(outsideTests, XMVectorFalseInt())) {
         return false;
@@ -201,22 +201,17 @@ bool Frustum::intersects(const AABox& aaBox, float* minDist) const {
     XMVECTOR       largestSignDistPoint = XMVectorSelect(pMin, pMax, normalComponentSign);
     largestSignDistPoint = SSE4::XMVectorSetW(largestSignDistPoint, 1.f);
     // Compute the signed distance to the far plane.
-    const XMVECTOR distance = SSE4::XMVector4Dot(farPlane, largestSignDistPoint);
-    // Test the distance for being negative.
-    if (XMVectorGetIntX(XMVectorLess(distance, g_XMZero))) {
+    const XMVECTOR signDist = SSE4::XMVector4Dot(farPlane, largestSignDistPoint);
+    // Test the distance for not being strictly positive.
+    if (XMVectorGetIntX(XMVectorLessOrEqual(signDist, g_XMZero))) {
         return false;
     } else {
-        // Find a point with the smallest signed distance to the plane.
-        XMVECTOR smallestSignDistPoint = XMVectorSelect(pMax, pMin, normalComponentSign);
-        smallestSignDistPoint = SSE4::XMVectorSetW(smallestSignDistPoint, 1.f);
-        // Compute the signed distance to the far plane.
-        const XMVECTOR signDist = SSE4::XMVector4Dot(farPlane, smallestSignDistPoint);
-        *minDist = XMVectorGetX(signDist);
+        *distance = XMVectorGetX(signDist);
         return true;
     }
 }
 
-bool Frustum::intersects(const Sphere& sphere, float* minDist) const {
+bool Frustum::intersects(const Sphere& sphere, float* distance) const {
     const XMVECTOR sphereCenter    =  sphere.centerW1();
     const XMVECTOR negSphereRadius = -sphere.radius();
 
@@ -227,9 +222,9 @@ bool Frustum::intersects(const Sphere& sphere, float* minDist) const {
                              + tPlanes.r[1] * XMVectorSplatY(sphereCenter);
     const XMVECTOR lowerPart = tPlanes.r[2] * XMVectorSplatZ(sphereCenter)
                              + tPlanes.r[3];
-    const XMVECTOR distances = upperPart + lowerPart;
+    const XMVECTOR signDists = upperPart + lowerPart;
     // Test the distances against the (negated) radius of the sphere.
-    const XMVECTOR outsideTests = XMVectorLess(distances, negSphereRadius);
+    const XMVECTOR outsideTests = XMVectorLessOrEqual(signDists, negSphereRadius);
     // Check if at least one of the 'outside' tests passed.
     if (XMVector4NotEqualInt(outsideTests, XMVectorFalseInt())) {
         return false;
@@ -238,14 +233,12 @@ bool Frustum::intersects(const Sphere& sphere, float* minDist) const {
     // Test whether the sphere is in front of the camera.
     // Our projection matrix is reversed, so we use the far plane.
     const XMVECTOR farPlane = XMLoadFloat4A(&m_farPlane);
-    const XMVECTOR distance = SSE4::XMVector4Dot(farPlane, sphereCenter);
+    const XMVECTOR signDist = SSE4::XMVector4Dot(farPlane, sphereCenter);
     // Test the distance against the (negated) radius of the sphere.
-    if (XMVectorGetIntX(XMVectorLess(distance, negSphereRadius))) {
+    if (XMVectorGetIntX(XMVectorLessOrEqual(signDist, negSphereRadius))) {
         return false;
     } else {
-        // Compute the signed distance to the front of the sphere (as seen by the camera).
-        const XMVECTOR signDist = distance + negSphereRadius;
-        *minDist = XMVectorGetX(signDist); 
+        *distance = XMVectorGetX(signDist);
         return true;
     }
 }
