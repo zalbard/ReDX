@@ -36,6 +36,7 @@ namespace D3D12 {
                                             const D3D12_RESOURCE_STATES after);
     };
 
+	// Segmented ("double buffered") upload ring buffer.
     struct UploadRingBuffer {
         RULE_OF_FIVE_MOVE_ONLY(UploadRingBuffer);
         UploadRingBuffer();
