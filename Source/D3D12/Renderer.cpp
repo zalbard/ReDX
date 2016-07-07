@@ -695,13 +695,13 @@ void Renderer::GBuffer::setReadBarriers(D3D12_RESOURCE_BARRIER* barriers,
 }
 
 union ObjectSortKey {
-    float   depth;  // Always positive, therefore 'number' is always positive
-    int32_t number; // Used for sorting, slightly faster than using floats
+    float   depth;   // Always positive, therefore 'number' is always positive
+    int32_t integer; // Used for sorting, slightly faster than using floating point values
 };
 
 struct ObjectSortPair {
     bool operator<(const ObjectSortPair& other) const {
-        return key.number < other.key.number;
+        return key.integer < other.key.integer;
     }
 public:
     ObjectSortKey key;
