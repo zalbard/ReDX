@@ -695,7 +695,7 @@ void Renderer::GBuffer::setReadBarriers(D3D12_RESOURCE_BARRIER* barriers,
 }
 
 union ObjectSortKey {
-    float   depth;   // Always positive, therefore 'number' is always positive
+    float   depth;   // Always positive, therefore 'integer' is always positive
     int32_t integer; // Used for sorting, slightly faster than using floating point values
 };
 
