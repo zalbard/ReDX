@@ -131,7 +131,7 @@ float3 perturbNormal(const float3 normal, const float3 pos, const float height) 
     // Orthogonalize the tangent vectors with respect to the normal.
     const float3 vS = cross(bitangent, normal);
     const float3 vT = cross(normal, tangent);
-    // Compute the determinant. Why not cross(tangent, bitangent) ??
+    // Compute the determinant. Why not dot(normal, cross(tangent, bitangent))?
     const float det = dot(tangent, vS);
     // Compute partial derivatives of the height (bump) map.
     const float hS = ddx_fine(height);
