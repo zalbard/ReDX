@@ -340,7 +340,7 @@ namespace D3D12 {
         CHECK_CALL(m_commandQueue->Signal(m_fence.Get(), UINT64_MAX),
                    "Failed to insert a fence into the command queue.");
         syncThread(UINT64_MAX);
-        if (CloseHandle(m_syncEvent) == 0) {
+        if (!CloseHandle(m_syncEvent)) {
             printError("Failed to close the synchronization event handle."); 
             TERMINATE();
         }
