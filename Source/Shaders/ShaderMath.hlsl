@@ -145,7 +145,7 @@ float3 perturbNormal(const float3 normal, const float3 pos, const float height) 
     return normalize(normal * abs(det) - surfGrad);
 }
 
-// Evaluates Schlick's approximation of the full Fresnel equations.
+// Evaluates the Schlick's approximation of the full Fresnel equations.
 float3 evalFresnelSchlick(const float3 F0, const float3 L, const float3 H) {
     const float cosLH = saturate(dot(L, H));
     const float t  = 1.f - cosLH;
@@ -154,28 +154,32 @@ float3 evalFresnelSchlick(const float3 F0, const float3 L, const float3 H) {
     return F0 + (float3(1.f, 1.f, 1.f) - F0) * t5;
 }
 
-// Evaluates Schlick's approximation of the visibility term.
-float evalVisibilitySchlick(const float k, const float3 N, const float3 X) {
-    const float cosNX = saturate(dot(N, X));
-    return cosNX / (cosNX * (1.f - k) + k);
+// Evaluates the GGX NDF.
+float evalNdf(float roughness, const float3 N, const float3 H) {
+    // Apply Disney's reparametrization.
+    const float alpha = sq(roughness);
+    const float cosNH = saturate(dot(N, H));
+    return sq(alpha) * M_1_PI / sq(sq(cosNH) * (sq(alpha) - 1.f) + 1.f);
 }
 
 // Evaluates the GGX BRDF.
 float3 evalGGX(const float3 F0, const float roughness,
                const float3 N, const float3 L, const float3 V) {
+    const float cosNL = saturate(dot(N, L));
+    const float cosNV = saturate(dot(N, V));
     // Compute the half vector.
     const float3 H = normalize(L + V);
     // Evaluate the Fresnel term.
     const float3 F = evalFresnelSchlick(F0, L, H);
     // Evaluate the NDF term.
-    const float cosNH = saturate(dot(N, H));
-    const float alpha = sq(roughness);
-    const float D = sq(alpha) * M_1_PI / sq(sq(cosNH) * (sq(alpha) - 1.f) + 1.f);
+    const float D = evalNdf(roughness, N, H);
     // Perform Disney's hotness remapping.
     const float k = 0.125f * sq(roughness + 1.f);
-    // Evaluate the Smith's geometric term using Schlick's approximation.
-    const float G = evalVisibilitySchlick(k, N, L) * evalVisibilitySchlick(k, N, V);
-    return F * (D * G);
+    // Evaluate the combined visibility term.
+    // CV(k, N, L, V) = G(k, N, L, V) / (4 * dot(N, L) * dot(N, V)),
+    // where G is the Schlick's approximation of the Smith's visibility term.
+    const float CV = 0.25f / ((cosNL * (1.f - k) + k) * (cosNV * (1.f - k) + k));
+    return F * (D * CV);
 }
 
 // Performs ACES Filmic Tone Mapping.
