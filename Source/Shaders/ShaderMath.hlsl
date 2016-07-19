@@ -106,17 +106,17 @@ float4 unpackQuaternion(float4 q) {
 // the 1st row is the tangent, the 2nd row is the normal, the 3rd row the bitangent.
 float3x3 convertQuaternionToTangentFrame(const float4 q) {
     // Tangent.
-	const float3 T = float3( 1.f,  0.f,  0.f)
-	               + float3(-2.f,  2.f, -2.f) * q.y * q.yxw
-	               + float3(-2.f,  2.f,  2.f) * q.z * q.zwx;
+    const float3 T = float3( 1.f,  0.f,  0.f)
+                   + float3(-2.f,  2.f, -2.f) * q.y * q.yxw
+                   + float3(-2.f,  2.f,  2.f) * q.z * q.zwx;
     // Normal.
-	const float3 N = float3( 0.f,  1.f,  0.f)
-	               + float3( 2.f, -2.f,  2.f) * q.x * q.yxw
-	               + float3(-2.f, -2.f,  2.f) * q.z * q.wzy;
+    const float3 N = float3( 0.f,  1.f,  0.f)
+                   + float3( 2.f, -2.f,  2.f) * q.x * q.yxw
+                   + float3(-2.f, -2.f,  2.f) * q.z * q.wzy;
     // Bitangent.
-	const float3 B = float3( 0.f,  0.f,  1.f)
-	               + float3( 2.f, -2.f, -2.f) * q.x * q.zwx
-	               + float3( 2.f,  2.f, -2.f) * q.y * q.wzy;
+    const float3 B = float3( 0.f,  0.f,  1.f)
+                   + float3( 2.f, -2.f, -2.f) * q.x * q.zwx
+                   + float3( 2.f,  2.f, -2.f) * q.y * q.wzy;
     // Compose the rotation matrix.
     return float3x3(T, N, B);
 }
