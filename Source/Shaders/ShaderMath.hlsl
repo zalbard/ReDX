@@ -162,24 +162,25 @@ float evalNdf(float roughness, const float3 N, const float3 H) {
     return sq(alpha) * M_1_PI / sq(sq(cosNH) * (sq(alpha) - 1.f) + 1.f);
 }
 
+// Evaluates the combined GGX visibility term.
+float evalVis(const float roughness, const float3 N, const float3 L, const float3 V) {
+    const float cosNL = saturate(dot(N, L));
+    const float cosNV = saturate(dot(N, V));
+    // Perform Disney's hotness remapping.
+    const float k = 0.125f * sq(roughness + 1.f);
+    // Vis(k, N, L, V) = G2(k, N, L, V) / (4 * dot(N, L) * dot(N, V)),
+    // where G2 is the Karis's approximation of the Smith's geometric term.
+    return 0.25f / ((cosNL * (1.f - k) + k) * (cosNV * (1.f - k) + k));
+}
+
 // Evaluates the GGX BRDF.
 float3 evalGGX(const float3 F0, const float roughness,
                const float3 N, const float3 L, const float3 V) {
-    const float cosNL = saturate(dot(N, L));
-    const float cosNV = saturate(dot(N, V));
-    // Compute the half vector.
-    const float3 H = normalize(L + V);
-    // Evaluate the Fresnel term.
-    const float3 F = evalFresnelSchlick(F0, L, H);
-    // Evaluate the NDF term.
-    const float D = evalNdf(roughness, N, H);
-    // Perform Disney's hotness remapping.
-    const float k = 0.125f * sq(roughness + 1.f);
-    // Evaluate the combined visibility term.
-    // CV(k, N, L, V) = G(k, N, L, V) / (4 * dot(N, L) * dot(N, V)),
-    // where G is the Schlick's approximation of the Smith's visibility term.
-    const float CV = 0.25f / ((cosNL * (1.f - k) + k) * (cosNV * (1.f - k) + k));
-    return F * (D * CV);
+    const float3 H  = normalize(L + V);
+    const float3 fr = evalFresnelSchlick(F0, L, H);
+    const float ndf = evalNdf(roughness, N, H);
+    const float vis = evalVis(roughness, N, L, V);
+    return fr * ndf * vis;
 }
 
 // Performs ACES Filmic Tone Mapping.
