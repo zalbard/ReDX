@@ -1,5 +1,6 @@
 #include "Camera.h"
 #include "Math.h"
+#include "Primitives.h"
 
 using namespace DirectX;
 

@@ -1,6 +1,9 @@
 #pragma once
 
-#include "Primitives.h"
+#include <DirectXMathSSE4.h>
+#include "Definitions.h"
+
+class Frustum;
 
 class PerspectiveCamera {
 public:

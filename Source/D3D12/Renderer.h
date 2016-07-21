@@ -2,10 +2,12 @@
 
 #include <DirectXMathSSE4.h>
 #include "HelperStructs.h"
+#include "..\Common\Constants.h"
 #include "..\Common\Resources.h"
-#include "..\Common\Scene.h"
 
-class PerspectiveCamera;
+struct Material;
+class  PerspectiveCamera;
+class  Scene;
 
 namespace D3D12 {
     class Renderer {

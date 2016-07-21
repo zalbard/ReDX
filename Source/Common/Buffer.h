@@ -4,6 +4,8 @@
 #include "Definitions.h"
 
 struct Buffer {
+	RULE_OF_ZERO(Buffer);
+	// Constructs an empty buffer.
     Buffer();
     // Initializes the buffer by reading the file.
     explicit Buffer(const char* fileWithPath);
