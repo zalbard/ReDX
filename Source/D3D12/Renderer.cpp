@@ -7,6 +7,7 @@
 #include "..\Common\Camera.h"
 #include "..\Common\Math.h"
 #include "..\Common\Resources.hpp"
+#include "..\Common\Scene.h"
 #include "..\UI\Window.h"
 
 using namespace D3D12;

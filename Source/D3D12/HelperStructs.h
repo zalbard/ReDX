@@ -5,7 +5,6 @@
 #include <memory>
 #include <utility>
 #include <wrl\client.h>
-#include "..\Common\Constants.h"
 #include "..\Common\Definitions.h"
 
 namespace D3D12 {

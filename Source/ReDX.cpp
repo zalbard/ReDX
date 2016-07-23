@@ -1,6 +1,6 @@
 #include <future>
 #include "Common\Camera.h"
-#include "Common\Utility.h"
+#include "Common\Scene.h"
 #include "D3D12\Renderer.hpp"
 #include "UI\Window.h"
 
