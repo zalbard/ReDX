@@ -17,11 +17,19 @@ float sq(float v) {
     return v * v;
 }
 
-// Returns 1 for non-negative components, -1 otherwise.
-// Ignores the sign of negative zero.
-float2 nonNegative(const float2 p) {
-    return float2((p.x >= 0.f) ? 1.f : -1.f,
-                  (p.y >= 0.f) ? 1.f : -1.f);
+// Returns 1 for positive inputs and ±0, -1 otherwise.
+float fastSign(const float v) {
+	return (v >= 0.f) ? 1.f : -1.f;
+}
+
+// Returns 1 for positive inputs and ±0, -1 otherwise.
+float2 fastSign(const float2 v2) {
+	return float2(fastSign(v2.x), fastSign(v2.y));
+}
+
+// Returns 1 for positive inputs and ±0, -1 otherwise.
+float3 fastSign(const float3 v3) {
+	return float3(fastSign(v3.x), fastSign(v3.y), fastSign(v3.z));
 }
 
 // Performs Octahedral Normal Vector encoding.
@@ -31,7 +39,7 @@ float2 encodeOctahedral(const float3 n) {
     // Project the sphere onto the octahedron, and then onto the XY plane.
     const float2 p = n.xy * (1.f / (abs(n.x) + abs(n.y) + abs(n.z)));
     // Reflect the folds of the lower hemisphere over the diagonals.
-    return (n.z <= 0.f) ? ((1.f - abs(p.yx)) * nonNegative(p)) : p;
+    return (n.z <= 0.f) ? ((1.f - abs(p.yx)) * fastSign(p)) : p;
 }
 
 // Performs Octahedral Normal Vector decoding.
@@ -40,7 +48,7 @@ float2 encodeOctahedral(const float3 n) {
 float3 decodeOctahedral(const float2 p) {
     float3 n = float3(p.xy, 1.f - abs(p.x) - abs(p.y));
     if (n.z < 0) {
-        n.xy = (1.f - abs(n.yx)) * nonNegative(n.xy);
+        n.xy = (1.f - abs(n.yx)) * fastSign(n.xy);
     }
     return normalize(n);
 }
@@ -132,15 +140,14 @@ float3 perturbNormal(const float3 normal, const float3 pos, const float height) 
     // Orthogonalize the tangent vectors with respect to the normal.
     const float3 vS = cross(bitangent, normal);
     const float3 vT = cross(normal, tangent);
-    // Compute the determinant. Why not dot(normal, cross(tangent, bitangent))?
+    // Compute the determinant.
     const float det = dot(tangent, vS);
     // Compute partial derivatives of the height (bump) map.
     const float hS = ddx_fine(height);
     const float hT = ddy_fine(height);
     // Compute the surface gradient.
     // We avoid the division by the determinant and instead only apply its sign.
-    const float  signDet  = (det >= 0.f) ? 1.f : -1.f;
-    const float3 surfGrad = signDet * (hS * vS + hT * vT);
+    const float3 surfGrad = fastSign(det) * (hS * vS + hT * vT);
     // Compute the normal.
     // We apply scaling by the value of the determinant here.
     return normalize(normal * abs(det) - surfGrad);
