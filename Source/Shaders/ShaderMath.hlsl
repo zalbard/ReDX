@@ -18,6 +18,7 @@ float sq(float v) {
 }
 
 // Returns 1 for non-negative components, -1 otherwise.
+// Ignores the sign of negative zero.
 float2 nonNegative(const float2 p) {
     return float2((p.x >= 0.f) ? 1.f : -1.f,
                   (p.y >= 0.f) ? 1.f : -1.f);
