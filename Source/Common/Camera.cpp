@@ -148,7 +148,8 @@ Frustum PerspectiveCamera::computeViewFrustum() const {
     // Compute the bounding box.
     frustum.m_bBox = AABox::empty();
     for (size_t i = 0; i < 8; ++i) {
-        frustum.m_bBox.extend(frustumCorners[i] / XMVectorGetW(frustumCorners[i]));
+		const XMVECTOR pt = frustumCorners[i] / XMVectorGetW(frustumCorners[i]);
+        frustum.m_bBox.extend(pt);
     }
     return frustum;
 }

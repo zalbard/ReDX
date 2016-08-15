@@ -135,7 +135,7 @@ namespace D3D12 {
         return (prevSegStart <= currSegStart) ? dist : capacity + dist;
     }
 
-    inline UploadRingBuffer::UploadRingBuffer(UploadRingBuffer&& other) noexcept
+    inline UploadRingBuffer::UploadRingBuffer(UploadRingBuffer&& other)
         : resource{std::move(other.resource)}
         , begin{other.begin}
         , capacity{other.capacity}
@@ -146,7 +146,7 @@ namespace D3D12 {
         other.resource = nullptr;
     }
 
-    inline UploadRingBuffer& UploadRingBuffer::operator=(UploadRingBuffer&& other) noexcept {
+    inline UploadRingBuffer& UploadRingBuffer::operator=(UploadRingBuffer&& other) {
         if (resource) {
             resource->Unmap(0, nullptr);
         }
@@ -162,7 +162,7 @@ namespace D3D12 {
         return *this;
     }
 
-    inline UploadRingBuffer::~UploadRingBuffer() noexcept {
+    inline UploadRingBuffer::~UploadRingBuffer() {
         // Check if it was moved.
         if (resource) {
             resource->Unmap(0, nullptr);

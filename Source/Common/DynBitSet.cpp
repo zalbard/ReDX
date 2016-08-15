@@ -36,11 +36,11 @@ DynBitSet& DynBitSet::operator=(const DynBitSet& other) {
     return *this;
 }
 
-DynBitSet::DynBitSet(DynBitSet&& other) noexcept = default;
+DynBitSet::DynBitSet(DynBitSet&& other) = default;
 
-DynBitSet& DynBitSet::operator=(DynBitSet&& other) noexcept = default;
+DynBitSet& DynBitSet::operator=(DynBitSet&& other) = default;
 
-DynBitSet::~DynBitSet() noexcept = default;
+DynBitSet::~DynBitSet() = default;
 
 void DynBitSet::reset(const bool value) {
     const byte_t val = value ? 0xFF : 0x0;
